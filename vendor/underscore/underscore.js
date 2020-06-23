@@ -1546,6 +1546,7 @@
   // and correctly escapes quotes within interpolated code.
   // NB: `oldSettings` only exists for backwards compatibility.
   _.template = function(text, settings, oldSettings) {
+console.log("DEBUG", text, settings, oldSettings);
     if (!settings && oldSettings) settings = oldSettings;
     settings = _.defaults({}, settings, _.templateSettings);
 
@@ -1564,10 +1565,13 @@
       index = offset + match.length;
 
       if (escape) {
+console.error("ESCAPE: ", escape);
         source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
       } else if (interpolate) {
+console.error("INTERPOLATE: ", interpolate);
         source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
       } else if (evaluate) {
+console.error("EVALUATE: ", evaluate);
         source += "';\n" + evaluate + "\n__p+='";
       }
 

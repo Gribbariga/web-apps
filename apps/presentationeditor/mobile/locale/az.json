@@ -42,6 +42,20 @@
     },
     "HighlightColorPalette": {
       "textNoFill": "No Fill"
+    },
+    "VersionHistory": {
+      "notcriticalErrorTitle": "Warning",
+      "textAnonymous": "Anonymous",
+      "textBack": "Back",
+      "textCancel": "Cancel",
+      "textCurrent": "Current",
+      "textOk": "Ok",
+      "textRestore": "Restore",
+      "textVersion": "Version",
+      "textVersionHistory": "Version History",
+      "textWarningRestoreVersion": "Current file will be saved in version history.",
+      "titleWarningRestoreVersion": "Restore this version?",
+      "txtErrorLoadHistory": "Loading history failed"
     }
   },
   "ContextMenu": {
@@ -129,10 +143,13 @@
       "warnNoLicense": "Siz 1% redaktorlarına eyni vaxtda qoşulma limitinə çatdınız. Bu sənəd yalnız baxmaq üçün açılacaq. Şəxsi təkmilləşdirmə şərtləri üçün 1% satış komandası ilə əlaqə saxlayın.",
       "warnNoLicenseUsers": "1% redaktor üçün istifadəçi limitinə çatdınız. Şəxsi təkmilləşdirmə şərtləri üçün 1% satış komandası ilə əlaqə saxlayın.",
       "warnProcessRightsChange": "Faylı redaktə etmək icazəniz yoxdur.",
-      "textNoTextFound": "Text not found",
+      "textNoMatches": "No Matches",
       "textReplaceSkipped": "The replacement has been made. {0} occurrences were skipped.",
       "textReplaceSuccess": "The search has been done. Occurrences replaced: {0}",
-      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?"
+      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?",
+      "titleLicenseNotActive": "License not active",
+      "warnLicenseAnonymous": "Access denied for anonymous users.<br>This document will be opened for viewing only.",
+      "warnLicenseBefore": "License not active.<br>Please contact your administrator."
     }
   },
   "Error": {
@@ -219,7 +236,8 @@
     "dlgLeaveMsgText": "Bu sənəddə saxlanmamış dəyişiklikləriniz var. Avtomatik saxlanmanı gözləmək üçün \"Bu Səhifədə Qalın\" hissəsinin üzərinə klikləyin. Bütün saxlanmamış dəyişiklikləri ləğv etmək üçün \"Bu səhifədən Çıxın\" hissəsinin üzərinə klikləyin.",
     "dlgLeaveTitleText": "Proqramdan çıxdınız",
     "leaveButtonText": "Bu səhifədən çıxın",
-    "stayButtonText": "Bu Səhifədə Qalın"
+    "stayButtonText": "Bu Səhifədə Qalın",
+    "textCloseHistory": "Close History"
   },
   "View": {
     "Add": {
@@ -260,6 +278,7 @@
       "txtNotUrl": "Bu sahədə \"http://www.example.com\" formatında URL olmalıdır",
       "textDone": "Done",
       "textOk": "Ok",
+      "textPasteImageUrl": "Paste an image URL",
       "textRecommended": "Recommended",
       "textRequired": "Required"
     },
@@ -295,6 +314,7 @@
       "textBulletsAndNumbers": "Markerlər və Ədədlər",
       "textCaseSensitive": "Böyük/Kiçik Hərfə Həssas",
       "textCellMargins": "Xanalardakı Kənar Boşluqlar",
+      "textChangeShape": "Formanı dəyiş",
       "textChart": "Diaqram",
       "textClock": "Saat",
       "textClockwise": "Saat əqrəbi istiqamətində",
@@ -353,7 +373,6 @@
       "textNextSlide": "Növbəti Slayd",
       "textNone": "Heç biri",
       "textNoStyles": "Bu tip diaqram üçün üslub yoxdur.",
-      "textNoTextFound": "Mətn tapılmadı",
       "textNotUrl": "Bu sahədə \"http://www.example.com\" formatında URL olmalıdır",
       "textNumbers": "Nömrələr",
       "textOpacity": "Qeyri-şəffaf",
@@ -410,11 +429,15 @@
       "textArrange": "Arrange",
       "textAutomatic": "Automatic",
       "textCancel": "Cancel",
-      "textChangeShape": "Change Shape",
       "textDeleteImage": "Delete Image",
       "textDeleteLink": "Delete Link",
       "textDesign": "Design",
       "textInsertImage": "Insert Image",
+      "textMorph": "Morph",
+      "textMorphLetters": "Letters",
+      "textMorphObjects": "Objects",
+      "textMorphWords": "Words",
+      "textNoMatches": "No Matches",
       "textOk": "Ok",
       "textRecommended": "Recommended",
       "textRequired": "Required"
@@ -454,7 +477,6 @@
       "textLoading": "Yüklənir...",
       "textLocation": "Yer",
       "textMacrosSettings": "Makros Parametrləri",
-      "textNoTextFound": "Mətn tapılmadı",
       "textOwner": "Sahib",
       "textPoint": "Punkt",
       "textPoweredBy": "ilə enerji ilə təmin olunur",
@@ -500,9 +522,11 @@
       "notcriticalErrorTitle": "Warning",
       "textDarkTheme": "Dark Theme",
       "textFeedback": "Feedback & Support",
+      "textNoMatches": "No Matches",
       "textOk": "Ok",
       "textRestartApplication": "Please restart the application for the changes to take effect",
-      "textRTL": "RTL"
+      "textRTL": "RTL",
+      "textVersionHistory": "Version History"
     }
   }
 }

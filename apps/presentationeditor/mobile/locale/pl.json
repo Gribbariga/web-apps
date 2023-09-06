@@ -42,6 +42,20 @@
     },
     "HighlightColorPalette": {
       "textNoFill": "No Fill"
+    },
+    "VersionHistory": {
+      "notcriticalErrorTitle": "Warning",
+      "textAnonymous": "Anonymous",
+      "textBack": "Back",
+      "textCancel": "Cancel",
+      "textCurrent": "Current",
+      "textOk": "Ok",
+      "textRestore": "Restore",
+      "textVersion": "Version",
+      "textVersionHistory": "Version History",
+      "textWarningRestoreVersion": "Current file will be saved in version history.",
+      "titleWarningRestoreVersion": "Restore this version?",
+      "txtErrorLoadHistory": "Loading history failed"
     }
   },
   "ContextMenu": {
@@ -132,7 +146,12 @@
       "textReplaceSuccess": "The search has been done. Occurrences replaced: {0}",
       "textReplaceSkipped": "The replacement has been made. {0} occurrences were skipped.",
       "textNoTextFound": "Text not found",
-      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?"
+      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?",
+      "warnLicenseBefore": "License not active.<br>Please contact your administrator.",
+      "titleLicenseNotActive": "License not active",
+      "del_textNoTextFound": "Text not found",
+      "textNoMatches": "No Matches",
+      "warnLicenseAnonymous": "Access denied for anonymous users.<br>This document will be opened for viewing only."
     }
   },
   "Error": {
@@ -219,7 +238,8 @@
     "dlgLeaveMsgText": "You have unsaved changes in this document. Click 'Stay on this Page' to wait for autosave. Click 'Leave this Page' to discard all the unsaved changes.",
     "dlgLeaveTitleText": "You leave the application",
     "leaveButtonText": "Leave this page",
-    "stayButtonText": "Stay on this Page"
+    "stayButtonText": "Stay on this Page",
+    "textCloseHistory": "Close History"
   },
   "View": {
     "Add": {
@@ -261,7 +281,8 @@
       "textOk": "Ok",
       "textDone": "Done",
       "textRecommended": "Recommended",
-      "textRequired": "Required"
+      "textRequired": "Required",
+      "textPasteImageUrl": "Paste an image URL"
     },
     "Edit": {
       "notcriticalErrorTitle": "Warning",
@@ -421,7 +442,13 @@
       "textDeleteLink": "Delete Link",
       "textInsertImage": "Insert Image",
       "textRecommended": "Recommended",
-      "textRequired": "Required"
+      "textRequired": "Required",
+      "del_textNoTextFound": "Text not found",
+      "textNoMatches": "No Matches",
+      "textMorph": "Morph",
+      "textMorphObjects": "Objects",
+      "textMorphWords": "Words",
+      "textMorphLetters": "Letters"
     },
     "Settings": {
       "mniSlideStandard": "Standard (4:3)",
@@ -506,7 +533,10 @@
       "textOk": "Ok",
       "textRTL": "RTL",
       "textRestartApplication": "Please restart the application for the changes to take effect",
-      "notcriticalErrorTitle": "Warning"
+      "notcriticalErrorTitle": "Warning",
+      "del_textNoTextFound": "Text not found",
+      "textNoMatches": "No Matches",
+      "textVersionHistory": "Version History"
     }
   }
 }

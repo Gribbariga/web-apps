@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2020
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -186,6 +185,7 @@ define([
         },
 
         onRangeSelect: function () {
+            if (this.rangeSelectDlg) return;
             var me = this;
             var handlerDlg = function(dlg, result) {
                 if (result == 'ok') {
@@ -196,15 +196,16 @@ define([
                 }
             };
 
-            var win = new SSE.Views.CellRangeDialog({
+            this.rangeSelectDlg = new SSE.Views.CellRangeDialog({
                 handler: handlerDlg
             }).on('close', function() {
+                me.rangeSelectDlg = undefined;
                 _.delay(function(){
                     me.view.inputSelectRange.focus();
                 },1);
             });
-            win.show();
-            win.setSettings({
+            this.rangeSelectDlg.show();
+            this.rangeSelectDlg.setSettings({
                 api: me.api,
                 range: (!_.isEmpty(me.view.inputSelectRange.getValue()) && (me.view.inputSelectRange.checkValidate()==true)) ? me.view.inputSelectRange.getValue() : me._state.selectedRange,
                 type: Asc.c_oAscSelectionDialogType.PrintTitles
@@ -262,6 +263,7 @@ define([
             }
 
             this.hideResults();
+            this.api.asc_closeCellEditor();
 
             var options = new Asc.asc_CFindOptions();
             options.asc_setFindWhat(this._state.searchText);
@@ -292,6 +294,7 @@ define([
                 } else {
                     this.removeResultItems();
                 }
+                Common.NotificationCenter.trigger('search:updateresults');
                 return false;
             }
             this._state.isResults = true;
@@ -341,33 +344,38 @@ define([
             var me = this;
             if (this.api.isReplaceAll) {
                 if (!found) {
-                    this.removeResultItems();
+                    this.removeResultItems('replace-all', true);
                 } else {
-                    !(found-replaced) && this.removeResultItems();
-                    Common.UI.info({
+                    !(found-replaced) && this.removeResultItems('replace-all');
+                    /*Common.UI.info({
                         msg: (!(found-replaced) || replaced > found) ? Common.Utils.String.format(this.textReplaceSuccess,replaced) : Common.Utils.String.format(this.textReplaceSkipped,found-replaced),
                         callback: function() {
                             me.view.focus();
                         }
-                    });
+                    });*/
+                    !(found - replaced) || replaced > found ?
+                        this.view.updateResultsNumber('replace-all', replaced) :
+                        this.view.updateResultsNumber('replace', [replaced, found, found-replaced]);
                 }
             } else {
                 this.onQuerySearch();
             }
         },
 
-        removeResultItems: function (type) {
+        removeResultItems: function (type, noHide) {
             this.resultItems = [];
-            this.hideResults();
-            this.view.updateResultsNumber(type, 0); // type === undefined, count === 0 -> no matches
-            this._state.currentResult = 0;
-            this._state.resultsNumber = 0;
-            this.view.disableNavButtons();
-            Common.NotificationCenter.trigger('search:updateresults', undefined, 0);
+            type !== 'replace-all' && this.view.updateResultsNumber(type, 0); // type === undefined, count === 0 -> no matches
+            if (!noHide) {
+                this.hideResults();
+                this._state.currentResult = 0;
+                this._state.resultsNumber = 0;
+                this.view.disableNavButtons();
+                Common.NotificationCenter.trigger('search:updateresults', undefined, 0);
+            }
         },
 
         onApiRemoveTextAroundSearch: function (arr) {
-            if (!this.resultItems) return;
+            if (!this.resultItems || this.resultItems && this.resultItems.length === 0) return;
             var me = this;
             arr.forEach(function (id) {
                 var ind = _.findIndex(me.resultItems, {id: id});
@@ -498,7 +506,9 @@ define([
 
         hideResults: function () {
             if (this.view) {
-                this.view.$resultsContainer.hide();
+                if (this.view.$resultsContainer.find('.many-results').length === 0) {
+                    this.view.$resultsContainer.hide();
+                }
                 this.view.$resultsContainer.find('.search-items').empty();
             }
         },
@@ -596,6 +606,10 @@ define([
 
         getSearchText: function () {
             return this._state.searchText;
+        },
+
+        getResultsNumber: function () {
+            return [this._state.currentResult, this._state.resultsNumber];
         },
 
         onApiUpdateSearchElem: function (data) { // [id, sheet, name, cell, value, formula]

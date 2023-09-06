@@ -42,6 +42,20 @@
       "textCustomColors": "Colori personalizzati",
       "textStandartColors": "Colori standard",
       "textThemeColors": "Colori del tema"
+    },
+    "VersionHistory": {
+      "notcriticalErrorTitle": "Warning",
+      "textAnonymous": "Anonymous",
+      "textBack": "Back",
+      "textCancel": "Cancel",
+      "textCurrent": "Current",
+      "textOk": "Ok",
+      "textRestore": "Restore",
+      "textVersion": "Version",
+      "textVersionHistory": "Version History",
+      "textWarningRestoreVersion": "Current file will be saved in version history.",
+      "titleWarningRestoreVersion": "Restore this version?",
+      "txtErrorLoadHistory": "Loading history failed"
     }
   },
   "ContextMenu": {
@@ -112,7 +126,6 @@
       "textHasMacros": "Il file contiene delle macro automatiche.<br>Vuoi eseguirle?",
       "textNo": "No",
       "textNoLicenseTitle": "È stato raggiunto il limite della licenza",
-      "textNoTextFound": "Testo non trovato",
       "textOpenFile": "Inserisci la password per aprire il file",
       "textPaidFeature": "Funzionalità a pagamento",
       "textRemember": "Ricordare la mia scelta",
@@ -132,7 +145,11 @@
       "warnLicenseUsersExceeded": "Hai raggiunto il limite degli utenti per gli editor %1. Ti preghiamo di contattare il tuo amministratore per maggior informazioni.",
       "warnNoLicense": "Hai raggiunto il limite delle connessioni simultanee agli editor %1. Questo documento sarà aperto solo in modalità di visualizzazione.  Ti preghiamo di contattare il team di vendite di %1 per i termini di aggiornamento personali.",
       "warnNoLicenseUsers": "Hai raggiunto il limite degli utenti per gli editor %1. Ti preghiamo di contattare il team di vendite di %1 per i termini di aggiornamento personali.",
-      "warnProcessRightsChange": "Non hai il permesso di modificare il file."
+      "warnProcessRightsChange": "Non hai il permesso di modificare il file.",
+      "textNoMatches": "No Matches",
+      "titleLicenseNotActive": "License not active",
+      "warnLicenseAnonymous": "Access denied for anonymous users.<br>This document will be opened for viewing only.",
+      "warnLicenseBefore": "License not active.<br>Please contact your administrator."
     }
   },
   "Error": {
@@ -219,7 +236,8 @@
     "dlgLeaveMsgText": "Ci sono i cambiamenti non salvati in questo documento. Fai clic su \"Rimanere su questa pagina\" per attendere il salvataggio automatico. Fai clic su \"Lasciare questa pagina\" per eliminare tutti i cambiamenti non salvati.",
     "dlgLeaveTitleText": "Stai lasciando l'applicazione",
     "leaveButtonText": "Lasciare questa pagina",
-    "stayButtonText": "Rimanere su questa pagina"
+    "stayButtonText": "Rimanere su questa pagina",
+    "textCloseHistory": "Close History"
   },
   "View": {
     "Add": {
@@ -260,6 +278,7 @@
       "textTableSize": "Dimensione di tabella",
       "txtNotUrl": "Questo campo deve essere un URL nel formato \"http://www.example.com\"",
       "textDone": "Done",
+      "textPasteImageUrl": "Paste an image URL",
       "textRecommended": "Recommended",
       "textRequired": "Required"
     },
@@ -296,6 +315,7 @@
       "textBulletsAndNumbers": "Puntato e numerato",
       "textCaseSensitive": "Maiuscole/minuscole",
       "textCellMargins": "Margini di cella",
+      "textChangeShape": "Cambia forma",
       "textChart": "Grafico",
       "textClock": "Orologio",
       "textClockwise": "In senso orario",
@@ -355,7 +375,6 @@
       "textNextSlide": "Diapositiva successiva",
       "textNone": "Nessuno",
       "textNoStyles": "Nessuno stile per questo tipo di grafico.",
-      "textNoTextFound": "Testo non trovato",
       "textNotUrl": "Questo campo deve essere un URL nel formato \"http://www.example.com\"",
       "textNumbers": "Numeri",
       "textOk": "OK",
@@ -412,10 +431,14 @@
       "textZoomRotate": "Zoom e rotazione",
       "textArrange": "Arrange",
       "textCancel": "Cancel",
-      "textChangeShape": "Change Shape",
       "textDeleteImage": "Delete Image",
       "textDeleteLink": "Delete Link",
       "textInsertImage": "Insert Image",
+      "textMorph": "Morph",
+      "textMorphLetters": "Letters",
+      "textMorphObjects": "Objects",
+      "textMorphWords": "Words",
+      "textNoMatches": "No Matches",
       "textRecommended": "Recommended",
       "textRequired": "Required"
     },
@@ -457,7 +480,6 @@
       "textLoading": "Caricamento...",
       "textLocation": "Posizione",
       "textMacrosSettings": "Impostazioni macro",
-      "textNoTextFound": "Testo non trovato",
       "textOk": "OK",
       "textOwner": "Proprietario",
       "textPoint": "Punto",
@@ -502,7 +524,9 @@
       "txtScheme6": "Concorso",
       "txtScheme7": "Equità",
       "txtScheme8": "Flusso",
-      "txtScheme9": "Fonderia"
+      "txtScheme9": "Fonderia",
+      "textNoMatches": "No Matches",
+      "textVersionHistory": "Version History"
     }
   }
 }

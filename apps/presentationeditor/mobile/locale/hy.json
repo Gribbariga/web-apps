@@ -27,7 +27,7 @@
       "textEditUser": "Փաստաթուղթը խմբագրողներ՝",
       "textMessageDeleteComment": "Իսկապե՞ս ցանկանում եք ջնջել այս մեկնաբանությունը:",
       "textMessageDeleteReply": "Իսկապե՞ս ցանկանում եք ջնջել այս մեկնաբանությունը:",
-      "textNoComments": "Փաստաթղթում մեկնաբանություններ չկան",
+      "textNoComments": "Մեկնաբանություններ չկան",
       "textOk": "Լավ",
       "textReopen": "Նորից բացել",
       "textResolve": "Լուծել",
@@ -42,6 +42,20 @@
       "textCustomColors": "Հարմարեցված գույներ",
       "textStandartColors": "Ստանդարտ գույներ",
       "textThemeColors": "Ոճի գույներ"
+    },
+    "VersionHistory": {
+      "notcriticalErrorTitle": "Warning",
+      "textAnonymous": "Anonymous",
+      "textBack": "Back",
+      "textCancel": "Cancel",
+      "textCurrent": "Current",
+      "textOk": "Ok",
+      "textRestore": "Restore",
+      "textVersion": "Version",
+      "textVersionHistory": "Version History",
+      "textWarningRestoreVersion": "Current file will be saved in version history.",
+      "titleWarningRestoreVersion": "Restore this version?",
+      "txtErrorLoadHistory": "Loading history failed"
     }
   },
   "ContextMenu": {
@@ -112,7 +126,7 @@
       "textHasMacros": "Ֆայլում կան ինքնաշխատ մակրոներ։<br>Գործարկե՞լ դրանք։",
       "textNo": "Ոչ",
       "textNoLicenseTitle": "Լիցենզիայի սահմանաչափը հասել է",
-      "textNoTextFound": "Տեքստը չի գտնվել",
+      "textNoMatches": "Համընկնում չկա",
       "textOpenFile": "Մուտքագրել գաղտնաբառ՝ ֆայլը բացելու համար",
       "textPaidFeature": "Վճարովի գործառույթ",
       "textRemember": "Հիշել իմ ընտրությունը",
@@ -121,10 +135,13 @@
       "textRequestMacros": "Մակրոն հարցում է անում URL-ին: Ցանկանու՞մ եք թույլ տալ հարցումը %1-ին:",
       "textYes": "Այո",
       "titleLicenseExp": "Լիցենզիայի ժամկետը լրացել է",
+      "titleLicenseNotActive": "Լիցենզիան ակտիվ չէ",
       "titleServerVersion": "Խմբագրիչը արդիացվել է",
       "titleUpdateVersion": "Տարբերակը փոխվել է",
       "txtIncorrectPwd": "Գաղտնաբառը սխալ է",
       "txtProtected": "Երբ գաղտնաբառը մուտքագրեք ու նիշքը բացեք, ընթացիկ գաղտնաբառը կվերակայվի",
+      "warnLicenseAnonymous": "Մուտքն արգելված է անանուն օգտատերերի համար:<br>Այս փաստաթուղթը կբացվի միայն դիտելու համար:",
+      "warnLicenseBefore": "Լիցենզիան ակտիվ չէ:<br> Խնդրում ենք կապվել ձեր ադմինիստրատորի հետ:",
       "warnLicenseExceeded": "Դուք հասել եք %1 խմբագիրների հետ միաժամանակյա միացումների սահմանաչափին:Այս փաստաթուղթը կբացվի միայն դիտելու համար:Կապվեք Ձեր ադմինիստրատորի հետ՝ ավելին իմանալու համար:",
       "warnLicenseExp": "Ձեր լիցենզիայի ժամկետը լրացել է:Խնդրում ենք արդիացնել այն և թարմացնել էջը։",
       "warnLicenseLimitedNoAccess": "Լիցենզիայի ժամկետը լրացել է։Փաստաթղթերի խմբագրման գործառույթից օգտվելու հնարավորություն չունեք:Խնդրում ենք կապվել Ձեր ադմինիստրատորի հետ:",
@@ -219,7 +236,8 @@
     "dlgLeaveMsgText": "Դուք այս փաստաթղթում չպահված փոփոխություններ ունեք:Սեղմեք «Մնալ այս էջում»՝ սպասելու ավտոմատ պահպանմանը:Սեղմեք «Լքել այս էջը»՝ չպահված բոլոր փոփոխությունները մերժելու համար:",
     "dlgLeaveTitleText": "Ծրագրից դուրս եք գալիս",
     "leaveButtonText": "Լքել այս էջը",
-    "stayButtonText": "Մնալ այս էջում"
+    "stayButtonText": "Մնալ այս էջում",
+    "textCloseHistory": "Close History"
   },
   "View": {
     "Add": {
@@ -248,6 +266,7 @@
       "textNextSlide": "Հաջորդ սահիկ",
       "textOk": "Լավ",
       "textOther": "Այլ",
+      "textPasteImageUrl": "Տեղադրեք պատկերի URL",
       "textPictureFromLibrary": "Նկար գրադարանից",
       "textPictureFromURL": "Նկար URL-ից",
       "textPreviousSlide": "Նախորդ սահիկ",
@@ -359,9 +378,9 @@
       "textMoveBackward": "Տանել հետ",
       "textMoveForward": "Տանել առաջ",
       "textNextSlide": "Հաջորդ սահիկ",
+      "textNoMatches": "Համընկնում չկա",
       "textNone": "Ոչ մեկը",
       "textNoStyles": "Այս տեսակի գծապատկերների համար ոճեր չկան:",
-      "textNoTextFound": "Տեքստը չի գտնվել",
       "textNotUrl": "Այս դաշտը պիտի լինի URL հասցե՝ \"http://www.example.com\" ձևաչափով։ ",
       "textNumbers": "Թվեր",
       "textOk": "Լավ",
@@ -417,7 +436,11 @@
       "textZoom": "Խոշորացնել",
       "textZoomIn": "Մեծացնել",
       "textZoomOut": "Փոքրացնել",
-      "textZoomRotate": "Դիտափոխում և պտտում"
+      "textZoomRotate": "Դիտափոխում և պտտում",
+      "textMorph": "Morph",
+      "textMorphLetters": "Letters",
+      "textMorphObjects": "Objects",
+      "textMorphWords": "Words"
     },
     "Settings": {
       "mniSlideStandard": "Ստանդարտ (4:3)",
@@ -457,7 +480,7 @@
       "textLoading": "Բեռնում...",
       "textLocation": "Տեղ",
       "textMacrosSettings": "Մակրոների կարգավորումներ",
-      "textNoTextFound": "Տեքստը չի գտնվել",
+      "textNoMatches": "Համընկնում չկա",
       "textOk": "Լավ",
       "textOwner": "Տնօրինող",
       "textPoint": "Կետ",
@@ -502,7 +525,8 @@
       "txtScheme6": "Համագումար ",
       "txtScheme7": "Սեփական կապիտալ",
       "txtScheme8": "Հոսք",
-      "txtScheme9": "Հրատարակիչ"
+      "txtScheme9": "Հրատարակիչ",
+      "textVersionHistory": "Version History"
     }
   }
 }

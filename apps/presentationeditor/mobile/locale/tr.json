@@ -42,6 +42,20 @@
     },
     "HighlightColorPalette": {
       "textNoFill": "No Fill"
+    },
+    "VersionHistory": {
+      "notcriticalErrorTitle": "Warning",
+      "textAnonymous": "Anonymous",
+      "textBack": "Back",
+      "textCancel": "Cancel",
+      "textCurrent": "Current",
+      "textOk": "Ok",
+      "textRestore": "Restore",
+      "textVersion": "Version",
+      "textVersionHistory": "Version History",
+      "textWarningRestoreVersion": "Current file will be saved in version history.",
+      "titleWarningRestoreVersion": "Restore this version?",
+      "txtErrorLoadHistory": "Loading history failed"
     }
   },
   "ContextMenu": {
@@ -129,10 +143,13 @@
       "warnNoLicense": "%1 düzenleyiciye eşzamanlı bağlantı sınırına ulaştınız. Bu belge yalnızca görüntüleme için açılacaktır. Kişisel yükseltme koşulları için %1 satış ekibiyle iletişime geçin.",
       "warnNoLicenseUsers": "%1 düzenleyici için kullanıcı sınırına ulaştınız. Kişisel yükseltme koşulları için %1 satış ekibiyle iletişime geçin.",
       "warnProcessRightsChange": "Dosyayı düzenleme izniniz yok.",
-      "textNoTextFound": "Text not found",
+      "textNoMatches": "No Matches",
       "textReplaceSkipped": "The replacement has been made. {0} occurrences were skipped.",
       "textReplaceSuccess": "The search has been done. Occurrences replaced: {0}",
-      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?"
+      "textRequestMacros": "A macro makes a request to URL. Do you want to allow the request to the %1?",
+      "titleLicenseNotActive": "License not active",
+      "warnLicenseAnonymous": "Access denied for anonymous users.<br>This document will be opened for viewing only.",
+      "warnLicenseBefore": "License not active.<br>Please contact your administrator."
     }
   },
   "Error": {
@@ -219,7 +236,8 @@
     "dlgLeaveMsgText": "Bu belgede kaydedilmemiş değişiklikleriniz var. Otomatik kaydetmeyi beklemek için 'Bu Sayfada Kal' seçeneğini tıklayın. Kaydedilmemiş tüm değişiklikleri atmak için 'Bu Sayfadan Ayrıl'ı tıklayın.",
     "dlgLeaveTitleText": "Uygulamadan çıktınız",
     "leaveButtonText": "Bu Sayfadan Ayrıl",
-    "stayButtonText": "Bu Sayfada Kal"
+    "stayButtonText": "Bu Sayfada Kal",
+    "textCloseHistory": "Close History"
   },
   "View": {
     "Add": {
@@ -260,6 +278,7 @@
       "textTableSize": "Tablo Boyutu",
       "txtNotUrl": "Bu alan, \"http://www.example.com\" biçiminde bir URL olmalıdır.",
       "textDone": "Done",
+      "textPasteImageUrl": "Paste an image URL",
       "textRecommended": "Recommended",
       "textRequired": "Required"
     },
@@ -295,6 +314,7 @@
       "textBulletsAndNumbers": "madde imleri ve numaralandırma",
       "textCaseSensitive": "Büyük küçük harfe duyarlı",
       "textCellMargins": "Hücre Kenar Boşluğu",
+      "textChangeShape": "Şekli değiştir",
       "textChart": "Grafik",
       "textClock": "Saat",
       "textClockwise": "Saat yönünde",
@@ -353,7 +373,6 @@
       "textNextSlide": "Sonraki slayt",
       "textNone": "Hiçbiri",
       "textNoStyles": "Bu grafik türü için stil yok.",
-      "textNoTextFound": "Metin Bulunamadı",
       "textNotUrl": "Bu alan, \"http://www.example.com\" biçiminde bir URL olmalıdır.",
       "textNumbers": "Sayılar",
       "textOk": "Tamam",
@@ -409,11 +428,15 @@
       "textArrange": "Arrange",
       "textAutomatic": "Automatic",
       "textCancel": "Cancel",
-      "textChangeShape": "Change Shape",
       "textDeleteImage": "Delete Image",
       "textDeleteLink": "Delete Link",
       "textDesign": "Design",
       "textInsertImage": "Insert Image",
+      "textMorph": "Morph",
+      "textMorphLetters": "Letters",
+      "textMorphObjects": "Objects",
+      "textMorphWords": "Words",
+      "textNoMatches": "No Matches",
       "textPush": "Push",
       "textRecommended": "Recommended",
       "textRequired": "Required",
@@ -454,7 +477,6 @@
       "textLoading": "Yükleniyor...",
       "textLocation": "Konum",
       "textMacrosSettings": "Makro Ayarları",
-      "textNoTextFound": "Metin Bulunamadı",
       "textOwner": "Sahip",
       "textPoint": "Nokta",
       "textPoweredBy": "Tarafından",
@@ -497,9 +519,11 @@
       "notcriticalErrorTitle": "Warning",
       "textDarkTheme": "Dark Theme",
       "textFeedback": "Feedback & Support",
+      "textNoMatches": "No Matches",
       "textOk": "Ok",
       "textRestartApplication": "Please restart the application for the changes to take effect",
       "textRTL": "RTL",
+      "textVersionHistory": "Version History",
       "txtScheme14": "Oriel",
       "txtScheme17": "Solstice",
       "txtScheme19": "Trek"

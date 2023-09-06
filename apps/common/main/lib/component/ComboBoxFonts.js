@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ComboBoxFonts.js
  *
@@ -72,6 +71,12 @@ define([
             thumbs[2].path     = Common.Controllers.Desktop.call('getFontsSprite', '@1.5x');
             thumbs[3].path     = Common.Controllers.Desktop.call('getFontsSprite', '@1.75x');
             thumbs[4].path     = Common.Controllers.Desktop.call('getFontsSprite', '@2x');
+            /*thumbs[5].path     = Common.Controllers.Desktop.call('getFontsSprite', '@2.5x');
+            thumbs[6].path     = Common.Controllers.Desktop.call('getFontsSprite', '@3x');
+            thumbs[7].path     = Common.Controllers.Desktop.call('getFontsSprite', '@3.5x');
+            thumbs[8].path     = Common.Controllers.Desktop.call('getFontsSprite', '@4x');
+            thumbs[9].path     = Common.Controllers.Desktop.call('getFontsSprite', '@4.5x');
+            thumbs[10].path    = Common.Controllers.Desktop.call('getFontsSprite', '@5x');*/
         }
 
         var bestDistance = Math.abs(applicationPixelRatio-thumbs[0].ratio);
@@ -215,20 +220,20 @@ define([
             this.getImage = function(index, canvas, ctx) {
 
                 //var t1 = performance.now();
-                if (!canvas)
-                {
-                    canvas = document.createElement("canvas");
-                    canvas.width = this.width;
-                    canvas.height = this.heightOne;
-                    canvas.style.width = iconWidth + "px";
-                    canvas.style.height = iconHeight + "px";
-
-                    ctx = canvas.getContext("2d");
-                }
-
                 if (this.supportBinaryFormat) {
                     if (!this.data && !this.offsets) {
                         this.openBinary(this.binaryFormat);
+                    }
+
+                    if (!canvas)
+                    {
+                        canvas = document.createElement("canvas");
+                        canvas.width = this.width;
+                        canvas.height = this.heightOne;
+                        canvas.style.width = iconWidth + "px";
+                        canvas.style.height = iconHeight + "px";
+
+                        ctx = canvas.getContext("2d");
                     }
 
                     var dataTmp = ctx.createImageData(this.width, this.heightOne);
@@ -276,6 +281,17 @@ define([
                     }
                     ctx.putImageData(dataTmp, 0, 0);
                 } else {
+                    if (!canvas)
+                    {
+                        canvas = document.createElement("canvas");
+                        canvas.width = this.width;
+                        canvas.height = this.heightOne;
+                        canvas.style.width = iconWidth + "px";
+                        canvas.style.height = iconHeight + "px";
+
+                        ctx = canvas.getContext("2d");
+                    }
+
                     ctx.clearRect(0, 0, this.width, this.heightOne);
                     ctx.drawImage(this.image, 0, -this.heightOne * index);
                 }
@@ -642,6 +658,7 @@ define([
             },
 
             onAfterShowMenu: function(e) {
+                this.alignMenuPosition();
                 if (this.recent > 0) {
                     if (this.scroller && !this._scrollerIsInited) {
                         this.scroller.update();

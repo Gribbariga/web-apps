@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2022
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -74,7 +73,7 @@ define([
                     '</div>',
                     '<div id="id-protect-repeat-txt" class="input-row" style="margin-bottom: 10px;"></div>',
                     '<div class="" style="margin-bottom: 5px;">',
-                        '<label style="font-weight: bold;letter-spacing: 0.01em;margin-bottom: 5px;">' + t.txtAllow + '</label>',
+                        '<label class="font-weight-bold" style="margin-bottom: 5px;">' + t.txtAllow + '</label>',
                     '</div>',
                     '<div id="id-protect-radio-view" style="margin-bottom: 8px;"></div>',
                     '<div id="id-protect-radio-forms" style="margin-bottom: 8px;"></div>',

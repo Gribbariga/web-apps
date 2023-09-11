@@ -776,8 +776,8 @@ module.exports = function(grunt) {
 
     grunt.registerTask('deploy-app-mobile',             []);
 
-    grunt.registerTask('deploy-app-embed',              ['embed-app-init', 'clean:prebuild', 'terser', 'less', 'copy', 'clean:postbuild']);
-    grunt.registerTask('deploy-app-test',               ['test-app-init', 'clean:prebuild', 'terser', 'less', 'copy']);
+    grunt.registerTask('deploy-app-embed',              ['embed-app-init', 'clean:prebuild', 'less', 'copy', 'clean:postbuild']);
+    grunt.registerTask('deploy-app-test',               ['test-app-init', 'clean:prebuild', 'less', 'copy']);
 
     doRegisterInitializeAppTask('common',               'Common',               'common.json');
     doRegisterInitializeAppTask('documenteditor',       'DocumentEditor',       'documenteditor.json');

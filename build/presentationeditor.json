@@ -1,7 +1,7 @@
 {
     "name": "presentationeditor",
     "version": "4.3.0",
-    "build": 816,
+    "build": 821,
     "homepage": "http://www.onlyoffice.com",
     "private": true,
     "main": {
@@ -373,7 +373,6 @@
             "increment-build",
             "deploy-app-main",
             "deploy-reporter",
-            "deploy-app-mobile",
             "deploy-app-embed"
         ]
     }

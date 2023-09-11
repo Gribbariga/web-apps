@@ -1,7 +1,7 @@
 {
     "name": "spreadsheeteditor",
     "version": "4.3.0",
-    "build": 929,
+    "build": 934,
     "homepage": "http://www.onlyoffice.com",
     "private": true,
     "main": {
@@ -385,9 +385,7 @@
     "tasks": {
         "deploy": [
             "increment-build",
-            "deploy-app-main",
-            "deploy-app-mobile",
-            "deploy-app-embed"
+            "deploy-app-main"
         ]
     }
 }

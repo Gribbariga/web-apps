@@ -1,5 +1,9 @@
 [![License](https://img.shields.io/badge/License-GNU%20AGPL%20V3-green.svg?style=flat)](https://www.gnu.org/licenses/agpl-3.0.en.html)
 
+## Modifications by CryptPad
+
+This is a modified version of the OnlyOffice frontend. These modifications are made to replace OnlyOffice's server with the real time collaboration of CryptPad. See the branches with the `cp*` prefix for the mofifications we made.
+
 ## web-apps
 
 The frontend for [ONLYOFFICE Document Server][2]. Builds the program interface and allows the user create, edit, save and export text, spreadsheet and presentation documents using the common interface of a document editor.

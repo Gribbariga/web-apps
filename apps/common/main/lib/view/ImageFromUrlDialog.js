@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ImageFromUrlDialog.js
  *
- *  Created by Alexander Yuzhin on 2/18/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/18/14
  *
  */
 
@@ -46,7 +44,8 @@ define([
         options: {
             width: 330,
             header: false,
-            cls: 'modal-dlg'
+            cls: 'modal-dlg',
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -55,13 +54,9 @@ define([
             this.template = [
                 '<div class="box">',
                     '<div class="input-row">',
-                        '<label>' + this.textUrl + '</label>',
+                        '<label>' + (this.options.title || this.textUrl) + '</label>',
                     '</div>',
                     '<div id="id-dlg-url" class="input-row"></div>',
-                '</div>',
-                '<div class="footer right">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
                 '</div>'
             ].join('');
 
@@ -86,7 +81,15 @@ define([
             });
 
             var $window = this.getChild();
-            $window.find('.btn').on('click',     _.bind(this.onBtnClick, this));
+            $window.find('.dlg-btn').on('click',     _.bind(this.onBtnClick, this));
+        },
+
+        getFocusedComponents: function() {
+            return [this.inputUrl].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.inputUrl;
         },
 
         show: function() {
@@ -95,7 +98,7 @@ define([
             var me = this;
             _.delay(function(){
                 me.getChild('input').focus();
-            },500);
+            },100);
         },
 
         onPrimary: function(event) {
@@ -123,8 +126,6 @@ define([
         },
 
         textUrl         : 'Paste an image URL:',
-        cancelButtonText: 'Cancel',
-        okButtonText    : 'Ok',
         txtEmpty        : 'This field is required',
         txtNotUrl       : 'This field should be a URL in the format \"http://www.example.com\"'
     }, Common.Views.ImageFromUrlDialog || {}));

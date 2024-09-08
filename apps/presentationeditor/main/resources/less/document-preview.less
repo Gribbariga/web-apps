@@ -3,10 +3,13 @@
 }
 .preview-controls {
     display: table;
-    background: @gray-light;
+    background: @background-toolbar-ie;
+    background: @background-toolbar;
     height: 35px;
     z-index: 10;
     opacity: 0.2;
+    position: absolute;
+    bottom: 0;
 
     &:hover {
         opacity: 1 !important;
@@ -18,8 +21,10 @@
     }
 
     #preview-label-slides {
-        font: bold 11px Helvetica, Arial, Verdana, sans-serif;
-        color: #666666;
+        //font: bold 11px Helvetica, Arial, Verdana, sans-serif;
+        .font-size-normal();
+        color: @text-normal-ie;
+        color: @text-normal;
         text-shadow: none;
         white-space: nowrap;
         cursor: pointer;
@@ -27,39 +32,17 @@
 
     #btn-preview-prev {
         margin-left: 10px;
-        .btn-tpl(-1240px);
+        .rtl & {
+            margin-left: 0;
+        }
     }
     #btn-preview-next {
-        .btn-tpl(-1260px);
-    }
-    #btn-preview-play {
-        .btn-tpl(-1280px);
-
-        .icon.btn-pause {
-            background-position: 0 -1320px;
-
-            &:active {
-                background-position: -20px -1320px;
-            }
-        }
-
-        &[disabled] .icon.btn-pause {
-            background-position: -60px -1320px;
-        }
-
-        &.active {
-            .icon.btn-pause {
-                background-position: -20px -1320px;
-            }
+        .rtl & {
+            margin-right: 10px;
         }
     }
     #btn-preview-close {
-        margin-right: 10px;
-        .btn-tpl(-1300px);
-    }
-
-    #btn-preview-fullscreen {
-        .btn-tpl(-1440px);
+        .margin-right-10();
     }
 
     .separator {
@@ -71,13 +54,13 @@
         position: fixed;
         bottom: 33px;
         padding: 10px;
-        margin-left: 80px;
+        .margin-left(80px);
         margin-bottom: 2px;
         min-width: 130px;
 
         > label {
-              display: inline-block;
-              margin-right: 10px;
+            display: inline-block;
+            line-height:22px;
           }
 
         > input[type=text] {
@@ -86,9 +69,3 @@
           }
     }
 }
-
-:-webkit-full-screen #btn-preview-fullscreen{ .btn-tpl(-1420px); }
-:-moz-full-screen #btn-preview-fullscreen   { .btn-tpl(-1420px); }
-:-ms-fullscreen #btn-preview-fullscreen     { .btn-tpl(-1420px); }
-:fullscreen #btn-preview-fullscreen         { .btn-tpl(-1420px); }
-#btn-preview-fullscreen.fullscreen     { .btn-tpl(-1420px); }

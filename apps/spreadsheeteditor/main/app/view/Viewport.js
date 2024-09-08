@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    Viewport.js
  *
  *    View for viewport
  *
- *    Created by Maxim Kadushkin on 24 March 2014
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 24 March 2014
  *
  */
 
@@ -99,31 +97,54 @@ define([
                     stretch: true
                 }, {
                     el: items[3],
-                    height: 25
+                    alias: 'statusbar',
+                    height: Common.localStorage.getBool('sse-compact-statusbar', true) ? 25 : 50
                 }]
             });
 
             $container = $('#viewport-hbox-layout', el);
             items = $container.find(' > .layout-item');
+
+            let iarray = [{
+                el: items[0],
+                rely: true,
+                alias: 'left',
+                resize: {
+                    hidden: true,
+                    autohide: false,
+                    min: 300,
+                    max: 600,
+                    offset: 4
+                }
+            }, { // history versions
+                el: items[3],
+                rely: true,
+                alias: 'history',
+                resize: {
+                    hidden: true,
+                    autohide: false,
+                    min: 300,
+                    max: 600
+                }
+            }, {
+                el: items[1],
+                stretch: true
+            }, {
+                el: $(items[2]).hide(),
+                rely: true
+            }];
+
+            if ( Common.UI.isRTL() ) {
+                [iarray[0].resize.min, iarray[0].resize.max] = [-600, -300];
+                [iarray[1].resize.min, iarray[1].resize.max] = [-600, -300];
+
+                [iarray[0], iarray[3]] = [iarray[3], iarray[0]];
+                [iarray[1], iarray[2]] = [iarray[2], iarray[1]];
+            }
+
             this.hlayout = new Common.UI.HBoxLayout({
                 box: $container,
-                items: [{
-                    el: items[0],
-                    rely: true,
-                    resize: {
-                        hidden: true,
-                        autohide: false,
-                        min: 300,
-                        max: 600,
-                        offset: 4
-                    }
-                }, {
-                    el: items[1],
-                    stretch: true
-                }, {
-                    el: $(items[2]).hide(),
-                    rely: true
-                }]
+                items: iarray
             });
 
             $container = $container.find('.layout-ct.vbox');
@@ -135,7 +156,8 @@ define([
                     rely: true,
                     resize: {
                         min: 19,
-                        max: -100
+                        max: -100,
+                        multiply: { koeff: 18, offset: 2}
                     }
                 }, {
                     el: items[1],
@@ -151,6 +173,15 @@ define([
                 rightMenuView   = SSE.getController('RightMenu').getView('RightMenu');
 
             me._rightMenu   = rightMenuView.render(this.mode);
+            var value = Common.UI.LayoutManager.getInitValue('rightMenu');
+            value = (value!==undefined) ? !value : false;
+            Common.localStorage.getBool("sse-hidden-rightmenu", value) && me._rightMenu.hide();
+        },
+
+        applyCommonMode: function() {
+            var value = Common.UI.LayoutManager.getInitValue('leftMenu');
+            value = (value!==undefined) ? !value : false;
+            Common.localStorage.getBool("sse-hidden-leftmenu", value) && SSE.getController('LeftMenu').getView('LeftMenu').hide();
         },
 
         setMode: function(mode, delay) {

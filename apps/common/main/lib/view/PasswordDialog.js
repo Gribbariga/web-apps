@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  OpenDialog.js
  *
  *  Select Codepage for open CSV/TXT format file.
  *
- *  Created by Alexey.Musinov on 29/04/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 29/04/14
  *
  */
 
@@ -54,38 +52,33 @@ define([
                 _options = {};
 
             _.extend(_options,  {
-                width           : 350,
-                height          : 220,
+                width           : 395,
                 header          : true,
                 cls             : 'modal-dlg',
                 contentTemplate : '',
-                title           : t.txtTitle
+                title           : t.txtTitle,
+                buttons: ['ok', 'cancel']
 
             }, options);
 
+            this.handler        =   options.handler;
+
             this.template = options.template || [
-                '<div class="box" style="height:' + (_options.height - 85) + 'px;">',
+                '<div class="box">',
                     '<div class="input-row" style="margin-bottom: 10px;">',
                         '<label>' + t.txtDescription + '</label>',
                     '</div>',
                     '<div class="input-row">',
-                        '<label>' + t.txtPassword + '</label>',
+                        '<label>' + t.txtPassword + (t.passwordOptional ? ' (' + t.txtOptional + ')': '') + '</label>',
                     '</div>',
                     '<div id="id-password-txt" class="input-row" style="margin-bottom: 5px;"></div>',
                     '<div class="input-row">',
                         '<label>' + t.txtRepeat + '</label>',
                     '</div>',
-                    '<div id="id-repeat-txt" class="input-row"></div>',
-                '</div>',
-                '<div class="separator horizontal"/>',
-                '<div class="footer center">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right:10px;">' + t.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + t.cancelButtonText + '</button>',
+                    '<div id="id-repeat-txt" class="input-row" style="margin-bottom: 10px;"></div>',
+                    '<label>' + t.txtWarning + '</label>',
                 '</div>'
             ].join('');
-
-            this.handler        =   options.handler;
-            this.settings       =   options.settings;
 
             _options.tpl        =   _.template(this.template)(_options);
 
@@ -97,33 +90,37 @@ define([
             if (this.$window) {
                 var me = this;
                 this.$window.find('.dlg-btn').on('click', _.bind(this.onBtnClick, this));
-                    this.inputPwd = new Common.UI.InputField({
-                        el: $('#id-password-txt'),
-                        type: 'password',
-                        allowBlank  : false,
-                        style       : 'width: 100%;',
-                        validateOnBlur: false
-                    });
+
                     this.repeatPwd = new Common.UI.InputField({
                         el: $('#id-repeat-txt'),
                         type: 'password',
                         allowBlank  : false,
                         style       : 'width: 100%;',
+                        maxLength: 255,
                         validateOnBlur: false,
                         validation  : function(value) {
                             return me.txtIncorrectPwd;
                         }
                     });
+                    this.inputPwd = new Common.UI.InputFieldBtnPassword({
+                        el: $('#id-password-txt'),
+                        type: 'password',
+                        allowBlank  : false,
+                        style       : 'width: 100%;',
+                        maxLength: 255,
+                        validateOnBlur: false,
+                        repeatInput: this.repeatPwd,
+                        showPwdOnClick: false
+                    });
             }
         },
 
-        show: function() {
-            Common.UI.Window.prototype.show.apply(this, arguments);
+        getFocusedComponents: function() {
+            return [this.inputPwd, this.repeatPwd].concat(this.getFooterButtons());
+        },
 
-            var me = this;
-            setTimeout(function(){
-                me.inputPwd.cmpEl.find('input').focus();
-            }, 500);
+        getDefaultFocusableComponent: function () {
+            return this.inputPwd;
         },
 
         onPrimary: function(event) {
@@ -139,12 +136,12 @@ define([
             if (this.handler) {
                 if (state == 'ok') {
                     if (this.inputPwd.checkValidate() !== true)  {
-                        this.inputPwd.cmpEl.find('input').focus();
+                        this.inputPwd.focus();
                         return;
                     }
                     if (this.inputPwd.getValue() !== this.repeatPwd.getValue()) {
                         this.repeatPwd.checkValidate();
-                        this.repeatPwd.cmpEl.find('input').focus();
+                        this.repeatPwd.focus();
                         return;
                     }
                 }
@@ -154,13 +151,12 @@ define([
             this.close();
         },
 
-        okButtonText       : "OK",
-        cancelButtonText   : "Cancel",
         txtTitle           : "Set Password",
         txtPassword        : "Password",
         txtDescription     : "A Password is required to open this document",
         txtRepeat: 'Repeat password',
-        txtIncorrectPwd: 'Confirmation password is not identical'
+        txtIncorrectPwd: 'Confirmation password is not identical',
+        txtWarning: 'Warning: If you lose or forget the password, it cannot be recovered. Please keep it in a safe place.'
 
     }, Common.Views.PasswordDialog || {}));
 });

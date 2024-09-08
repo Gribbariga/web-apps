@@ -155,8 +155,8 @@
         else
             $scrollbarYRail.css({top: $this.scrollTop(), right: scrollbarYRight - $this.scrollLeft(), height: scrollbarYRailHeight, display: scrollbarYActive ? "inherit": "none"});
 
-        $scrollbarX.css({left: scrollbarXLeft, width: scrollbarXWidth});
-        $scrollbarY.css({top: scrollbarYTop, height: scrollbarYHeight});
+        $scrollbarX && $scrollbarX.css({left: scrollbarXLeft, width: scrollbarXWidth});
+        $scrollbarY && $scrollbarY.css({top: scrollbarYTop, height: scrollbarYHeight});
       };
 
       var updateBarSizeAndPosition = function () {
@@ -210,6 +210,7 @@
             currentPageX;
 
         $scrollbarX.bind('mousedown' + eventClassName, function (e) {
+          Common.NotificationCenter.trigger('hints:clear');
           currentPageX = e.pageX;
           currentLeft = $scrollbarX.position().left;
           $scrollbarXRail.addClass('in-scrolling');
@@ -240,12 +241,13 @@
             currentPageY;
 
         $scrollbarY.bind('mousedown' + eventClassName, function (e) {
+          Common.NotificationCenter.trigger('hints:clear');
           currentPageY = e.pageY;
           currentTop = $scrollbarY.position().top;
           $scrollbarYRail.addClass('in-scrolling');
 
             var margin = parseInt($scrollbarYRail.css('margin-top'));
-            var rect = $scrollbarYRail[0].getBoundingClientRect();
+            var rect = Common.Utils.getBoundingClientRect($scrollbarYRail[0]);
             $scrollbarYRail.css({
                 position: 'fixed',
                 left: rect.left,
@@ -316,6 +318,7 @@
 
         var shouldPrevent = false;
         $this.bind('mousewheel' + eventClassName, function (e, deprecatedDelta, deprecatedDeltaX, deprecatedDeltaY) {
+          Common.NotificationCenter.trigger('hints:clear');
           var deltaX = e.deltaX * e.deltaFactor || deprecatedDeltaX,
               deltaY = e.deltaY * e.deltaFactor || deprecatedDeltaY;
 

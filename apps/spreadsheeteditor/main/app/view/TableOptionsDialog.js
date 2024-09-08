@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  TableOptionsDialog.js
  *
- *  Created by Alexander Yuzhin on 4/9/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/9/14
  *
  */
 
@@ -51,9 +49,10 @@ define([
 
     SSE.Views.TableOptionsDialog = Common.UI.Window.extend(_.extend({
         options: {
-            width   : 350,
+            width   : 355,
             cls     : 'modal-dlg',
-            modal   : false
+            modal   : false,
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -64,11 +63,8 @@ define([
             this.template = [
                 '<div class="box">',
                     '<div id="id-dlg-tableoptions-range" class="input-row"  style="margin-bottom: 5px;"></div>',
-                    '<div class="input-row" id="id-dlg-tableoptions-title" style="margin-top: 5px;"></div>',
-                '</div>',
-                '<div class="footer right">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
+                    '<div class="input-row hidden" id="id-dlg-tableoptions-title" style="margin-top: 5px;"></div>',
+                    '<label class="" id="id-dlg-tableoptions-lbl" style="margin-top: 5px;">' + this.txtNote + '</label>',
                 '</div>'
             ].join('');
 
@@ -99,6 +95,8 @@ define([
                 labelText   : this.txtTitle
             });
 
+            me.lblNote =$window.find('#id-dlg-tableoptions-lbl');
+
             $window.find('.dlg-btn').on('click',     _.bind(this.onBtnClick, this));
 
             this.on('close', _.bind(this.onClose, this));
@@ -116,12 +114,13 @@ define([
                 me.api = settings.api;
 
                 if (settings.range) {
-                    me.cbTitle.setVisible(false);
-                    me.setHeight(130);
                     me.checkRangeType = Asc.c_oAscSelectionDialogType.FormatTableChangeRange;
                     me.inputRange.setValue(settings.range);
                     me.api.asc_setSelectionDialogMode(Asc.c_oAscSelectionDialogType.FormatTable, settings.range);
                 } else {
+                    me.cbTitle.$el && me.cbTitle.$el.removeClass('hidden');
+                    me.lblNote.addClass('hidden');
+                    me.setHeight(152);
                     var options = me.api.asc_getAddFormatTableOptions();
                     me.inputRange.setValue(options.asc_getRange());
                     me.cbTitle.setValue(options.asc_getIsTitle());
@@ -132,8 +131,10 @@ define([
                 if (settings.selectionType)
                     me.selectionType = settings.selectionType;
 
-                me.api.asc_unregisterCallback('asc_onSelectionRangeChanged', _.bind(me.onApiRangeChanged, me));
-                me.api.asc_registerCallback('asc_onSelectionRangeChanged', _.bind(me.onApiRangeChanged, me));
+                me.wrapEvents = {
+                    onApiRangeChanged: _.bind(me.onApiRangeChanged, me)
+                };
+                me.api.asc_registerCallback('asc_onSelectionRangeChanged', me.wrapEvents.onApiRangeChanged);
                 Common.NotificationCenter.trigger('cells:range', Asc.c_oAscSelectionDialogType.FormatTable);
             }
 
@@ -152,11 +153,10 @@ define([
                 return { selectionType: this.selectionType,  range: this.inputRange.getValue()};
         },
 
-        onApiRangeChanged: function(info) {
-            this.inputRange.setValue(info.asc_getName());
+        onApiRangeChanged: function(name) {
+            this.inputRange.setValue(name);
             if (this.inputRange.cmpEl.hasClass('error'))
                 this.inputRange.cmpEl.removeClass('error');
-            this.selectionType = info.asc_getType();
         },
 
         isRangeValid: function() {
@@ -177,6 +177,9 @@ define([
                     case Asc.c_oAscError.ID.MultiCellsInTablesFormulaArray:
                         Common.UI.warning({msg: this.errorMultiCellFormula});
                         break;
+                    case Asc.c_oAscError.ID.LargeRangeWarning:
+                        this.selectionType = Asc.c_oAscSelectionType.RangeMax;
+                        return true;
                 }
             }
             return false;
@@ -187,8 +190,10 @@ define([
         },
 
         onClose: function(event) {
-            if (this.api)
+            if (this.api) {
                 this.api.asc_setSelectionDialogMode(Asc.c_oAscSelectionDialogType.None);
+                this.api.asc_unregisterCallback('asc_onSelectionRangeChanged', this.wrapEvents.onApiRangeChanged);
+            }
             Common.NotificationCenter.trigger('cells:range', Asc.c_oAscSelectionDialogType.None);
             Common.NotificationCenter.trigger('edit:complete', this);
 
@@ -213,13 +218,13 @@ define([
         },
 
         txtTitle    : 'Title',
-        txtFormat   : 'Create table',
-        textCancel  : 'Cancel',
+        txtFormat   : 'Create Table',
         txtEmpty    : 'This field is required',
         txtInvalidRange: 'ERROR! Invalid cells range',
         errorAutoFilterDataRange: 'The operation could not be done for the selected range of cells.<br>Select a uniform data range inside or outside the table and try again.',
         errorFTChangeTableRangeError: 'Operation could not be completed for the selected cell range.<br>Select a range so that the first table row was on the same row<br>and the resulting table overlapped the current one.',
         errorFTRangeIncludedOtherTables: 'Operation could not be completed for the selected cell range.<br>Select a range which does not include other tables.',
-        errorMultiCellFormula: 'Multi-cell array formulas are not allowed in tables.'
+        errorMultiCellFormula: 'Multi-cell array formulas are not allowed in tables.',
+        txtNote: 'The headers must remain in the same row, and the resulting table range must overlap the original table range.'
     }, SSE.Views.TableOptionsDialog || {}))
 });

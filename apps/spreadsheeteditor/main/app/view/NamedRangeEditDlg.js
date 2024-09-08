@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,13 +28,12 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *
  *  NamedRangeEditDlg.js
  *
- *  Created by Julia.Radzhabova on 27.05.15
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 27.05.15
  *  
  */
 
@@ -51,8 +49,7 @@ define([
     SSE.Views.NamedRangeEditDlg =  Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             alias: 'NamedRangeEditDlg',
-            contentWidth: 380,
-            height: 250
+            contentWidth: 380
         },
 
         initialize: function (options) {
@@ -60,45 +57,39 @@ define([
             
             _.extend(this.options, {
                 title: this.txtTitleNew,
-                template: [
-                    '<div class="box" style="height:' + (me.options.height - 85) + 'px;">',
-                        '<div class="content-panel" style="padding: 0;"><div class="inner-content">',
-                            '<div class="settings-panel active">',
-                                '<table cols="2" style="width: 100%;">',
+                contentStyle: 'padding: 0;',
+                contentTemplate: _.template([
+                    '<div class="settings-panel active">',
+                        '<div class="inner-content">',
+                                '<table cols="1" style="width: 100%;">',
                                     '<tr>',
-                                        '<td colspan=2 class="padding-small">',
+                                        '<td class="padding-small">',
                                             '<label class="header">', me.textName,'</label>',
                                             '<div id="named-range-txt-name" class="input-row" style="width:100%;"></div>',
                                         '</td>',
                                     '</tr>',
                                     '<tr>',
-                                        '<td colspan=2 class="padding-small">',
+                                        '<td class="padding-small">',
                                             '<label class="header">', me.textScope,'</label>',
                                             '<div id="named-range-combo-scope" class="input-group-nr" style="width:100%;"></div>',
                                         '</td>',
                                     '</tr>', '<tr>',
-                                        '<td colspan=2 >',
+                                        '<td>',
                                             '<label class="header">', me.textDataRange, '</label>',
                                         '</td>',
                                     '</tr>',
                                     '<tr>',
-                                        '<td class="padding-small">',
-                                            '<div id="named-range-txt-range" class="input-row" style="margin-right: 10px;"></div>',
+                                        '<td class="padding-large">',
+                                            '<div id="named-range-txt-range" class="input-row"></div>',
                                         '</td>',
-                                        '<td class="padding-small" style="text-align: right;" width="100">',
-                                            '<button type="button" class="btn btn-text-default" id="named-range-btn-data" style="min-width: 100px;width: auto;">', me.textSelectData,'</button>',
+                                    '</tr>',
+                                    '<tr>',
+                                        '<td class="padding-small">',
                                         '</td>',
                                     '</tr>',
                                 '</table>',
-                            '</div></div>',
-                        '</div>',
-                    '</div>',
-                    '<div class="separator horizontal"></div>',
-                    '<div class="footer center">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;  width: 86px;">' + me.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel" style="width: 86px;">' + me.cancelButtonText + '</button>',
-                    '</div>'
-                ].join('')
+                            '</div></div>'
+                ].join(''))({scope: this})
             }, options);
 
             this.api        = options.api;
@@ -146,6 +137,10 @@ define([
                     }
                 }
             });
+            this.inputName._input.on('input', function (input, value) {
+                me.isInputFirstChange && me.inputName.showError();
+                me.isInputFirstChange = false;
+            });
 
             this.cmbScope = new Common.UI.ComboBox({
                 el          : $('#named-range-combo-scope'),
@@ -153,14 +148,16 @@ define([
                 menuStyle   : 'min-width: 100%;max-height: 280px;',
                 editable    : false,
                 cls         : 'input-group-nr',
-                data        : []
+                data        : [],
+                takeFocusOnClose: true
             });
 
-            this.txtDataRange = new Common.UI.InputField({
+            this.txtDataRange = new Common.UI.InputFieldBtn({
                 el          : $('#named-range-txt-range'),
                 name        : 'range',
                 style       : 'width: 100%;',
                 allowBlank  : true,
+                btnHint     : this.textSelectData,
                 blankError  : this.txtEmpty,
                 validateOnChange: true,
                 validation  : function(value) {
@@ -171,13 +168,19 @@ define([
                     return (isvalid!==Asc.c_oAscError.ID.DataRangeError || (me.isEdit && me.props.asc_getRef().toLowerCase() == value.toLowerCase())) ? true : me.textInvalidRange;
                 }
             });
+            this.txtDataRange.on('button:click', _.bind(this.onSelectData, this));
 
-            this.btnSelectData = new Common.UI.Button({
-                el: $('#named-range-btn-data')
-            });
-            this.btnSelectData.on('click', _.bind(this.onSelectData, this));
-            
             this.afterRender();
+        },
+
+        getFocusedComponents: function() {
+            return [this.inputName, this.cmbScope, this.txtDataRange].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            if (this._alreadyRendered) return; // focus only at first show
+            this._alreadyRendered = true;
+            return this.inputName;
         },
 
         afterRender: function() {
@@ -190,11 +193,6 @@ define([
 
         show: function() {
             Common.Views.AdvancedSettingsWindow.prototype.show.apply(this, arguments);
-
-            var me = this;
-            _.delay(function(){
-                me.inputName.cmpEl.find('input').focus();
-            },200);
         },
 
         _setDefaults: function (props) {
@@ -211,8 +209,7 @@ define([
                 this.txtDataRange.setValue((val) ? val : '');
                 this.dataRangeValid = val;
 
-                this.txtDataRange.setDisabled(this.isEdit && props.asc_getIsTable());
-                this.btnSelectData.setDisabled(this.isEdit && props.asc_getIsTable());
+                this.txtDataRange.setDisabled(this.isEdit && (props.asc_getType()===Asc.c_oAscDefNameType.table || props.asc_getType()===Asc.c_oAscDefNameType.slicer));
             } else
                 this.cmbScope.setValue(-255);
 
@@ -234,6 +231,9 @@ define([
                     handler: handlerDlg
                 }).on('close', function() {
                     me.show();
+                    _.delay(function(){
+                        me.txtDataRange.focus();
+                    },1);
                 });
 
                 var xy = me.$window.offset();
@@ -248,7 +248,7 @@ define([
         },
 
         getSettings: function() {
-            return (new Asc.asc_CDefName(this.inputName.getValue(), this.txtDataRange.getValue(), (this.cmbScope.getValue()==-255) ? null : this.cmbScope.getValue(), this.props.asc_getIsTable(), undefined, undefined, undefined, true));
+            return (new Asc.asc_CDefName(this.inputName.getValue(), this.txtDataRange.getValue(), (this.cmbScope.getValue()==-255) ? null : this.cmbScope.getValue(), this.props.asc_getType(), undefined, undefined, undefined, true));
         },
 
         onPrimary: function() {
@@ -275,11 +275,12 @@ define([
                 var checkname = this.inputName.checkValidate(),
                     checkrange = this.txtDataRange.checkValidate();
                 if (checkname !== true)  {
-                    this.inputName.cmpEl.find('input').focus();
+                    this.inputName.focus();
+                    this.isInputFirstChange = true;
                     return;
                 }
                 if (checkrange !== true) {
-                    this.txtDataRange.cmpEl.find('input').focus();
+                    this.txtDataRange.focus();
                     return;
                 }
                 this.handler && this.handler.call(this, state,  (state == 'ok') ? this.getSettings() : undefined);
@@ -321,8 +322,6 @@ define([
 
         txtTitleNew: 'New Name',
         txtTitleEdit: 'Edit Name',
-        cancelButtonText : 'Cancel',
-        okButtonText : 'Ok',
         textSelectData: 'Select Data',
         textName: 'Name',
         textScope: 'Scope',

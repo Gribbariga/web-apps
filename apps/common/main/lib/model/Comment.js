@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  Comments.js
  *
- *  Created by Alexey Musinov on 16.01.14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 16.01.14
  *
  */
 
@@ -56,6 +54,8 @@ define([
             guid                : '',
             userid              : 0,
             username            : 'Guest',
+            parsedName          : 'Guest',
+            parsedGroups        : undefined,
             usercolor           : null,
             date                : undefined,
             quote               : '',
@@ -64,6 +64,8 @@ define([
             lock                : false,
             lockuserid          : '',
             unattached          : false,
+            userdata            : '',
+            position            : -1,
 
             id                  : Common.UI.getId(),        //  internal
             time                : 0,
@@ -76,9 +78,12 @@ define([
             hideAddReply        : false,
             scope               : null,
             hide                : false,
+            filtered            : false,
             hint                : false,
+            fullInfoInHint      : false,
             dummy               : undefined,
-            editable            : true
+            editable            : true,
+            removable           : true
         }
     });
     Common.Models.Reply = Backbone.Model.extend({
@@ -86,15 +91,19 @@ define([
             time                : 0,                    //  acs
             userid              : 0,
             username            : 'Guest',
+            parsedName          : 'Guest',
             usercolor           : null,
             reply               : '',
             date                : undefined,
+            userdata            : '',
 
             id                  : Common.UI.getId(),    //  internal
             editText            : false,
             editTextInPopover   : false,
             scope               : null,
-            editable            : true
+            editable            : true,
+            removable           : true,
+            hide                : false
         }
     });
 });

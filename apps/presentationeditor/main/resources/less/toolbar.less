@@ -1,9 +1,6 @@
-@tabs-bg-color: #aa5252;
-
 .toolbar {
     &.masked {
         button.disabled .icon:not(.no-mask) {
-            background-position-x: 0px !important;
         }
         .group:not(.no-mask) {
             opacity: 0.4;
@@ -12,7 +9,11 @@
 
     .font-attr {
         > .btn-slot:not(:last-child):not(.split) {
-            margin-right: 8px;
+            .margin-right-4();
+        }
+
+        > .btn-slot:not(:last-child).split {
+            .margin-right-2();
         }
     }
 }
@@ -25,7 +26,8 @@
             &:hover,
             &.selected {
                 .layout > div:first-child {
-                    .box-shadow(0 0 0 2px @primary);
+                    .box-shadow(0 0 0 2px @highlight-button-pressed-ie);
+                    .box-shadow(0 0 0 2px @highlight-button-pressed);
                 }
             }
         }
@@ -36,6 +38,7 @@
                 text-align: center;
                 text-overflow: ellipsis;
                 white-space: normal;
+                line-height: 14px;
             }
 
             & > div:first-child {
@@ -45,275 +48,40 @@
     }
 }
 
-.item-markerlist {
-    .background-ximage('@{common-image-path}/toolbar/bullets-and-numbering.png', '@{common-image-path}/toolbar/bullets-and-numbering@2x.png', 38px);
-    width: 38px;
-    height: 38px;
-}
-
-.color-schemas-menu {
-    span {
-        &.colors {
-            display: inline-block;
-            margin-right: 15px;
-        }
-
-        &.color {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            margin-right: 2px;
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            vertical-align: middle;
-        }
-
-        &.text {
-            vertical-align: middle;
+#id-toolbar-menu-symbols {
+    display: inline-block;
+    width: 158px;
+    .padding-left(3px);
+    .item {
+        .box-shadow(none);
+        .margin-x(6px, 4px);
+        &:hover, &.selected{
+            .box-shadow( 0 0 0 2px @border-preview-select-ie);
+            .box-shadow( 0 0 0 @scaled-two-px-value @border-preview-select);
         }
     }
-    &.checked {
-        &:before {
-            display: none !important;
-        }
-        &, &:hover, &:focus {
-            background-color: @primary;
-            color: @dropdown-link-active-color;
-            span.color {
-                border-color: rgba(255,255,255,0.7);
-            }
-        }
-    }
-}
-
-// menu zoom
-.menu-zoom {
-    line-height: @line-height-base;
-    .title {
-        padding: 5px 5px 5px 20px;
-        float: left;
-        max-width: 95px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .zoom {
-        padding: 5px 3px;
-        float: right;
-        min-width: 40px;
+    .item-symbol {
+        display: block;
+        font-family: @font-family-base;
+        font-size: 14px;
+        width: 20px;
+        height: 20px;
         text-align: center;
+        line-height: 20px;
+        vertical-align: middle;
+
     }
 }
 
-// charts
-.menu-insertchart {
-    .group-description {
-        padding-left: 4px;
-    }
-
-    .group-items-container {
-        float: left;
-        position: relative;
-    }
+.item-markerlist {
+    width: 40px;
+    height: 40px;
 }
 
-.item-chartlist {
-    .background-ximage('@{common-image-path}/toolbar/charttypes.png', '@{common-image-path}/toolbar/charttypes@2x.png', 250px);
-    width: 50px;
-    height: 50px;
+.item-multilevellist {
+    width: 80px;
+    height: 80px;
 }
-
-.line-normal {
-    background-position: 0 0;
-}
-
-.line-stack {
-    background-position: -50px 0;
-}
-
-.line-pstack {
-    background-position: -100px 0;
-}
-
-.line-3d {
-    background-position: -150px 0;
-}
-
-.column-normal {
-    background-position: 0 -50px;
-}
-
-.column-stack{
-    background-position: -50px -50px;
-}
-
-.column-pstack{
-    background-position: -100px -50px;
-}
-
-.column-3d-normal {
-    background-position: -150px -50px;
-}
-
-.column-3d-stack{
-    background-position: -200px -50px;
-}
-
-.column-3d-pstack{
-    background-position: -150px -100px;
-}
-
-.column-3d-normal-per{
-    background-position: -200px -100px;
-}
-
-.bar-normal {
-    background-position: 0 -100px;
-}
-
-.bar-stack{
-    background-position: -50px -100px;
-}
-
-.bar-pstack{
-    background-position: -100px -100px;
-}
-
-.bar-3d-normal {
-    background-position: -150px -150px;
-}
-
-.bar-3d-stack{
-    background-position: -200px -150px;
-}
-
-.bar-3d-pstack{
-    background-position: -150px -200px;
-}
-
-.area-normal {
-    background-position: 0 -150px;
-}
-
-.area-stack{
-    background-position: -50px -150px;
-}
-
-.area-pstack{
-    background-position: -100px -150px;
-}
-
-.pie-normal {
-    background-position: 0 -200px;
-}
-
-.pie-3d-normal {
-    background-position: -200px -200px;
-}
-
-.point-normal{
-    background-position: -50px -200px;
-}
-
-.stock-normal{
-    background-position: -100px -200px;
-}
-
-.pie-doughnut{
-    background-position: -200px 0;
-}
-
-.surface-normal{
-    background-position: 0px -300px;
-}
-
-.surface-wireframe{
-    background-position: -50px -300px;
-}
-
-.contour-normal{
-    background-position: -100px -300px;
-}
-
-.contour-wireframe{
-    background-position: -150px -300px;
-}
-
-@toolbar-icon-size: 20px;
-.button-normal-icon(btn-changeslide,      7, @toolbar-icon-size);
-.button-normal-icon(btn-preview,          8, @toolbar-icon-size);
-.button-normal-icon(btn-print,            9, @toolbar-icon-size);
-.button-normal-icon(btn-save,             10, @toolbar-icon-size);
-.button-normal-icon(btn-synch,            11, @toolbar-icon-size);
-.button-normal-icon(btn-copy,             12, @toolbar-icon-size);
-.button-normal-icon(btn-decfont,          12, @toolbar-icon-size);
-.button-normal-icon(btn-paste,            13, @toolbar-icon-size);
-.button-normal-icon(btn-bold,             14, @toolbar-icon-size);
-.button-normal-icon(btn-italic,           15, @toolbar-icon-size);
-.button-normal-icon(btn-underline,        16, @toolbar-icon-size);
-.button-normal-icon(btn-strikeout,        17, @toolbar-icon-size);
-.button-normal-icon(btn-fontcolor,        18, @toolbar-icon-size);
-.button-normal-icon(btn-superscript,      19, @toolbar-icon-size);
-.button-normal-icon(btn-subscript,        20, @toolbar-icon-size);
-.button-normal-icon(btn-undo,             21, @toolbar-icon-size);
-.button-normal-icon(btn-redo,             22, @toolbar-icon-size);
-.button-normal-icon(btn-clearstyle,       23, @toolbar-icon-size);
-.button-normal-icon(btn-copystyle,        24, @toolbar-icon-size);
-.button-normal-icon(btn-setmarkers,       25, @toolbar-icon-size);
-.button-normal-icon(btn-numbering,        26, @toolbar-icon-size);
-.button-normal-icon(btn-align-center,     27, @toolbar-icon-size);
-.button-normal-icon(btn-align-just,       28, @toolbar-icon-size);
-.button-normal-icon(btn-align-left,       29, @toolbar-icon-size);
-.button-normal-icon(btn-align-right,      30, @toolbar-icon-size);
-.button-normal-icon(btn-align-top,        31, @toolbar-icon-size);
-.button-normal-icon(btn-align-middle,     32, @toolbar-icon-size);
-.button-normal-icon(btn-align-bottom,     33, @toolbar-icon-size);
-.button-normal-icon(btn-decoffset,        34, @toolbar-icon-size);
-.button-normal-icon(btn-incoffset,        35, @toolbar-icon-size);
-.button-normal-icon(btn-linespace,        36, @toolbar-icon-size);
-.button-normal-icon(btn-arrange-shape,    37, @toolbar-icon-size);
-.button-normal-icon(btn-align-shape,      38, @toolbar-icon-size);
-
-.button-normal-icon(btn-colorschemas,     45, @toolbar-icon-size);
-.button-normal-icon(btn-slidesize,        46, @toolbar-icon-size);
-.button-normal-icon(btn-hidebars,         47, @toolbar-icon-size);
-.button-normal-icon(btn-settings,         48, @toolbar-icon-size);
-.button-normal-icon(btn-zoomin,           61, @toolbar-icon-size);
-.button-normal-icon(btn-zoomout,          60, @toolbar-icon-size);
-.button-normal-icon(btn-save-coauth,      69, @toolbar-icon-size);
-
-.button-normal-icon(rotate-90,      79, @toolbar-icon-size);
-.button-normal-icon(rotate-270,     80, @toolbar-icon-size);
-.button-normal-icon(flip-hor,       81, @toolbar-icon-size);
-.button-normal-icon(flip-vert,      82, @toolbar-icon-size);
-
-.button-normal-icon(btn-ic-doclang,    75, @toolbar-icon-size);
-.button-normal-icon(btn-ic-docspell,    76, @toolbar-icon-size);
-
-@menu-icon-size: 22px;
-.menu-btn-icon(mnu-align-center,         0, @menu-icon-size);
-.menu-btn-icon(mnu-align-just,           1, @menu-icon-size);
-.menu-btn-icon(mnu-align-right,          2, @menu-icon-size);
-.menu-btn-icon(mnu-align-left,           3, @menu-icon-size);
-.menu-btn-icon(mnu-align-middle,         4, @menu-icon-size);
-.menu-btn-icon(mnu-align-bottom,         5, @menu-icon-size);
-.menu-btn-icon(mnu-align-top,            6, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-front,        7, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-back,         8, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-forward,      9, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-backward,    10, @menu-icon-size);
-.menu-btn-icon(mnu-group,               11, @menu-icon-size);
-.menu-btn-icon(mnu-ungroup,             12, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-left,    13, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-center,  14, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-right,   15, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-top,     16, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-middle,  17, @menu-icon-size);
-.menu-btn-icon(mnu-shape-align-bottom,  18, @menu-icon-size);
-.menu-btn-icon(mnu-distrib-hor,         19, @menu-icon-size);
-.menu-btn-icon(mnu-distrib-vert,        20, @menu-icon-size);
-.menu-btn-icon(mnu-direct-horiz,        21, @menu-icon-size);
-.menu-btn-icon(mnu-direct-rup,          22, @menu-icon-size);
-.menu-btn-icon(mnu-direct-rdown,        23, @menu-icon-size);
 
 .username-tip {
     background-color: #ee3525;
@@ -321,16 +89,11 @@
     border-radius: 0;
     padding: 3px 10px;
     color: #fff;
-    font: 11px arial;
+    .font-size-normal();
     white-space: nowrap;
     letter-spacing: 1px;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.item-equation {
-    border: 1px solid @gray;
-    .background-ximage('@{common-image-path}/toolbar/math.png', '@{common-image-path}/toolbar/math@2x.png', 1500px);
 }
 
 #plugins-panel {
@@ -339,16 +102,59 @@
     }
 }
 
-#special-paste-container {
+#special-paste-container,
+#equation-container {
     position: absolute;
     z-index: @zindex-dropdown - 20;
-    background-color: @gray-light;
-    border: 1px solid @gray;
+    background-color: @background-toolbar-ie;
+    background-color: @background-toolbar;
+    border: @scaled-one-px-value-ie solid @border-regular-control-ie;
+    border: @scaled-one-px-value solid @border-regular-control;
+
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px -5px rgba(0, 0, 0, 0.2);
+    .ie &,
+    .winxp & {
+        overflow: visible;
+    }
+}
+
+#equation-container {
+    .separator {
+        height: 30px;
+    }
+    &.has-open-menu {
+        z-index: @zindex-navbar + 1;
+    }
+    .btn-toolbar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 0px;
+    }
 }
 
 .item-theme {
-    width: 85px;
-    height: 38px;
-    .background-ximage('../../../../../../sdkjs/common/Images/themes_thumbnail.png', '../../../../../../sdkjs/common/Images/themes_thumbnail@2x.png', 85px);
+    width: 88px;
+    height: 40px;
+    .background-ximage-all-scale('../../../../../../sdkjs/common/Images/themes_thumbnail.png', 88px);
     background-size: cover
+}
+
+#slot-field-fontname {
+    width: 111px;
+}
+
+#slot-field-fontsize {
+    width: 40px;
+}
+
+.menu-insert-placeholder {
+    min-width: auto;
+    &.dropdown-menu li > a {
+        line-height: 22px;
+    }
 }

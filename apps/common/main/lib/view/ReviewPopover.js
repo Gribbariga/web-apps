@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -35,8 +34,7 @@
  *
  *  View
  *
- *  Created by Julia Radzhabova on 06.06.2018
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 06.06.2018
  *
  */
 
@@ -85,6 +83,7 @@ define([
                 height: 120,
                 header: false,
                 modal: false,
+                automove: false,
                 alias: 'Common.Views.ReviewPopover'
             }, options);
 
@@ -102,7 +101,8 @@ define([
             this.reviewStore = options.reviewStore;
             this.canRequestUsers = options.canRequestUsers;
             this.canRequestSendNotify = options.canRequestSendNotify;
-            this.externalUsers = [];
+            this.mentionShare = options.mentionShare;
+            this.api = options.api;
             this._state = {commentsVisible: false, reviewVisible: false};
 
             _options.tpl = _.template(this.template)(_options);
@@ -113,8 +113,7 @@ define([
             Common.UI.Window.prototype.initialize.call(this, _options);
 
             if (this.canRequestUsers) {
-                Common.Gateway.on('setusers', _.bind(this.setUsers, this));
-                Common.NotificationCenter.on('mentions:clearusers',   _.bind(this.clearUsers, this));
+                Common.NotificationCenter.on('mentions:setusers',   _.bind(this.onEmailListMenuCallback, this));
             }
 
             return this;
@@ -171,23 +170,36 @@ define([
                         var text = $(this.el).find('textarea');
                         return (text && text.length) ? text.val().trim() : '';
                     },
+                    disableTextBoxButton: function(textboxEl) {
+                        var button = $(textboxEl.siblings('#id-comments-change-popover')[0]);
+
+                        if(textboxEl.val().trim().length > 0) {
+                            button.removeAttr('disabled');
+                            button.removeClass('disabled');
+                        } else {
+                            button.attr('disabled', true);
+                            button.addClass('disabled');
+                        }
+                    },
                     autoHeightTextBox: function () {
                         var view = this,
                             textBox = this.$el.find('textarea'),
                             domTextBox = null,
-                            minHeight = 50,
+                            minHeight = 55,
                             lineHeight = 0,
                             scrollPos = 0,
                             oldHeight = 0,
                             newHeight = 0;
 
+
                         function updateTextBoxHeight() {
                             scrollPos = parentView.scroller.getScrollTop();
-
                             if (domTextBox.scrollHeight > domTextBox.clientHeight) {
-                                textBox.css({height: (domTextBox.scrollHeight + lineHeight) + 'px'});
+                                if (domTextBox.clientHeight + 2 < parseInt($(domTextBox).css('max-height'))) { // 2 = border of textarea
+                                    textBox.css({height: (domTextBox.scrollHeight + lineHeight) + 'px'});
 
-                                parentView.calculateSizeOfContent();
+                                    parentView.calculateSizeOfContent();
+                                }
                             } else {
                                 oldHeight = domTextBox.clientHeight;
                                 if (oldHeight >= minHeight) {
@@ -208,13 +220,20 @@ define([
                             parentView.autoScrollToEditButtons();
                         }
 
-                        if (textBox && textBox.length) {
+                        function onTextareaInput(event) {
+                            updateTextBoxHeight();
+                            view.disableTextBoxButton($(event.target));
+                        }
+
+
+                        if (textBox && textBox.length && parentView.scroller) {
                             domTextBox = textBox.get(0);
 
+                            view.disableTextBoxButton(textBox);
                             if (domTextBox) {
                                 lineHeight = parseInt(textBox.css('lineHeight'), 10) * 0.25;
                                 updateTextBoxHeight();
-                                textBox.bind('input propertychange', updateTextBoxHeight)
+                                textBox.bind('input propertychange', onTextareaInput)
                             }
                         }
 
@@ -235,16 +254,16 @@ define([
                 } else {
                     this.commentsView = new CommentsPopoverDataView({
                         el: $('#id-comments-popover'),
-                        store: me.commentsStore,
                         itemTemplate: _.template(replaceWords(commentsTemplate, {
                                 textAddReply: me.textAddReply,
+                                textMentionReply: me.canRequestSendNotify ? (me.mentionShare ? me.textMention : me.textMentionNotify) : me.textAddReply,
                                 textAdd: me.textAdd,
                                 textCancel: me.textCancel,
                                 textEdit: me.textEdit,
                                 textReply: me.textReply,
                                 textClose: me.textClose,
                                 maxCommLength: Asc.c_oAscMaxCellOrCommentLength,
-                                textMention: me.canRequestSendNotify ? me.textMention : ''
+                                textMentionComment: me.canRequestSendNotify ? (me.mentionShare ? me.textMention : me.textMentionNotify) : me.textEnterComment
                             })
                         )
                     });
@@ -257,13 +276,28 @@ define([
                         }
 
                         var arr = [],
-                            btns = $(view.el).find('.btn-resolve');
+                            btns = $(view.el).find('.btn-resolve:not(.comment-resolved)');
                         btns.tooltip({title: me.textResolve, placement: 'cursor'});
                         btns.each(function (idx, item) {
                             arr.push($(item).data('bs.tooltip').tip());
                         });
-                        btns = $(view.el).find('.btn-resolve-check');
+                        btns = $(view.el).find('.comment-resolved');
                         btns.tooltip({title: me.textOpenAgain, placement: 'cursor'});
+                        btns.each(function (idx, item) {
+                            arr.push($(item).data('bs.tooltip').tip());
+                        });
+                        btns = $(view.el).find('.i-comment-resolved');
+                        btns.tooltip({title: me.textViewResolved, placement: 'cursor'});
+                        btns.each(function (idx, item) {
+                            arr.push($(item).data('bs.tooltip').tip());
+                        });
+                        btns = $(view.el).find('.btn-edit');
+                        btns.tooltip({title: me.txtEditTip, placement: 'cursor'});
+                        btns.each(function (idx, item) {
+                            arr.push($(item).data('bs.tooltip').tip());
+                        });
+                        btns = $(view.el).find('.btn-delete');
+                        btns.tooltip({title: me.txtDeleteTip, placement: 'cursor'});
                         btns.each(function (idx, item) {
                             arr.push($(item).data('bs.tooltip').tip());
                         });
@@ -284,6 +318,9 @@ define([
                     this.commentsView.on('item:change', addtooltip);
                     this.commentsView.cmpEl.on('mouseover', onCommentsViewMouseOver).on('mouseout', onCommentsViewMouseOut);
 
+                    this.commentsView.setStore(me.commentsStore);
+                    this.commentsView.onResetItems();
+
                     this.commentsView.on('item:click', function (picker, item, record, e) {
                         var btn, showEditBox, showReplyBox, commentId, replyId, hideAddReply;
 
@@ -301,10 +338,15 @@ define([
 
                             if (record.get('hint')) {
                                 me.fireEvent('comment:disableHint', [record]);
-                                return;
+
+                                if(!record.get('fullInfoInHint'))
+                                    return;
                             }
 
                             if (btn.hasClass('btn-edit')) {
+                                var tip = btn.data('bs.tooltip');
+                                if (tip) tip.dontShow = true;
+
                                 if (!_.isUndefined(replyId)) {
                                     me.fireEvent('comment:closeEditing', [commentId]);
                                     me.fireEvent('comment:editReply', [commentId, replyId, true]);
@@ -345,6 +387,9 @@ define([
                                     }
                                 }
                             } else if (btn.hasClass('btn-delete')) {
+                                var tip = btn.data('bs.tooltip');
+                                if (tip) tip.dontShow = true;
+
                                 if (!_.isUndefined(replyId)) {
                                     me.fireEvent('comment:removeReply', [commentId, replyId]);
 
@@ -450,14 +495,7 @@ define([
 
                                 readdresolves();
 
-                            } else if (btn.hasClass('btn-resolve', false)) {
-                                var tip = btn.data('bs.tooltip');
-                                if (tip) tip.dontShow = true;
-
-                                me.fireEvent('comment:resolve', [commentId]);
-
-                                readdresolves();
-                            } else if (btn.hasClass('btn-resolve-check', false)) {
+                            } else if (btn.hasClass('btn-resolve')) {
                                 var tip = btn.data('bs.tooltip');
                                 if (tip) tip.dontShow = true;
 
@@ -469,8 +507,9 @@ define([
                     });
 
                     this.emailMenu = new Common.UI.Menu({
-                        maxHeight: 190,
+                        maxHeight: 200,
                         cyclic: false,
+                        cls: 'font-size-medium',
                         items: []
                     }).on('render:after', function(mnu) {
                         this.scroller = new Common.UI.Scroller({
@@ -497,8 +536,10 @@ define([
                         },
                         'animate:before': function () {
                             var text = me.$window.find('textarea');
-                            if (text && text.length)
+                            if (text && text.length){
                                 text.focus();
+                                me.commentsView.disableTextBoxButton(text);
+                            }
                         }
                     });
                 }
@@ -523,7 +564,6 @@ define([
                 } else {
                     this.reviewChangesView = new ReviewPopoverDataView({
                         el: $('#id-review-popover'),
-                        store: me.reviewStore,
                         itemTemplate: _.template(reviewTemplate)
                     });
 
@@ -540,6 +580,16 @@ define([
                         btns.each(function (idx, item) {
                             arr.push($(item).data('bs.tooltip').tip());
                         });
+                        btns = $(view.el).find('.btn-accept');
+                        btns.tooltip({title: me.txtAccept, placement: 'cursor'});
+                        btns.each(function (idx, item) {
+                            arr.push($(item).data('bs.tooltip').tip());
+                        });
+                        btns = $(view.el).find('.btn-reject');
+                        btns.tooltip({title: me.txtReject, placement: 'cursor'});
+                        btns.each(function (idx, item) {
+                            arr.push($(item).data('bs.tooltip').tip());
+                        });
                         view.tipsArray = arr;
                     };
 
@@ -551,8 +601,14 @@ define([
                         var btn = $(e.target);
                         if (btn) {
                             if (btn.hasClass('btn-accept')) {
+                                var tip = btn.data('bs.tooltip');
+                                if (tip) tip.dontShow = true;
+
                                 me.fireEvent('reviewchange:accept', [record.get('changedata')]);
                             } else if (btn.hasClass('btn-reject')) {
+                                var tip = btn.data('bs.tooltip');
+                                if (tip) tip.dontShow = true;
+
                                 me.fireEvent('reviewchange:reject', [record.get('changedata')]);
                             } else if (btn.hasClass('btn-delete')) {
                                 me.fireEvent('reviewchange:delete', [record.get('changedata')]);
@@ -564,6 +620,9 @@ define([
                             }
                         }
                     });
+
+                    this.reviewChangesView.setStore(me.reviewStore);
+                    this.reviewChangesView.onResetItems();
                 }
             }
 
@@ -705,7 +764,7 @@ define([
                 sdkBoundsTopPos = 0;
 
             if (commentsView && arrowView && editorView && editorView.get(0)) {
-                editorBounds = editorView.get(0).getBoundingClientRect();
+                editorBounds = Common.Utils.getBoundingClientRect(editorView.get(0));
                 if (editorBounds) {
                     sdkBoundsHeight = editorBounds.height - this.sdkBounds.padding * 2;
 
@@ -740,16 +799,22 @@ define([
                             this.sdkBounds.width -= sdkPanelThumbsWidth;
                         }
 
-                        leftPos = Math.min(sdkBoundsLeft + posX + this.arrow.width, sdkBoundsLeft + this.sdkBounds.width - this.$window.outerWidth() - 25);
-                        leftPos = Math.max(sdkBoundsLeft + sdkPanelLeftWidth + this.arrow.width, leftPos);
+                        if (!Common.UI.isRTL()) {
+                            leftPos = Math.min(sdkBoundsLeft + posX + this.arrow.width, sdkBoundsLeft + this.sdkBounds.width - this.$window.outerWidth() - 25);
+                            leftPos = Math.max(sdkBoundsLeft + sdkPanelLeftWidth + this.arrow.width, leftPos);
+                        } else {
+                            leftPos = Math.max(sdkBoundsLeft + sdkPanelLeftWidth + 25, sdkBoundsLeft + this.sdkBounds.width - this.$window.outerWidth() - posX + 7);
+                            leftPos = Math.min(sdkBoundsLeft + this.sdkBounds.width - this.$window.outerWidth() - 25, leftPos);
+                        }
 
-                        arrowView.removeClass('right').addClass('left');
+                        arrowView.removeClass('right top bottom').addClass('left');
+                        arrowView.css({left: ''});
 
                         if (!_.isUndefined(leftX)) {
                             windowWidth = this.$window.outerWidth();
                             if (windowWidth) {
-                                if ((posX + windowWidth > this.sdkBounds.width - this.arrow.width + 5) && (this.leftX > windowWidth)) {
-                                    leftPos = this.leftX - windowWidth + sdkBoundsLeft - this.arrow.width;
+                                if ((posX + windowWidth > this.sdkBounds.width - this.arrow.width + 5) && (this.leftX > windowWidth) || (Common.UI.isRTL() && sdkBoundsLeft + this.leftX > windowWidth + this.arrow.width)) {
+                                    leftPos = sdkBoundsLeft + this.leftX - windowWidth - this.arrow.width;
                                     arrowView.removeClass('left').addClass('right');
                                 } else {
                                     leftPos = sdkBoundsLeft + posX + this.arrow.width;
@@ -790,7 +855,7 @@ define([
                     }
                 }
             }
-            if (!retainContent)
+            if (!retainContent || this.isOverCursor())
                 this.calculateSizeOfContent();
         },
         calculateSizeOfContent: function (testVisible) {
@@ -810,6 +875,7 @@ define([
                 sdkPanelTop = '',
                 sdkPanelHeight = 0,
                 arrowPosY = 0,
+                arrowPosX = 0,
                 windowHeight = 0,
                 outerHeight = 0,
                 topPos = 0,
@@ -820,11 +886,11 @@ define([
 
                 commentsView.css({height: '100%'});
 
-                contentBounds = commentsView.get(0).getBoundingClientRect();
+                contentBounds = Common.Utils.getBoundingClientRect(commentsView.get(0));
                 if (contentBounds) {
                     editorView = $('#editor_sdk');
                     if (editorView && editorView.get(0)) {
-                        editorBounds = editorView.get(0).getBoundingClientRect();
+                        editorBounds = Common.Utils.getBoundingClientRect(editorView.get(0));
                         if (editorBounds) {
                             sdkBoundsHeight = editorBounds.height - this.sdkBounds.padding * 2;
                             sdkBoundsTopPos = sdkBoundsTop;
@@ -845,7 +911,46 @@ define([
 
                             outerHeight = Math.max(commentsView.outerHeight(), this.$window.outerHeight());
 
-                            if (sdkBoundsHeight <= outerHeight) {
+                            var movePos = this.isOverCursor();
+                            if (movePos) {
+                                var leftPos = parseInt(this.$window.css('left')) - this.arrow.width,
+                                    newTopDown = movePos[1][1] + sdkPanelHeight + this.arrow.width,// try move down
+                                    newTopUp = movePos[0][1] + sdkPanelHeight - this.arrow.width, // try move up
+                                    isMoveDown = false;
+                                if (newTopDown + outerHeight>sdkBoundsTop + sdkBoundsHeight) {
+                                    var diffDown = sdkBoundsTop + sdkBoundsHeight - newTopDown;
+                                    if (newTopUp - outerHeight<sdkBoundsTop) {
+                                        var diffUp = newTopUp - sdkBoundsTop;
+                                        if (diffDown < diffUp * 0.9) {// magic)
+                                            this.$window.css({
+                                                maxHeight: diffUp + 'px',
+                                                top: sdkBoundsTop + 'px'
+                                            });
+                                            commentsView.css({height: diffUp - 3 + 'px'});
+                                        } else {
+                                            this.$window.css({
+                                                maxHeight: diffDown + 'px',
+                                                top: newTopDown + 'px'
+                                            });
+                                            isMoveDown = true;
+                                            commentsView.css({height: diffDown - 3 + 'px'});
+                                        }
+                                    } else
+                                        this.$window.css('top', newTopUp - outerHeight + 'px'); // move up
+                                } else {
+                                    isMoveDown = true;
+                                    this.$window.css('top', newTopDown + 'px'); // move down
+                                }
+                                leftPos -= this.arrow.height;
+                                this.$window.css('left', leftPos + 'px');
+                                arrowPosX = movePos[isMoveDown ? 1 : 0][0];
+                                arrowPosX = Math.max(0, arrowPosX - leftPos - this.arrow.height/2);
+                                arrowPosX = Math.min(arrowPosX, this.$window.outerWidth() - this.arrow.height);
+                                arrowView.css({top: '', left: arrowPosX + 'px'});
+                                arrowView.toggleClass('top', isMoveDown);
+                                arrowView.toggleClass('bottom', !isMoveDown);
+                                arrowView.removeClass('left right');
+                            } else if (sdkBoundsHeight <= outerHeight) {
                                 this.$window.css({
                                     maxHeight: sdkBoundsHeight - sdkPanelHeight + 'px',
                                     top: sdkBoundsTop + sdkPanelHeight + 'px'
@@ -856,7 +961,9 @@ define([
                                 // arrowPosY = Math.max(this.arrow.margin, this.arrowPosY - sdkPanelHeight - this.arrow.width);
                                 arrowPosY = Math.min(arrowPosY, sdkBoundsHeight - (sdkPanelHeight + this.arrow.margin + this.arrow.height));
 
-                                arrowView.css({top: arrowPosY + 'px'});
+                                arrowView.css({top: arrowPosY + 'px', left: ''});
+                                arrowView.removeClass('top bottom right');
+                                arrowView.addClass('left');
                                 this.scroller.scrollTop(scrollPos);
                             } else {
 
@@ -874,7 +981,9 @@ define([
                                 arrowPosY = Math.max(this.arrow.margin, this.arrowPosY - (sdkBoundsHeight - outerHeight) - this.arrow.height);
                                 arrowPosY = Math.min(arrowPosY, outerHeight - this.arrow.margin - this.arrow.height);
 
-                                arrowView.css({top: arrowPosY + 'px'});
+                                arrowView.css({top: arrowPosY + 'px', left: ''});
+                                arrowView.removeClass('top bottom right');
+                                arrowView.addClass('left');
                             }
                         }
                     }
@@ -886,6 +995,30 @@ define([
                 this.scroller.update({minScrollbarLength: 40, alwaysVisibleY: true});
             }
         },
+
+        isOverCursor: function() {
+            if (!this.api.asc_GetSelectionBounds) return;
+            
+            var p = this.api.asc_GetSelectionBounds(),
+                isCursor = Math.abs(p[0][0] - p[1][0])<0.1 && Math.abs(p[0][1] - p[1][1])<0.1 && Math.abs(p[2][0] - p[3][0])<0.1 && Math.abs(p[2][1] - p[3][1])<0.1,
+                sdkPanelLeft = $('#id_panel_left'),
+                sdkPanelLeftWidth = 0;
+            if (sdkPanelLeft.length)
+                sdkPanelLeftWidth = (sdkPanelLeft.css('display') !== 'none') ? sdkPanelLeft.width() : 0;
+            var x0 = p[0][0] + sdkPanelLeftWidth, y0 = p[0][1],
+                x1 = p[isCursor ? 2 : 1][0] + sdkPanelLeftWidth, y1 = p[isCursor ? 2 : 1][1];
+            var leftPos = parseInt(this.$window.css('left')) - this.arrow.width,
+                windowWidth = this.$window.outerWidth() + this.arrow.width,
+                topPos = parseInt(this.$window.css('top')),
+                windowHeight = this.$window.outerHeight();
+            if (x0>leftPos && x0<leftPos+windowWidth && y0>topPos && y0<topPos+windowHeight ||
+                x1>leftPos && x1<leftPos+windowWidth && y1>topPos && y1<topPos+windowHeight) {
+                var newDown = (y0>y1) ? [x0, y0] : [x1, y1],// try move down
+                    newUp = (y0<y1) ? [x0, y0] : [x1, y1]; // try move up
+                return [newUp, newDown];
+            }
+        },
+
         saveText: function (clear) {
             if (this.commentsView && this.commentsView.cmpEl.find('.lock-area').length < 1) {
                 this.textVal = undefined;
@@ -945,7 +1078,7 @@ define([
                     $this.val($this.val().substring(0, start) + '\t' + $this.val().substring(end));
                     this.selectionStart = this.selectionEnd = start + 1;
 
-                    event.stopImmediatePropagation();
+                    // event.stopImmediatePropagation();
                     event.preventDefault();
                 }
 
@@ -954,28 +1087,30 @@ define([
 
             if (this.canRequestUsers) {
                 textBox && textBox.keydown(function (event) {
-                    if ( event.keyCode == Common.UI.Keys.SPACE ||
+                    if ( event.keyCode == Common.UI.Keys.SPACE || event.keyCode === Common.UI.Keys.TAB ||
                         event.keyCode == Common.UI.Keys.HOME || event.keyCode == Common.UI.Keys.END || event.keyCode == Common.UI.Keys.RIGHT ||
                         event.keyCode == Common.UI.Keys.LEFT || event.keyCode == Common.UI.Keys.UP) {
                         // hide email menu
                         me.onEmailListMenu();
                     } else if (event.keyCode == Common.UI.Keys.DOWN) {
-                        if (me.emailMenu && me.emailMenu.rendered && me.emailMenu.isVisible())
-                            _.delay(function() {
+                        if (me.emailMenu && me.emailMenu.rendered && me.emailMenu.isVisible()) {
+                            _.delay(function () {
                                 var selected = me.emailMenu.cmpEl.find('li:not(.divider):first');
                                 selected = selected.find('a');
                                 selected.focus();
                             }, 10);
+                            event.preventDefault();
+                        }
                     }
                     me.e = event;
                 });
                 textBox && textBox.on('input', function (event) {
                     var $this = $(this),
                         start = this.selectionStart,
-                        val = $this.val().replace(/[\n]$/, ""),
+                        val = $this.val(),
                         left = 0, right = val.length-1;
                     for (var i=start-1; i>=0; i--) {
-                        if (val.charCodeAt(i) == 32 /*space*/ || val.charCodeAt(i) == 13 || val.charCodeAt(i) == 10 || val.charCodeAt(i) == 9) {
+                        if (val.charCodeAt(i) == 32 /*space*/ || val.charCodeAt(i) == 13 /*enter*/ || val.charCodeAt(i) == 10 /*new line*/ || val.charCodeAt(i) == 9 /*tab*/) {
                             left = i+1; break;
                         }
                     }
@@ -989,7 +1124,8 @@ define([
                     if (res && res.length>1) {
                         str = res[1]; // send to show email menu
                         me.onEmailListMenu(str, left, right);
-                    }
+                    } else
+                        me.onEmailListMenu(); // hide email menu
                 });
             }
         },
@@ -1011,6 +1147,8 @@ define([
                         });
                     }
                 }, this);
+            if (this.emailMenu && this.emailMenu.rendered)
+                this.emailMenu.cmpEl.css('display', 'none');
         },
 
         isCommentsViewMouseOver: function () {
@@ -1029,17 +1167,6 @@ define([
                 this.commentsView.setStore(this.commentsStore);
         },
 
-        setUsers: function(data) {
-            this.externalUsers = data.users || [];
-            this.isUsersLoading = false;
-            this._state.emailSearch && this.onEmailListMenu(this._state.emailSearch.str, this._state.emailSearch.left, this._state.emailSearch.right);
-            this._state.emailSearch = null;
-        },
-
-        clearUsers: function() {
-            this.externalUsers = [];
-        },
-
         getPopover: function(options) {
             if (!this.popover)
                 this.popover = new Common.Views.ReviewPopover(options);
@@ -1049,12 +1176,12 @@ define([
         autoScrollToEditButtons: function () {
             var button = $('#id-comments-change-popover'),  // TODO: add to cache
                 btnBounds = null,
-                contentBounds = this.$window[0].getBoundingClientRect(),
+                contentBounds = Common.Utils.getBoundingClientRect(this.$window[0]),
                 moveY = 0,
                 padding = 7;
 
             if (button.length) {
-                btnBounds = button.get(0).getBoundingClientRect();
+                btnBounds = Common.Utils.getBoundingClientRect(button.get(0));
                 if (btnBounds && contentBounds) {
                     moveY = contentBounds.bottom - (btnBounds.bottom + padding);
                     if (moveY < 0) {
@@ -1064,104 +1191,112 @@ define([
             }
         },
 
-        onEmailListMenu: function(str, left, right, show) {
-            var me   = this,
-                users = me.externalUsers,
-                menu = me.emailMenu;
-
-            if (users.length<1) {
+        onEmailListMenu: function(str, left, right) {
+            if (typeof str == 'string') {
                 this._state.emailSearch = {
                     str: str,
                     left: left,
                     right: right
                 };
-
-                if (this.isUsersLoading) return;
-
-                this.isUsersLoading = true;
-                Common.Gateway.requestUsers();
-                return;
+                Common.UI.ExternalUsers.get('mention');
+            } else {
+                this._state.emailSearch = null;
+                this.emailMenu.rendered && this.emailMenu.cmpEl.css('display', 'none');
             }
-            if (typeof str == 'string') {
-                var menuContainer = me.$window.find(Common.Utils.String.format('#menu-container-{0}', menu.id)),
-                    textbox = this.commentsView.getTextBox(),
-                    textboxDom = textbox ? textbox[0] : null,
-                    showPoint = textboxDom ? [textboxDom.offsetLeft, textboxDom.offsetTop + textboxDom.clientHeight + 3] : [0, 0];
+        },
 
-                if (!menu.rendered) {
-                    // Prepare menu container
-                    if (menuContainer.length < 1) {
-                        menuContainer = $(Common.Utils.String.format('<div id="menu-container-{0}" style="position: absolute; z-index: 10000;"><div class="dropdown-toggle" data-toggle="dropdown"></div></div>', menu.id));
-                        me.$window.append(menuContainer);
-                    }
+        onEmailListMenuCallback: function(type, users) {
+            if (!this._state.emailSearch || users.length<1 || type && type!=='mention') return;
 
-                    menu.render(menuContainer);
-                    menu.cmpEl.css('min-width', textboxDom ? textboxDom.clientWidth : 220);
-                    menu.cmpEl.attr({tabindex: "-1"});
-                    menu.on('hide:after', function(){
-                        setTimeout(function(){
-                            var tb = me.commentsView.getTextBox();
-                            tb && tb.focus();
-                        }, 10);
+            var me   = this,
+                menu = me.emailMenu,
+                str = this._state.emailSearch.str,
+                left = this._state.emailSearch.left,
+                right = this._state.emailSearch.right;
+
+            this._state.emailSearch = null;
+
+            var menuContainer = me.$window.find(Common.Utils.String.format('#menu-container-{0}', menu.id)),
+                textbox = this.commentsView.getTextBox(),
+                textboxDom = textbox ? textbox[0] : null,
+                showPoint = textboxDom ? [textboxDom.offsetLeft, textboxDom.offsetTop + textboxDom.clientHeight + 3] : [0, 0];
+
+            if (!menu.rendered) {
+                // Prepare menu container
+                if (menuContainer.length < 1) {
+                    menuContainer = $(Common.Utils.String.format('<div id="menu-container-{0}" style="position: absolute; z-index: 10000;"><div class="dropdown-toggle" data-toggle="dropdown"></div></div>', menu.id));
+                    me.$window.append(menuContainer);
+                }
+
+                menu.render(menuContainer);
+                menu.cmpEl.css('min-width', textboxDom ? textboxDom.clientWidth : 220);
+                menu.cmpEl.attr({tabindex: "-1"});
+                menu.on('hide:after', function(){
+                    setTimeout(function(){
+                        var tb = me.commentsView.getTextBox();
+                        tb && tb.focus();
+                    }, 10);
+                });
+            }
+
+            for (var i = 0; i < menu.items.length; i++) {
+                menu.removeItem(menu.items[i]);
+                i--;
+            }
+
+            if (users.length>0) {
+                str = str.toLowerCase();
+                if (str.length>0) {
+                    users = _.filter(users, function(item) {
+                        return (item.email && 0 === item.email.toLowerCase().indexOf(str) || item.name && 0 === item.name.toLowerCase().indexOf(str))
                     });
                 }
-
-                for (var i = 0; i < menu.items.length; i++) {
-                    menu.removeItem(menu.items[i]);
-                    i--;
-                }
-
-                if (users.length>0) {
-                    str = str.toLowerCase();
-                    if (str.length>0) {
-                        users = _.filter(users, function(item) {
-                            return (item.email && 0 === item.email.toLowerCase().indexOf(str) || item.name && 0 === item.name.toLowerCase().indexOf(str))
-                        });
-                    }
-                    var tpl = _.template('<a id="<%= id %>" tabindex="-1" type="menuitem" style="font-size: 12px;"><div><%= Common.Utils.String.htmlEncode(caption) %></div><div style="color: #909090;"><%= Common.Utils.String.htmlEncode(options.value) %></div></a>'),
+                var tpl = _.template('<a id="<%= id %>" tabindex="-1" type="menuitem">' +
+                                        '<div style="overflow: hidden; text-overflow: ellipsis; max-width: 195px;"><%= Common.Utils.String.htmlEncode(caption) %></div>' +
+                                        '<div style="overflow: hidden; text-overflow: ellipsis; max-width: 195px; color: #909090;"><%= Common.Utils.String.htmlEncode(options.value) %></div>' +
+                                    '</a>'),
+                    divider = false;
+                _.each(users, function(menuItem, index) {
+                    if (divider && !menuItem.hasAccess) {
                         divider = false;
-                    _.each(users, function(menuItem, index) {
-                        if (divider && !menuItem.hasAccess) {
-                            divider = false;
-                            menu.addItem(new Common.UI.MenuItem({caption: '--'}));
-                        }
+                        menu.addItem(new Common.UI.MenuItem({caption: '--'}));
+                    }
 
-                        if (menuItem.email && menuItem.name) {
-                            var mnu = new Common.UI.MenuItem({
-                                caption     : menuItem.name,
-                                value       : menuItem.email,
-                                template    : tpl
-                            }).on('click', function(item, e) {
-                                me.insertEmailToTextbox(item.options.value, left, right);
-                            });
-                            menu.addItem(mnu);
-                            if (menuItem.hasAccess)
-                                divider = true;
-                        }
-                    });
-                }
+                    if (menuItem.email && menuItem.name) {
+                        var mnu = new Common.UI.MenuItem({
+                            caption     : menuItem.name,
+                            value       : menuItem.email,
+                            template    : tpl
+                        }).on('click', function(item, e) {
+                            me.insertEmailToTextbox(item.options.value, left, right);
+                        });
+                        menu.addItem(mnu);
+                        if (menuItem.hasAccess)
+                            divider = true;
+                    }
+                });
+            }
 
-                if (menu.items.length>0) {
-                    menuContainer.css({left: showPoint[0], top : showPoint[1]});
-                    menu.menuAlignEl = textbox;
-                    menu.show();
-                    menu.cmpEl.css('display', '');
-                    menu.alignPosition('bl-tl', -5);
-                    menu.scroller.update({alwaysVisibleY: true});
-                } else {
-                    menu.rendered && menu.cmpEl.css('display', 'none');
-                }
+            if (menu.items.length>0) {
+                menuContainer.css({left: showPoint[0], top : showPoint[1]});
+                menu.menuAlignEl = textbox;
+                menu.show();
+                menu.cmpEl.css('display', '');
+                menu.alignPosition('bl-tl', -5);
+                menu.scroller.update({alwaysVisibleY: true});
             } else {
                 menu.rendered && menu.cmpEl.css('display', 'none');
             }
         },
 
         insertEmailToTextbox: function(str, left, right) {
-            var textBox = this.commentsView.getTextBox(),
-                val = textBox.val();
-            textBox.val(val.substring(0, left) + '+' + str + val.substring(right+1, val.length));
+            var textBox = this.commentsView.getTextBox();
+            if (!textBox) return;
+
+            var val = textBox.val();
+            textBox.val(val.substring(0, left) + '+' + str + ' ' + val.substring(right+1, val.length));
             setTimeout(function(){
-                textBox[0].selectionStart = textBox[0].selectionEnd = left + str.length + 1;
+                textBox[0].selectionStart = textBox[0].selectionEnd = left + str.length + 2;
             }, 10);
         },
 
@@ -1174,6 +1309,13 @@ define([
         textResolve             : 'Resolve',
         textOpenAgain           : "Open Again",
         textFollowMove          : 'Follow Move',
-        textMention             : '+mention will provide access to the document and send an email'
+        textMention             : '+mention will provide access to the document and send an email',
+        textMentionNotify       : '+mention will notify the user via email',
+        textEnterComment        : 'Enter your comment here',
+        textViewResolved        : 'You have not permission for reopen comment',
+        txtAccept: 'Accept',
+        txtReject: 'Reject',
+        txtEditTip: 'Edit',
+        txtDeleteTip: 'Delete'
     }, Common.Views.ReviewPopover || {}))
 });

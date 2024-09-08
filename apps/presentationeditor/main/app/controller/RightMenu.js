@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  RightMenu.js
  *
- *  Created by Julia Radzhabova on 4/10/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/10/14
  *
  */
 
@@ -55,10 +53,24 @@ define([
         initialize: function() {
             this.editMode = true;
             this._state = {no_slides: undefined};
+            this._initSettings = true;
+            this._priorityArr = [];
 
             this.addListeners({
                 'RightMenu': {
-                    'rightmenuclick': this.onRightMenuClick
+                    'rightmenuclick': this.onRightMenuClick,
+                    'button:click':  _.bind(this.onBtnCategoryClick, this)
+                },
+                'ViewTab': {
+                    'rightmenu:hide': _.bind(this.onRightMenuHide, this),
+                    'viewmode:change': _.bind(this.onChangeViewMode, this)
+                },
+                'Common.Views.Plugins': {
+                    'plugins:addtoright': _.bind(this.addNewPlugin, this),
+                    'pluginsright:open': _.bind(this.openPlugin, this),
+                    'pluginsright:close': _.bind(this.closePlugin, this),
+                    'pluginsright:hide': _.bind(this.onHidePlugins, this),
+                    'pluginsright:updateicons': _.bind(this.updatePluginButtonsIcons, this)
                 }
             });
         },
@@ -69,7 +81,7 @@ define([
         },
 
         onRightMenuAfterRender: function(rightMenu) {
-            rightMenu.shapeSettings.application = rightMenu.textartSettings.application = this.getApplication();
+            rightMenu.imageSettings.application = rightMenu.shapeSettings.application = rightMenu.textartSettings.application = this.getApplication();
 
             this._settings = [];
             this._settings[Common.Utils.documentSettingsType.Paragraph] = {panelId: "id-paragraph-settings",  panel: rightMenu.paragraphSettings,btn: rightMenu.btnText,        hidden: 1, locked: false};
@@ -94,20 +106,32 @@ define([
             this.editMode = mode.isEdit;
         },
 
-        onRightMenuClick: function(menu, type, minimized) {
+        onRightMenuClick: function(menu, type, minimized, event) {
             if (!minimized && this.editMode) {
+                if (event) { // user click event
+                    var idx = this._priorityArr.indexOf(type);
+                    if (idx>=0)
+                        this._priorityArr.splice(idx, 1);
+                    this._priorityArr.unshift(type);
+                }
+
                 var panel = this._settings[type].panel;
                 var props = this._settings[type].props;
-                if (props && panel)
+                if (props && panel) {
                     panel.ChangeSettings.call(panel, (type==Common.Utils.documentSettingsType.Signature) ? undefined : props);
+                    this.rightmenu.updateScroller();
+                }
             }
             Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
             this.rightmenu.fireEvent('editcomplete', this.rightmenu);
         },
 
-        onFocusObject: function(SelectedObjects, open) {
-            if (!this.editMode)
+        onFocusObject: function(SelectedObjects, forceSignature, forceOpen) {
+            if (!this.editMode && !forceSignature)
                 return;
+
+            var open = this._initSettings ? !Common.localStorage.getBool("pe-hide-right-settings", this.rightmenu.defaultHideRightMenu) : !!forceOpen;
+            this._initSettings = false;
 
             var needhide = true;
             for (var i=0; i<this._settings.length; i++) {
@@ -133,15 +157,19 @@ define([
                 if (settingsType==Common.Utils.documentSettingsType.Slide) {
                     this._settings[settingsType].locked = value.get_LockDelete();
                     this._settings[settingsType].lockedBackground = value.get_LockBackground();
-                    this._settings[settingsType].lockedEffects = value.get_LockTranzition();
-                    this._settings[settingsType].lockedTiming = value.get_LockTiming();
-                    this._settings[settingsType].lockedHeader = !!value.get_LockHeader && value.get_LockHeader();
+                    /*this._settings[settingsType].lockedEffects = value.get_LockTransition();
+                    this._settings[settingsType].lockedTransition = value.get_LockTransition();*/
+                    this._settings[settingsType].inMaster = value.get_IsMasterSelected();
                 } else {
                     this._settings[settingsType].locked = value.get_Locked();
-                    if (settingsType == Common.Utils.documentSettingsType.Shape && value.asc_getTextArtProperties()) {
-                        this._settings[Common.Utils.documentSettingsType.TextArt].props = value;
-                        this._settings[Common.Utils.documentSettingsType.TextArt].hidden = 0;
-                        this._settings[Common.Utils.documentSettingsType.TextArt].locked = value.get_Locked();
+                    if (settingsType == Common.Utils.documentSettingsType.Shape) {
+                        if (value.asc_getIsMotionPath()) {
+                            this._settings[settingsType].hidden = 1;
+                        } else if (value.asc_getTextArtProperties()) {
+                            this._settings[Common.Utils.documentSettingsType.TextArt].props = value;
+                            this._settings[Common.Utils.documentSettingsType.TextArt].hidden = 0;
+                            this._settings[Common.Utils.documentSettingsType.TextArt].locked = value.get_Locked();
+                        }
                     }
                 }
             }
@@ -160,11 +188,17 @@ define([
                 if (pnl===undefined || pnl.btn===undefined || pnl.panel===undefined) continue;
 
                 if ( pnl.hidden ) {
-                    if (!pnl.btn.isDisabled()) pnl.btn.setDisabled(true);
+                    if (!pnl.btn.isDisabled()) {
+                        pnl.btn.setDisabled(true);
+                        this.rightmenu.setDisabledMoreMenuItem(pnl.btn, true);
+                    }
                     if (activePane == pnl.panelId)
                         currentactive = -1;
                 } else {
-                    if (pnl.btn.isDisabled()) pnl.btn.setDisabled(false);
+                    if (pnl.btn.isDisabled()) {
+                        pnl.btn.setDisabled(false);
+                        this.rightmenu.setDisabledMoreMenuItem(pnl.btn, false);
+                    }
                     if ( i!=Common.Utils.documentSettingsType.Slide && i!=Common.Utils.documentSettingsType.Signature)
                         lastactive = i;
                     if ( pnl.needShow ) {
@@ -177,10 +211,8 @@ define([
 
                     if (i == Common.Utils.documentSettingsType.Slide) {
                         if (pnl.locked!==undefined)
-                            this.rightmenu.slideSettings.SetSlideDisabled(this._state.no_slides || pnl.lockedBackground || pnl.locked,
-                                                                          this._state.no_slides || pnl.lockedEffects || pnl.locked,
-                                                                          this._state.no_slides || pnl.lockedTiming || pnl.locked,
-                                                                          this._state.no_slides || pnl.lockedHeader || pnl.locked);
+                            this.rightmenu.slideSettings.setLocked(this._state.no_slides || pnl.lockedBackground || pnl.locked,
+                                                                          this._state.no_slides || pnl.lockedHeader || pnl.locked, pnl.inMaster);
                     } else
                         pnl.panel.setLocked(pnl.locked);
                 }
@@ -189,9 +221,26 @@ define([
             if (!this.rightmenu.minimizedMode || open) {
                 var active;
 
+                if (priorityactive<0) {
+                    if (this._priorityArr.length>0) {
+                        for (i=0; i<this._priorityArr.length; i++) {
+                            var type = this._priorityArr[i],
+                                pnl = this._settings[type];
+                            if (pnl===undefined || pnl.btn===undefined || pnl.panel===undefined || pnl.hidden) continue;
+                            priorityactive = type;
+                            break;
+                        }
+                    } else if (this._lastVisibleSettings!==undefined) {
+                        var pnl = this._settings[this._lastVisibleSettings];
+                        if (pnl!==undefined && pnl.btn!==undefined && pnl.panel!==undefined && !pnl.hidden)
+                            priorityactive = this._lastVisibleSettings;
+                    }
+                }
+
                 if (priorityactive>-1) active = priorityactive;
                 else if (currentactive>=0) active = currentactive;
                 else if (lastactive>=0) active = lastactive;
+                else if (forceSignature && !this._settings[Common.Utils.documentSettingsType.Signature].hidden) active = Common.Utils.documentSettingsType.Signature;
                 else active = Common.Utils.documentSettingsType.Slide;
 
                 if (active !== undefined) {
@@ -200,6 +249,7 @@ define([
                         this._settings[active].panel.ChangeSettings.call(this._settings[active].panel, this._settings[active].props);
                     else
                         this._settings[active].panel.ChangeSettings.call(this._settings[active].panel);
+                    (active !== currentactive) && this.rightmenu.updateScroller();
                 }
             }
 
@@ -215,8 +265,8 @@ define([
 
         SetDisabled: function(disabled, allowSignature) {
             this.setMode({isEdit: !disabled});
-            if (this.rightmenu) {
-                this.rightmenu.slideSettings.SetSlideDisabled(disabled, disabled, disabled, disabled);
+            if (this.rightmenu && this.rightmenu.paragraphSettings) {
+                this.rightmenu.slideSettings.SetSlideDisabled(disabled, disabled);
                 this.rightmenu.paragraphSettings.disableControls(disabled);
                 this.rightmenu.shapeSettings.disableControls(disabled);
                 this.rightmenu.textartSettings.disableControls(disabled);
@@ -224,8 +274,9 @@ define([
                 this.rightmenu.imageSettings.disableControls(disabled);
                 this.rightmenu.chartSettings.disableControls(disabled);
 
-                if (!allowSignature && this.rightmenu.signatureSettings) {
-                    this.rightmenu.btnSignature.setDisabled(disabled);
+                if (this.rightmenu.signatureSettings) {
+                    !allowSignature && this.rightmenu.btnSignature.setDisabled(disabled);
+                    allowSignature && disabled && this.onFocusObject([], true); // force press signature button
                 }
 
                 if (disabled) {
@@ -236,32 +287,54 @@ define([
                     this.rightmenu.btnShape.setDisabled(disabled);
                     this.rightmenu.btnTextArt.setDisabled(disabled);
                     this.rightmenu.btnChart.setDisabled(disabled);
+                    this.rightmenu.setDisabledAllMoreMenuItems(disabled);
                 } else {
                     var selectedElements = this.api.getSelectedElements();
                     if (selectedElements.length > 0)
-                        this.onFocusObject(selectedElements);
+                        this.onFocusObject(selectedElements, false, !Common.Utils.InternalSettings.get("pe-hide-right-settings") &&
+                                                                                 !Common.Utils.InternalSettings.get("pe-hidden-rightmenu"));
                 }
             }
         },
 
         onInsertTable:  function() {
-            this._settings[Common.Utils.documentSettingsType.Table].needShow = true;
+            // this._settings[Common.Utils.documentSettingsType.Table].needShow = true;
+            var idx = this._priorityArr.indexOf(Common.Utils.documentSettingsType.Table);
+            if (idx>=0)
+                this._priorityArr.splice(idx, 1);
+            this._priorityArr.unshift(Common.Utils.documentSettingsType.Table);
         },
 
         onInsertImage:  function() {
-            this._settings[Common.Utils.documentSettingsType.Image].needShow = true;
+            // this._settings[Common.Utils.documentSettingsType.Image].needShow = true;
+            var idx = this._priorityArr.indexOf(Common.Utils.documentSettingsType.Image);
+            if (idx>=0)
+                this._priorityArr.splice(idx, 1);
+            this._priorityArr.unshift(Common.Utils.documentSettingsType.Image);
         },
 
         onInsertChart:  function() {
-            this._settings[Common.Utils.documentSettingsType.Chart].needShow = true;
+            // this._settings[Common.Utils.documentSettingsType.Chart].needShow = true;
+            var idx = this._priorityArr.indexOf(Common.Utils.documentSettingsType.Chart);
+            if (idx>=0)
+                this._priorityArr.splice(idx, 1);
+            this._priorityArr.unshift(Common.Utils.documentSettingsType.Chart);
         },
 
         onInsertShape:  function() {
-            this._settings[Common.Utils.documentSettingsType.Shape].needShow = true;
+            // this._settings[Common.Utils.documentSettingsType.Shape].needShow = true;
+            var idx = this._priorityArr.indexOf(Common.Utils.documentSettingsType.Shape);
+            if (idx>=0)
+                this._priorityArr.splice(idx, 1);
+            this._priorityArr.unshift(Common.Utils.documentSettingsType.Shape);
         },
 
         onInsertTextArt:  function() {
-            this._settings[Common.Utils.documentSettingsType.TextArt].needShow = true;
+            // this._settings[Common.Utils.documentSettingsType.TextArt].needShow = true;
+            var idx = this._priorityArr.indexOf(Common.Utils.documentSettingsType.TextArt);
+            if (idx>=0)
+                this._priorityArr.splice(idx, 1);
+            this._priorityArr.unshift(Common.Utils.documentSettingsType.TextArt);
         },
 
         UpdateThemeColors:  function() {
@@ -278,20 +351,18 @@ define([
             this.rightmenu.tableSettings.updateMetricUnit();
         },
 
-        fillTextArt:  function() {
-            this.rightmenu.textartSettings.fillTextArt();
-        },
-
         createDelayedElements: function() {
             if (this.editMode && this.api) {
                 this.api.asc_registerCallback('asc_doubleClickOnObject', _.bind(this.onDoubleClickOnObject, this));
 
-                this.rightmenu.shapeSettings.createDelayedElements();
+                // this.rightmenu.shapeSettings.createDelayedElements();
                 var selectedElements = this.api.getSelectedElements();
                 if (selectedElements.length>0) {
-                    this.onFocusObject(selectedElements, !Common.localStorage.getBool("pe-hide-right-settings", this.rightmenu.defaultHideRightMenu));
+                    this.onFocusObject(selectedElements);
                 }
             }
+            this.rightmenu.setButtons();
+            this.rightmenu.setMoreButton();
         },
 
         onDoubleClickOnObject: function(obj) {
@@ -305,6 +376,7 @@ define([
             if (settingsType !== Common.Utils.documentSettingsType.Paragraph) {
                 this.rightmenu.SetActivePane(settingsType, true);
                 this._settings[settingsType].panel.ChangeSettings.call(this._settings[settingsType].panel, this._settings[settingsType].props);
+                this.rightmenu.updateScroller();
             }
         },
 
@@ -315,6 +387,7 @@ define([
                 type = Common.Utils.documentSettingsType.Signature;
             this._settings[type].hidden = disabled ? 1 : 0;
             this._settings[type].btn.setDisabled(disabled);
+            this.rightmenu.setDisabledMoreMenuItem(this._settings[type].btn, disabled);
             this._settings[type].panel.setLocked(this._settings[type].locked);
         },
 
@@ -324,6 +397,7 @@ define([
                 if ( this._state.no_slides && !this.rightmenu.minimizedMode)
                     this.rightmenu.clearSelection();
                 this._settings[Common.Utils.documentSettingsType.Slide].btn.setDisabled(this._state.no_slides);
+                this.rightmenu.setDisabledMoreMenuItem(this._settings[Common.Utils.documentSettingsType.Slide].btn, this._state.no_slides);
             }
         },
 
@@ -342,6 +416,95 @@ define([
                 case Asc.c_oAscTypeSelectElement.Chart:
                     return Common.Utils.documentSettingsType.Chart;
             }
+        },
+
+        onRightMenuHide: function (view, status) {
+            if (this.rightmenu) {
+                if (!status)  { // remember last active pane
+                    var active = this.rightmenu.GetActivePane(),
+                        type;
+                    if (active) {
+                        for (var i=0; i<this._settings.length; i++) {
+                            if (this._settings[i] && this._settings[i].panelId === active) {
+                                type = i;
+                                break;
+                            }
+                        }
+                        this._lastVisibleSettings = type;
+                    }
+                    this.rightmenu.clearSelection();
+                    this.rightmenu.hide();
+                    this.rightmenu.signatureSettings && this.rightmenu.signatureSettings.hideSignatureTooltip();
+                } else {
+                    this.rightmenu.show();
+                    var selectedElements = this.api.getSelectedElements();
+                    if (selectedElements.length > 0)
+                        this.onFocusObject(selectedElements, false, !Common.Utils.InternalSettings.get("pe-hide-right-settings"));
+                    this._lastVisibleSettings = undefined;
+                }
+                !view && this.rightmenu.fireEvent('view:hide', [this, !status]);
+                Common.localStorage.setBool('pe-hidden-rightmenu', !status);
+                Common.Utils.InternalSettings.set("pe-hidden-rightmenu", !status);
+            }
+
+            Common.NotificationCenter.trigger('layout:changed', 'main');
+            Common.NotificationCenter.trigger('edit:complete', this.rightmenu);
+        },
+
+        onRightMenuOpen: function(type) {
+            if (this._settings[type]===undefined || this._settings[type].hidden || this._settings[type].btn.isDisabled() || this._settings[type].panelId===this.rightmenu.GetActivePane()) return;
+
+            this.tryToShowRightMenu();
+            this.rightmenu.SetActivePane(type, true);
+            this._settings[type].panel.ChangeSettings.call(this._settings[type].panel, this._settings[type].props);
+            this.rightmenu.updateScroller();
+        },
+
+        tryToShowRightMenu: function() {
+            if (this.rightmenu && this.rightmenu.mode && (!this.rightmenu.mode.canBrandingExt || !this.rightmenu.mode.customization || this.rightmenu.mode.customization.rightMenu !== false) && Common.UI.LayoutManager.isElementVisible('rightMenu'))
+                this.onRightMenuHide(null, true);
+        },
+
+        addNewPlugin: function (button, $button, $panel) {
+            this.rightmenu.insertButton(button, $button);
+            this.rightmenu.insertPanel($panel);
+        },
+
+        openPlugin: function (guid) {
+            this.rightmenu.openPlugin(guid);
+        },
+
+        closePlugin: function (guid) {
+            this.rightmenu.closePlugin(guid);
+            this.rightmenu.onBtnMenuClick();
+            Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
+            this.rightmenu.fireEvent('editcomplete', this.rightmenu);
+        },
+
+        onHidePlugins: function() {
+            Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
+        },
+
+        updatePluginButtonsIcons: function (icons) {
+            this.rightmenu.updatePluginButtonsIcons(icons);
+        },
+
+        onBtnCategoryClick: function (btn) {
+            if (btn.options.type === 'plugin' && !btn.isDisabled()) {
+                this.rightmenu.onBtnMenuClick(btn);
+                if (btn.pressed) {
+                    this.rightmenu.fireEvent('plugins:showpanel', [btn.options.value]); // show plugin panel
+                } else {
+                    this.rightmenu.fireEvent('plugins:hidepanel', [btn.options.value]);
+                }
+                Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
+                this.rightmenu.fireEvent('editcomplete', this.rightmenu);
+            }
+        },
+
+        onChangeViewMode: function (mode) {
+            if (this.rightmenu && this.rightmenu.slideSettings)
+                this.rightmenu.slideSettings.setSlideMasterMode(mode==='master');
         }
     });
 });

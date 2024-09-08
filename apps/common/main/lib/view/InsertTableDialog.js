@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  InsertTableDialog.js
  *
- *  Created by Alexander Yuzhin on 2/17/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/17/14
  *
  */
 
@@ -48,10 +46,11 @@ define([
     Common.Views.InsertTableDialog = Common.UI.Window.extend(_.extend({
         options: {
             width: 230,
-            height: 156,
             style: 'min-width: 230px;',
             cls: 'modal-dlg',
-            split: false
+            id: 'window-insert-table',
+            split: false,
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -62,15 +61,11 @@ define([
             this.template = [
                 '<div class="box">',
                     '<div class="input-row">',
-                        '<label class="text columns-text" style="width: 130px;">' + this.txtColumns + '</label><div class="columns-val" style="float: right;"></div>',
+                        '<label class="text columns-text" style="width: 130px;">' + this.txtColumns + '</label><div class="columns-val float-right"></div>',
                     '</div>',
                     '<div class="input-row" style="margin-top: 10px;">',
-                        '<label class="text rows-text" style="width: 130px;">' + this.txtRows + '</label><div class="rows-val" style="float: right;"></div>',
+                        '<label class="text rows-text" style="width: 130px;">' + this.txtRows + '</label><div class="rows-val float-right"></div>',
                     '</div>',
-                '</div>',
-                '<div class="footer center">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
                 '</div>'
             ].join('');
 
@@ -110,11 +105,19 @@ define([
 //            this.udRows.on('entervalue', _.bind(this.onPrimary, this));
         },
 
+        getFocusedComponents: function() {
+            return [this.udColumns, this.udRows].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.udColumns;
+        },
+
         onBtnClick: function(event) {
             if (this.options.handler) {
                 this.options.handler.call(this, event.currentTarget.attributes['result'].value, {
-                    columns : this.udColumns.getValue(),
-                    rows    : this.udRows.getValue()
+                    columns : this.udColumns.getNumberValue(),
+                    rows    : this.udRows.getNumberValue()
                 });
             }
 
@@ -124,8 +127,8 @@ define([
         onPrimary: function() {
             if (this.options.handler) {
                 this.options.handler.call(this, 'ok', {
-                    columns : this.udColumns.getValue(),
-                    rows    : this.udRows.getValue()
+                    columns : this.udColumns.getNumberValue(),
+                    rows    : this.udRows.getNumberValue()
                 });
             }
 
@@ -138,8 +141,6 @@ define([
         txtColumns: 'Number of Columns',
         txtRows: 'Number of Rows',
         textInvalidRowsCols: 'You need to specify valid rows and columns count.',
-        cancelButtonText: 'Cancel',
-        okButtonText:   'Ok',
         txtMinText: 'The minimum value for this field is {0}',
         txtMaxText: 'The maximum value for this field is {0}'
     }, Common.Views.InsertTableDialog || {}))

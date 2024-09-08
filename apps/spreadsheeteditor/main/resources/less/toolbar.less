@@ -3,7 +3,7 @@
 .toolbar {
     &.masked {
         button.disabled .icon:not(.no-mask) {
-            background-position-x: 0px !important;
+            //background-position-x: 0px !important;
         }
         .group:not(.no-mask) {
             opacity: 0.4;
@@ -13,219 +13,41 @@
     .simple-bar {
         display: table;
         width: 100%;
+
+        .separator.short {
+            margin-top: 1px;
+        }
+
+        .elset {
+            .pixel-ratio__2_5 & {
+                display: flex;
+                align-items: center;
+
+                .btn-text-default {
+                    justify-content: center;
+                }
+            }
+        }
     }
 
     .font-attr {
-        > .btn-slot:not(:last-child):not(.split) {
-            margin-right: 6px;
-        }
-
+        > .btn-slot:not(:last-child):not(.split),
         > .btn-slot.split:not(:last-child) {
-            margin-right: 5px;
+            .margin-right-2();
         }
     }
 
     .font-attr-top {
-        width: 243px;
+        width: 218px;
 
         > .btn-slot {
-            float: left;
-
             &:not(:first-child) {
-                margin-left: 2px;
+                .margin-left-2();
             }
         }
 
     }
 }
-
-.color-schemas-menu {
-    span {
-        &.colors {
-            display: inline-block;
-            margin-right: 15px;
-        }
-
-        &.color {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            margin-right: 2px;
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            vertical-align: middle;
-        }
-
-        &.text {
-            vertical-align: middle;
-        }
-    }
-    &.checked {
-        &:before {
-            display: none !important;
-        }
-        &, &:hover, &:focus {
-            background-color: @primary;
-            color: @dropdown-link-active-color;
-            span.color {
-                border-color: rgba(255,255,255,0.7);
-            }
-        }
-    }
-}
-
-// menu zoom
-.menu-zoom {
-    line-height: @line-height-base;
-    .title {
-        padding: 5px 5px 5px 20px;
-        float: left;
-        max-width: 95px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .zoom {
-        padding: 5px 3px;
-        float: right;
-        min-width: 40px;
-        text-align: center;
-    }
-}
-
-
-@toolbar-icon-size: 20px;
-.toolbar-btn-icon(btn-fontcolor,         0, @toolbar-icon-size);
-.toolbar-btn-icon(btn-valign-top,        1, @toolbar-icon-size);
-//
-.button-normal-icon(btn-bold,              3, @toolbar-icon-size);
-.button-normal-icon(btn-border-all,        4, @toolbar-icon-size);
-.button-normal-icon(btn-clearstyle,        5, @toolbar-icon-size);
-.button-normal-icon(btn-incdecimal,        6, @toolbar-icon-size);
-.button-normal-icon(btn-decdecimal,        7, @toolbar-icon-size);
-.button-normal-icon(btn-italic,            8, @toolbar-icon-size);
-.button-normal-icon(btn-fillparag,         9, @toolbar-icon-size);
-.button-normal-icon(btn-merge,            10, @toolbar-icon-size);
-.button-normal-icon(btn-print,            11, @toolbar-icon-size);
-.button-normal-icon(btn-redo,             12, @toolbar-icon-size);
-.button-normal-icon(btn-save,             13, @toolbar-icon-size);
-.button-normal-icon(btn-sort-down,        14, @toolbar-icon-size);
-.button-normal-icon(btn-formula,          15, @toolbar-icon-size);
-.button-normal-icon(btn-undo,             16, @toolbar-icon-size);
-.button-normal-icon(btn-wrap,             17, @toolbar-icon-size);
-.button-normal-icon(btn-underline,        18, @toolbar-icon-size);
-.button-normal-icon(btn-align-left,       21, @toolbar-icon-size);
-.button-normal-icon(btn-align-center,     19, @toolbar-icon-size);
-.button-normal-icon(btn-align-right,      22, @toolbar-icon-size);
-.button-normal-icon(btn-align-just,       20, @toolbar-icon-size);
-.button-normal-icon(btn-valign-middle,    23, @toolbar-icon-size);
-.button-normal-icon(btn-valign-bottom,    24, @toolbar-icon-size);
-.button-normal-icon(btn-border-out,       25, @toolbar-icon-size);
-.button-normal-icon(btn-border-top,       26, @toolbar-icon-size);
-.button-normal-icon(btn-border-bottom,    27, @toolbar-icon-size);
-.button-normal-icon(btn-border-left,      28, @toolbar-icon-size);
-.button-normal-icon(btn-border-right,     29, @toolbar-icon-size);
-.button-normal-icon(btn-border-no,        30, @toolbar-icon-size);
-.button-normal-icon(btn-border-center,    31, @toolbar-icon-size);
-.button-normal-icon(btn-border-hmiddle,   32, @toolbar-icon-size);
-.button-normal-icon(btn-border-vmiddle,   33, @toolbar-icon-size);
-.button-normal-icon(btn-copy,             37, @toolbar-icon-size);
-.button-normal-icon(btn-paste,            38, @toolbar-icon-size);
-.button-normal-icon(btn-synch,            39, @toolbar-icon-size);
-.button-normal-icon(btn-autofilter,       40, @toolbar-icon-size);
-.button-normal-icon(btn-colorschemas,     41, @toolbar-icon-size);
-.button-normal-icon(btn-newdocument,      42, @toolbar-icon-size);
-.button-normal-icon(btn-opendocument,     43, @toolbar-icon-size);
-.button-normal-icon(btn-incfont,          44, @toolbar-icon-size);
-.button-normal-icon(btn-decfont,          45, @toolbar-icon-size);
-.button-normal-icon(btn-text-orient,      46, @toolbar-icon-size);
-.button-normal-icon(btn-sort-up,          49, @toolbar-icon-size);
-.button-normal-icon(btn-clear-filter,     50, @toolbar-icon-size);
-.button-normal-icon(btn-percent-style,    51, @toolbar-icon-size);
-.button-normal-icon(btn-currency-style,   52, @toolbar-icon-size);
-.button-normal-icon(btn-addcell,          53, @toolbar-icon-size);
-.button-normal-icon(btn-delcell,          54, @toolbar-icon-size);
-.button-normal-icon(btn-ttempl,           80, @toolbar-icon-size);
-//
-.button-normal-icon(btn-showmode,         56, @toolbar-icon-size);
-.button-normal-icon(btn-settings,         57, @toolbar-icon-size);
-//
-.button-normal-icon(btn-search,           62, @toolbar-icon-size);
-.button-normal-icon(btn-zoomin,           67, @toolbar-icon-size);
-.button-normal-icon(btn-zoomout,          68, @toolbar-icon-size);
-.button-normal-icon(btn-copystyle,        73, @toolbar-icon-size);
-.button-normal-icon(btn-save-coauth,      76, @toolbar-icon-size);
-
-.button-normal-icon(btn-border-diagup,    42, @toolbar-icon-size);
-.button-normal-icon(btn-border-diagdown,  43, @toolbar-icon-size);
-
-.button-normal-icon(btn-spellcheck-next,    70, @toolbar-icon-size);
-.button-normal-icon(btn-spellcheck-preview, 72, @toolbar-icon-size);
-
-.button-normal-icon(btn-named-range,      77, @toolbar-icon-size);
-.button-normal-icon(btn-strikeout,        84, @toolbar-icon-size);
-.button-normal-icon(btn-subscript,        85, @toolbar-icon-size);
-.button-normal-icon(btn-superscript,      86, @toolbar-icon-size);
-
-.button-normal-icon(rotate-90,      89, @toolbar-icon-size);
-.button-normal-icon(rotate-270,     90, @toolbar-icon-size);
-.button-normal-icon(flip-hor,       91, @toolbar-icon-size);
-.button-normal-icon(flip-vert,      92, @toolbar-icon-size);
-.button-normal-icon(btn-show-details,      73, @toolbar-icon-size);
-.button-normal-icon(btn-hide-details,      73, @toolbar-icon-size);
-
-@menu-icon-size: 22px;
-.menu-btn-icon(mnu-align-center,         0, @menu-icon-size);
-.menu-btn-icon(mnu-align-just,           1, @menu-icon-size);
-.menu-btn-icon(mnu-align-left,           2, @menu-icon-size);
-.menu-btn-icon(mnu-align-right,          3, @menu-icon-size);
-.menu-btn-icon(mnu-valign-bottom,        4, @menu-icon-size);
-.menu-btn-icon(mnu-valign-middle,        5, @menu-icon-size);
-.menu-btn-icon(mnu-valign-top,           6, @menu-icon-size);
-.menu-btn-icon(mnu-border-all,           7, @menu-icon-size);
-.menu-btn-icon(mnu-border-center,        8, @menu-icon-size);
-.menu-btn-icon(mnu-border-bottom,        9, @menu-icon-size);
-.menu-btn-icon(mnu-border-hmiddle,      10, @menu-icon-size);
-.menu-btn-icon(mnu-border-top,          11, @menu-icon-size);
-.menu-btn-icon(mnu-border-no,           12, @menu-icon-size);
-.menu-btn-icon(mnu-border-out,          13, @menu-icon-size);
-.menu-btn-icon(mnu-border-left,         14, @menu-icon-size);
-.menu-btn-icon(mnu-border-vmiddle,      15, @menu-icon-size);
-.menu-btn-icon(mnu-border-right,        16, @menu-icon-size);
-//
-.menu-btn-icon(mnu-arrange-front,       19, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-back,        20, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-forward,     21, @menu-icon-size);
-.menu-btn-icon(mnu-arrange-backward,    22, @menu-icon-size);
-.menu-btn-icon(mnu-sort-asc,            23, @menu-icon-size);
-.menu-btn-icon(mnu-sort-desc,           24, @menu-icon-size);
-.menu-btn-icon(mnu-filter-add,          25, @menu-icon-size);
-.menu-btn-icon(mnu-filter-clear,        26, @menu-icon-size);
-.menu-btn-icon(mnu-direct-horiz,        27, @menu-icon-size);
-.menu-btn-icon(mnu-direct-ccw,          28, @menu-icon-size);
-.menu-btn-icon(mnu-direct-cw,           29, @menu-icon-size);
-//
-.menu-btn-icon(mnu-direct-rup,          31, @menu-icon-size);
-.menu-btn-icon(mnu-direct-rdown,        32, @menu-icon-size);
-.menu-btn-icon(mnu-group,               33, @menu-icon-size);
-.menu-btn-icon(mnu-ungroup,             34, @menu-icon-size);
-//
-.menu-btn-icon(mnu-border-diagup,       36, @menu-icon-size);
-.menu-btn-icon(mnu-border-diagdown,     37, @menu-icon-size);
-//
-.menu-btn-icon(mnu-text-subscript,       38, @menu-icon-size);
-.menu-btn-icon(mnu-text-superscript,     39, @menu-icon-size);
-
-.menu-btn-icon(mnu-orient-portrait,     48, @menu-icon-size);
-.menu-btn-icon(mnu-orient-landscape,    49, @menu-icon-size);
-
-.menu-btn-icon(mnu-img-align-center,          41, @menu-icon-size);
-.menu-btn-icon(mnu-img-align-left,            40, @menu-icon-size);
-.menu-btn-icon(mnu-img-align-right,           42, @menu-icon-size);
-.menu-btn-icon(mnu-img-align-bottom,          45, @menu-icon-size);
-.menu-btn-icon(mnu-img-align-middle,          44, @menu-icon-size);
-.menu-btn-icon(mnu-img-align-top,             43, @menu-icon-size);
-.menu-btn-icon(mnu-distrib-hor,               46, @menu-icon-size);
-.menu-btn-icon(mnu-distrib-vert,              47, @menu-icon-size);
 
 .username-tip {
     background-color: #ee3525;
@@ -233,7 +55,7 @@
     border-radius: 0;
     padding: 3px 10px;
     color: #ffffff;
-    font: 11px arial;
+    .font-size-normal();
     pointer-events: none;
     white-space: nowrap;
     letter-spacing: 1px;
@@ -243,39 +65,248 @@
     display: inline-block;
 }
 
-#id-toolbar-mnu-item-border-width {
+#id-toolbar-mnu-item-border-width,
+#format-rules-borders-border-width {
     .border-size-item {
-        background: ~"url(@{app-image-const-path}/toolbar/BorderSize.png) no-repeat scroll 0 0";
-        width: 80px;
+        width: 60px;
         height: 20px;
-        margin-top: -3px;
-        margin-bottom: -2px;
+        margin: -3px 10px -2px;
+        svg{
+            display: inline-block;
+            height: 3px;
+            width: 100%;
+            fill: @text-normal-ie;
+            fill: @text-normal;
+            shape-rendering: crispEdges;
+        }
     }
 }
 
-.item-equation {
-    border: 1px solid @gray;
-    .background-ximage('@{common-image-path}/toolbar/math.png', '@{common-image-path}/toolbar/math@2x.png', 1500px);
-}
-
 #special-paste-container,
-#autocorrect-paste-container {
+#autocorrect-paste-container,
+#equation-container {
     position: absolute;
     z-index: @zindex-dropdown - 20;
-    background-color: @gray-light;
-    border: 1px solid @gray;
+    background-color: @background-toolbar-ie;
+    background-color: @background-toolbar;
+    border: @scaled-one-px-value-ie solid @border-regular-control-ie;
+    border: @scaled-one-px-value solid @border-regular-control;
+
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px -5px rgba(0, 0, 0, 0.2);
+    
+    &.has-open-menu {
+        z-index: @zindex-navbar + 1;
+    }
+    .ie &,
+    .winxp & {
+        overflow: visible;
+    }
 }
 
-#slot-field-fontname {
-    width: 148px;
+#equation-container {
+    .separator {
+        height: 30px;
+    }
+    .btn-toolbar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 0px;
+    }
 }
 
 #slot-field-fontsize {
     width: 45px;
 }
 
+#id-docholder-menu-bullets {
+    margin: 4px 2px 4px 6px;
+    .rtl & {
+        margin: 4px 6px 4px 2px;
+    }
+}
+
+#id-toolbar-menu-symbols {
+    display: inline-block;
+    width: 158px;
+    .padding-left(3px);
+    .item {
+        .box-shadow(none);
+        .margin-x(6px, 4px);
+        &:hover, &.selected{
+            .box-shadow( 0 0 0 2px @border-preview-select-ie);
+            .box-shadow( 0 0 0 @scaled-two-px-value @border-preview-select);
+        }
+    }
+    .item-symbol {
+        font-family: @font-family-base;
+        font-size: 14px;
+        display: block;
+        width: 20px;
+        height: 20px;
+        text-align: center;
+        line-height: 20px;
+        vertical-align: middle;
+
+    }
+}
+
 .item-markerlist {
-    .background-ximage('@{common-image-path}/toolbar/bullets-and-numbering.png', '@{common-image-path}/toolbar/bullets-and-numbering@2x.png', 38px);
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
+}
+
+.item-multilevellist {
+    width: 80px;
+    height: 80px;
+}
+
+#menu-list-number-group {
+    .item {
+        margin-right: 10px;
+        margin-left: 4px;
+        margin-bottom: 9px;
+        .rtl & {
+            margin-right: 4px;
+            margin-left: 10px;
+        }
+    }
+    .group-items-container {
+        margin-bottom: 0;
+    }
+}
+
+#menu-list-bullet-group {
+    .item {
+        margin-right: 2px;
+        margin-left: 4px;
+        .rtl & {
+            margin-right: 4px;
+            margin-left: 2px;
+        }
+    }
+}
+
+#id-toolbar-menu-table-templates {
+    .group-description {
+        padding: 3px 0 3px 10px;
+        .font-weight-bold();
+
+        .rtl & {
+            padding: 3px 10px 3px 0;
+        }
+    }
+}
+
+
+.combo-cell-styles, #id-toolbar-btn-cstyle {
+    .dropdown-menu {
+        padding: 5px 0px !important;
+        border-left-style: solid !important;
+        border-left-color: @border-regular-control-ie !important;
+        border-left-color: @border-regular-control !important;
+        border-left-width: @scaled-one-px-value-ie !important;
+        border-left-width: @scaled-one-px-value !important;
+    }
+
+    .menu-picker-container {
+        margin: 0px 5px;
+    }
+
+    .group-description {
+        padding: 3px 0 3px 10px;
+        .font-weight-bold();
+
+        .rtl & {
+            padding: 3px 10px 3px 0;
+        }
+    } 
+    
+    .group-items-container {
+        padding-bottom: 1px;
+        padding-right: 1px;
+    }
+    .grouped-data .group-items-container .item {
+        padding: @scaled-two-px-value;
+        border: @scaled-one-px-value solid @border-regular-control;
+        margin: 0px calc(-1 * @scaled-one-px-value) calc(-1 * @scaled-one-px-value) 0px;
+        box-shadow: none;
+        &:hover {
+            .box-shadow(inset 0 0 0 2px @border-preview-hover-ie) !important;
+            .box-shadow(inset 0 0 0 @scaled-two-px-value @border-preview-hover) !important;
+        }
+  
+          &.selected {
+            .box-shadow(inset 0 0 0 2px @border-preview-select-ie) !important;
+            .box-shadow(inset 0 0 0 @scaled-two-px-value @border-preview-select) !important;
+        }
+    }
+}
+
+#id-toolbar-mnu-item-border-color {
+    > span {
+        background-image: none;
+        width: 12px;
+        height: 12px;
+        margin: 2px 8px 0 -20px;
+        border-style: solid;
+        border-width: 3px;
+        border-color: #000;
+
+        .rtl & {
+            margin: 2px -20px 0 8px;
+        }
+    }
+}
+
+#id-toolbar-menu-auto-bordercolor {
+    .color-auto {
+        background-image: none;
+        width: 12px;
+        height: 12px;
+        margin: 1px 7px 0 1px;
+        background-color: #000;
+
+        .rtl & {
+            margin: 1px 1px 0 7px;
+        }
+    }
+}
+
+#slot-btn-format,
+#format-rules-edit-combo-num-format,
+.format-num-cls {
+    .display-value {
+        position: absolute;
+        left: 0;
+        width: 125px;
+
+        .rtl & {
+            left: auto;
+            right: 0;
+        }
+    }
+
+    .example-val {
+        display: inline-block;
+        width: 100%;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .text-align-right();
+        vertical-align: bottom;
+        .padding-left(125px);
+        color: silver;
+        white-space: nowrap;
+    }
+}
+
+#id-toolbar-btn-cstyle {
+    .style  {
+        background-color: @canvas-content-background;
+    }
 }

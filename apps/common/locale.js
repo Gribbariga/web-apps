@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 if (Common === undefined) {
     var Common = {};
 }
@@ -38,7 +37,10 @@ Common.Locale = new(function() {
     "use strict";
     var l10n = null;
     var loadcallback,
-        apply = false;
+        apply = false,
+        defLang = '{{DEFAULT_LANG}}',
+        currentLang = defLang,
+        _4letterLangs = ['pt-pt', 'zh-tw', 'sr-cyrl'];
 
     var _applyLocalization = function(callback) {
         try {
@@ -73,9 +75,24 @@ Common.Locale = new(function() {
         var res = '';
         if (l10n && scope && scope.name) {
             res = l10n[scope.name + '.' + prop];
+
+            if ( !res && scope.default )
+                res = scope.default;
         }
 
         return res || (scope ? eval(scope.name).prototype[prop] : '');
+    };
+
+    var _getCurrentLanguage = function() {
+        return currentLang;
+    };
+
+    var _getDefaultLanguage = function() {
+        return defLang;
+    };
+
+    var _getLoadedLanguage = function() {
+        return loadedLang;
     };
 
     var _getUrlParameterByName = function(name) {
@@ -85,22 +102,34 @@ Common.Locale = new(function() {
         return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
     };
 
-    var _requireLang = function () {
-        var lang = (_getUrlParameterByName('lang') || 'en').split(/[\-_]/)[0];
+    var _requireLang = function (l) {
+        typeof l != 'string' && (l = null);
+        var lang = (l || _getUrlParameterByName('lang') || defLang).toLowerCase().split(/[\-_]/);
+        lang = lang[0] + (lang.length>1 ? '-' + lang[1] : '');
+        var idx4Letters = _4letterLangs.indexOf(lang); // try to load 4 letters language
+        lang = (idx4Letters<0) ? lang.split(/[\-]/)[0] : _4letterLangs[idx4Letters];
+        currentLang = lang;
         fetch('locale/' + lang + '.json')
             .then(function(response) {
                 if (!response.ok) {
-                    if (lang != 'en')
+                    if (idx4Letters>=0) { // try to load 2-letters language
+                        throw new Error('4letters error');
+                    }
+                    currentLang = defLang;
+                    if (lang != defLang)
                         /* load default lang if fetch failed */
-                        return fetch('locale/en.json');
+                        return fetch('locale/' + defLang + '.json');
 
                     throw new Error('server error');
                 }
                 return response.json();
             }).then(function(response) {
-                if ( response.then )
+                if ( response.json ) {
+                    if (!response.ok)
+                        throw new Error('server error');
+
                     return response.json();
-                else {
+                } else {
                     l10n = response;
                     /* to break promises chain */
                     throw new Error('loaded');
@@ -109,11 +138,25 @@ Common.Locale = new(function() {
                 l10n = json || {};
                 apply && _applyLocalization();
             }).catch(function(e) {
+                if ( /4letters/.test(e) ) {
+                    return setTimeout(function(){
+                        _requireLang(lang.split(/[\-_]/)[0]);
+                    }, 0);
+                }
+
+                if ( !/loaded/.test(e) && currentLang != defLang && defLang && defLang.length < 3 ) {
+                    return setTimeout(function(){
+                        _requireLang(defLang)
+                    }, 0);
+                }
+
                 l10n = l10n || {};
                 apply && _applyLocalization();
                 if ( e.message == 'loaded' ) {
-                } else
+                } else {
+                    currentLang = null;
                     console.log('fetch error: ' + e);
+                }
             });
     };
 
@@ -121,16 +164,23 @@ Common.Locale = new(function() {
         /* use fetch polifill if native method isn't supported */
         var polyfills = ['../vendor/fetch/fetch.umd'];
         if ( !window.Promise ) {
-            require(['../vendor/es6-promise/es6-promise.auto.min.js'],
+            require(['../vendor/es6-promise/es6-promise.auto.min'],
                 function () {
                     require(polyfills, _requireLang);
                 });
         } else require(polyfills, _requireLang);
     } else _requireLang();
 
+    const _isCurrentRtl = function () {
+        return currentLang && (/^(ar)$/i.test(currentLang));
+    };
+
     return {
         apply: _applyLocalization,
-        get: _get
+        get: _get,
+        getCurrentLanguage: _getCurrentLanguage,
+        isCurrentLanguageRtl: _isCurrentRtl,
+        getDefaultLanguage: _getDefaultLanguage
     };
     
 })();

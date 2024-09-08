@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ParagraphSettingsAdvanced.js
  *
- *  Created by Julia Radzhabova on 4/15/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/15/14
  *
  */
 
@@ -50,7 +48,7 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
     PE.Views.ParagraphSettingsAdvanced = Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             contentWidth: 370,
-            height: 394,
+            contentHeight: 309,
             toggleGroup: 'paragraph-adv-settings-group',
             storageName: 'pe-para-settings-adv-category'
         },
@@ -104,9 +102,9 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
             ];
 
             this._arrTabAlign = [
-                { value: 1, displayValue: this.textTabLeft },
-                { value: 3, displayValue: this.textTabCenter },
-                { value: 2, displayValue: this.textTabRight }
+                { value: Asc.c_oAscTabType.Left, displayValue: this.textTabLeft },
+                { value: Asc.c_oAscTabType.Center, displayValue: this.textTabCenter },
+                { value: Asc.c_oAscTabType.Right, displayValue: this.textTabRight }
             ];
             this._arrKeyTabAlign = [];
             this._arrTabAlign.forEach(function(item) {
@@ -127,7 +125,8 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 editable: false,
                 data: this._arrTextAlignment,
                 style: 'width: 173px;',
-                menuStyle   : 'min-width: 173px;'
+                menuStyle   : 'min-width: 173px;',
+                takeFocusOnClose: true
             });
             this.cmbTextAlignment.setValue('');
 
@@ -176,7 +175,8 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 editable: false,
                 data: this._arrSpecial,
                 style: 'width: 85px;',
-                menuStyle   : 'min-width: 85px;'
+                menuStyle   : 'min-width: 85px;',
+                takeFocusOnClose: true
             });
             this.cmbSpecial.setValue('');
             this.cmbSpecial.on('selected', _.bind(this.onSpecialSelect, this));
@@ -210,7 +210,8 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                     var properties = (this._originalProps) ? this._originalProps : new Asc.asc_CParagraphProperty();
                     this.Spacing = properties.get_Spacing();
                 }
-                this.Spacing.Before = Common.Utils.Metric.fnRecalcToMM(field.getNumberValue());
+                var value = field.getNumberValue();
+                this.Spacing.put_Before(value<0 ? -1 : Common.Utils.Metric.fnRecalcToMM(value));
             }, this));
             this.spinners.push(this.numSpacingBefore);
 
@@ -230,7 +231,8 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                     var properties = (this._originalProps) ? this._originalProps : new Asc.asc_CParagraphProperty();
                     this.Spacing = properties.get_Spacing();
                 }
-                this.Spacing.After = Common.Utils.Metric.fnRecalcToMM(field.getNumberValue());
+                var value = field.getNumberValue();
+                this.Spacing.put_After(value<0 ? -1 : Common.Utils.Metric.fnRecalcToMM(value));
             }, this));
             this.spinners.push(this.numSpacingAfter);
 
@@ -240,9 +242,10 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 editable: false,
                 data: this._arrLineRule,
                 style: 'width: 85px;',
-                menuStyle   : 'min-width: 85px;'
+                menuStyle   : 'min-width: 85px;',
+                takeFocusOnClose: true
             });
-            this.cmbLineRule.setValue(this.CurLineRuleIdx);
+            this.cmbLineRule.setValue('');
             this.cmbLineRule.on('selected', _.bind(this.onLineRuleSelect, this));
 
             this.numLineHeight = new Common.UI.MetricSpinner({
@@ -355,7 +358,8 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                     '<div style="width: 117px;display: inline-block;"><%= value %></div>',
                     '<div style="display: inline-block;"><%= displayTabAlign %></div>',
                     '</div>'
-                ].join(''))
+                ].join('')),
+                tabindex: 1
             });
             this.tabList.store.comparator = function(rec) {
                 return rec.get("tabPos");
@@ -376,9 +380,10 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 menuStyle   : 'min-width: 108px;',
                 editable    : false,
                 cls         : 'input-group-nr',
-                data        : this._arrTabAlign
+                data        : this._arrTabAlign,
+                takeFocusOnClose: true
             });
-            this.cmbAlign.setValue(1);
+            this.cmbAlign.setValue(Asc.c_oAscTabType.Left);
 
             this.btnAddTab = new Common.UI.Button({
                 el: $('#paraadv-button-add-tab')
@@ -396,6 +401,40 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
             this.btnRemoveAll.on('click', _.bind(this.removeAllTabs, this));
 
             this.afterRender();
+        },
+
+        getFocusedComponents: function() {
+            return this.btnsCategory.concat([
+                this.cmbTextAlignment, this.numIndentsLeft, this.numIndentsRight, this.cmbSpecial, this.numSpecialBy,
+                this.numSpacingBefore, this.numSpacingAfter, this.cmbLineRule, this.numLineHeight, // 0 tab
+                this.chStrike, this.chSubscript, this.chDoubleStrike, this.chSmallCaps, this.chSuperscript, this.chAllCaps, this.numSpacing, // 1 tab
+                this.numDefaultTab, this.numTab, this.cmbAlign, this.tabList, this.btnAddTab, this.btnRemoveTab, this.btnRemoveAll // 2 tab
+            ]).concat(this.getFooterButtons());
+        },
+
+        onCategoryClick: function(btn, index, cmp, e) {
+            Common.Views.AdvancedSettingsWindow.prototype.onCategoryClick.call(this, btn, index);
+
+            var me = this;
+            setTimeout(function(){
+                switch (index) {
+                    case 0:
+                        me.cmbTextAlignment.focus();
+                        break;
+                    case 1:
+                        me.chStrike.focus();
+                        if (e && (e instanceof jQuery.Event))
+                            me.api.SetDrawImagePlaceParagraph('paragraphadv-font-img', me._originalProps || new Asc.asc_CParagraphProperty());
+                        break;
+                    case 2:
+                        me.numDefaultTab.focus();
+                        break;
+                }
+            }, 10);
+        },
+
+        onAnimateAfter: function() {
+            (this.getActiveCategory()==1) && this.api.SetDrawImagePlaceParagraph('paragraphadv-font-img', this._originalProps || new Asc.asc_CParagraphProperty());
         },
 
         getSettings: function() {
@@ -434,11 +473,13 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 this.cmbSpecial.setValue(this.CurSpecial);
                 this.numSpecialBy.setValue(this.FirstLine!== null ? Math.abs(Common.Utils.Metric.fnRecalcFromMM(this.FirstLine)) : '', true);
 
-                this.numSpacingBefore.setValue((props.get_Spacing() !== null && props.get_Spacing().get_Before() !== null) ? Common.Utils.Metric.fnRecalcFromMM(props.get_Spacing().get_Before()) : '', true);
-                this.numSpacingAfter.setValue((props.get_Spacing() !== null && props.get_Spacing().get_After() !== null) ? Common.Utils.Metric.fnRecalcFromMM(props.get_Spacing().get_After()) : '', true);
+                var value = props.get_Spacing() ? props.get_Spacing().get_Before() : null;
+                this.numSpacingBefore.setValue((value !== null) ? (value<0 ? value : Common.Utils.Metric.fnRecalcFromMM(value)) : '', true);
+                value = props.get_Spacing() ? props.get_Spacing().get_After() : null;
+                this.numSpacingAfter.setValue((value !== null) ? (value<0 ? value : Common.Utils.Metric.fnRecalcFromMM(value)) : '', true);
 
                 var linerule = props.get_Spacing().get_LineRule();
-                this.cmbLineRule.setValue((linerule !== null) ? linerule : '', true);
+                this.cmbLineRule.setValue((linerule !== null) ? linerule : '');
 
                 if(props.get_Spacing() !== null && props.get_Spacing().get_Line() !== null) {
                     this.numLineHeight.setValue((linerule==c_paragraphLinerule.LINERULE_AUTO) ? props.get_Spacing().get_Line() : Common.Utils.Metric.fnRecalcFromMM(props.get_Spacing().get_Line()), true);
@@ -456,8 +497,6 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 this.chAllCaps.setValue((props.get_AllCaps() !== null && props.get_AllCaps() !== undefined) ? props.get_AllCaps() : 'indeterminate', true);
 
                 this.numSpacing.setValue((props.get_TextSpacing() !== null && props.get_TextSpacing() !== undefined) ? Common.Utils.Metric.fnRecalcFromMM(props.get_TextSpacing()) : '', true);
-
-                this.api.SetDrawImagePlaceParagraph('paragraphadv-font-img', this._originalProps);
 
                 // Tabs
                 this.numDefaultTab.setValue((props.get_DefaultTab() !== null && props.get_DefaultTab() !== undefined) ? Common.Utils.Metric.fnRecalcFromMM(parseFloat(props.get_DefaultTab().toFixed(1))) : '', true);
@@ -505,8 +544,9 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
             this._arrLineRule[1].minValue = parseFloat(Common.Utils.Metric.fnRecalcFromMM(0.3).toFixed(2));
             this._arrLineRule[1].step = (Common.Utils.Metric.getCurrentMetric()==Common.Utils.Metric.c_MetricUnits.pt) ? 1 : 0.01;
             if (this.CurLineRuleIdx !== null) {
-                this.numLineHeight.setDefaultUnit(this._arrLineRule[this.CurLineRuleIdx].defaultUnit);
-                this.numLineHeight.setStep(this._arrLineRule[this.CurLineRuleIdx].step);
+                var rec = this._arrLineRule[this.CurLineRuleIdx !== -1 ? this.CurLineRuleIdx : 0];
+                this.numLineHeight.setDefaultUnit(rec.defaultUnit);
+                this.numLineHeight.setStep(rec.step);
             }
         },
 
@@ -685,6 +725,7 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
         },
 
         onSelectTab: function(lisvView, itemView, record) {
+            if (!record) return;
             var rawData = {},
                 isViewSelect = _.isFunction(record.toJSON);
 
@@ -745,14 +786,14 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 var properties = (this._originalProps) ? this._originalProps : new Asc.asc_CParagraphProperty();
                 this.Spacing = properties.get_Spacing();
             }
-            this.Spacing.LineRule = record.value;
+            this.Spacing.put_LineRule(record.value);
             var selectItem = _.findWhere(this._arrLineRule, {value: record.value}),
                 indexSelectItem = this._arrLineRule.indexOf(selectItem);
             if ( this.CurLineRuleIdx !== indexSelectItem ) {
                 this.numLineHeight.setDefaultUnit(this._arrLineRule[indexSelectItem].defaultUnit);
                 this.numLineHeight.setMinValue(this._arrLineRule[indexSelectItem].minValue);
                 this.numLineHeight.setStep(this._arrLineRule[indexSelectItem].step);
-                if (this.Spacing.LineRule === c_paragraphLinerule.LINERULE_AUTO) {
+                if (this.Spacing.get_LineRule() === c_paragraphLinerule.LINERULE_AUTO) {
                     this.numLineHeight.setValue(this._arrLineRule[indexSelectItem].defaultValue);
                 } else {
                     this.numLineHeight.setValue(Common.Utils.Metric.fnRecalcFromMM(this._arrLineRule[indexSelectItem].defaultValue));
@@ -768,7 +809,7 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
                 var properties = (this._originalProps) ? this._originalProps : new Asc.asc_CParagraphProperty();
                 this.Spacing = properties.get_Spacing();
             }
-            this.Spacing.Line = (this.cmbLineRule.getValue()==c_paragraphLinerule.LINERULE_AUTO) ? field.getNumberValue() : Common.Utils.Metric.fnRecalcToMM(field.getNumberValue());
+            this.Spacing.put_Line((this.cmbLineRule.getValue()==c_paragraphLinerule.LINERULE_AUTO) ? field.getNumberValue() : Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));
         },
 
         textTitle:      'Paragraph - Advanced Settings',
@@ -776,8 +817,6 @@ define([    'text!presentationeditor/main/app/template/ParagraphSettingsAdvanced
         strIndentsRightText:    'Right',
         strParagraphIndents:    'Indents & Spacing',
         strParagraphFont:   'Font',
-        cancelButtonText:       'Cancel',
-        okButtonText:           'Ok',
         textEffects: 'Effects',
         textCharacterSpacing: 'Character Spacing',
         strDoubleStrike: 'Double strikethrough',

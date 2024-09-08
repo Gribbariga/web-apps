@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -36,6 +35,11 @@
     !common.utils && (common.utils = {});
 
     common.utils = new(function(){
+        var userAgent = navigator.userAgent.toLowerCase(),
+            check = function(regex){
+                return regex.test(userAgent);
+            },
+            isMac = check(/macintosh|mac os x/);
         return {
             openLink: function(url) {
                 if (url) {
@@ -74,7 +78,35 @@
             },
             htmlEncode: function(value) {
                 return $('<div/>').text(value).html();
-            }
+            },
+
+            fillUserInfo: function(info, lang, defname, defid) {
+                var _user = info || {};
+                _user.anonymous = !_user.id;
+                !_user.id && (_user.id = defid);
+                _user.fullname = !_user.name ? defname : _user.name;
+                _user.group && (_user.fullname = (_user.group).toString() + AscCommon.UserInfoParser.getSeparator() + _user.fullname);
+                _user.guest = !_user.name;
+                return _user;
+            },
+
+            fixedDigits: function(num, digits, fill) {
+                (fill===undefined) && (fill = '0');
+                var strfill = "",
+                    str = num.toString();
+                for (var i=str.length; i<digits; i++) strfill += fill;
+                return strfill + str;
+            },
+            getKeyByValue: function(obj, value) {
+                for(var prop in obj) {
+                    if(obj.hasOwnProperty(prop)) {
+                        if(obj[prop] === value)
+                            return prop;
+                    }
+                }
+            },
+
+            isMac : isMac
         };
     })();
 }();

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,13 +28,12 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *
  *  NameManagerDlg.js
  *
- *  Created by Julia.Radzhabova on 01.06.15
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 01.06.15
  *
  */
 
@@ -52,23 +50,18 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
     SSE.Views.NameManagerDlg =  Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             alias: 'NameManagerDlg',
-            contentWidth: 510,
-            height: 353
+            contentWidth: 540,
+            buttons: ['close'],
+            separator: false,
+            id: 'window-name-manager'
         },
 
         initialize: function (options) {
             var me = this;
             _.extend(this.options, {
                 title: this.txtTitle,
-                template: [
-                    '<div class="box" style="height:' + (this.options.height-85) + 'px;">',
-                    '<div class="content-panel" style="padding: 0;">' + _.template(contentTemplate)({scope: this}) + '</div>',
-                    '</div>',
-                    '<div class="separator horizontal"/>',
-                    '<div class="footer center">',
-                    '<button class="btn normal dlg-btn" result="cancel" style="width: 86px;">' + this.closeButtonText + '</button>',
-                    '</div>'
-                ].join('')
+                contentStyle: 'padding: 0;',
+                contentTemplate: _.template(contentTemplate)({scope: this})
             }, options);
 
             this.api        = options.api;
@@ -106,7 +99,8 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                     { value: 2, displayValue: this.textFilterTableNames },
                     { value: 3, displayValue: this.textFilterSheet },
                     { value: 4, displayValue: this.textFilterWorkbook }
-                ]
+                ],
+                takeFocusOnClose: true
             }).on('selected', function(combo, record) {
                 me.refreshRangeList(null, 0);
             });
@@ -117,18 +111,24 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                 store: new Common.UI.DataViewStore(),
                 simpleAddMode: true,
                 emptyText: this.textEmpty,
-                template: _.template(['<div class="listview inner" style=""></div>'].join('')),
+                headers: [
+                    {name: me.textRanges,       width: 171, sortType:'name',        style: 'padding-' + Common.UI.isRTL() ? 'left' : 'right' + ': 12px;'},
+                    {name: me.textScope,        width: 122, sortType:'scopeName',   style: 'padding-'+ Common.UI.isRTL() ? 'left' : 'right' + ': 12px;'},
+                    {name: me.textDataRange,    width: 213},
+                ],
+                initSort:{type: this.sort.type, direction: this.sort.direction},
                 itemTemplate: _.template([
                         '<div id="<%= id %>" class="list-item" style="width: 100%;display:inline-block;<% if (!lock) { %>pointer-events:none;<% } %>">',
-                            '<div class="listitem-icon <% if (isTable) {%>listitem-table<%} %>"></div>',
-                            '<div style="width:141px;padding-right: 5px;"><%= name %></div>',
-                            '<div style="width:94px;padding-right: 5px;"><%= scopeName %></div>',
-                            '<div style="width:212px;"><%= range %></div>',
+                            '<div class="listitem-icon toolbar__icon margin-right-5 <% print(isTable?"btn-menu-table":(isSlicer ? "btn-slicer" : "btn-named-range")) %>"></div>',
+                            '<div style="width:146px;padding-<% if (Common.UI.isRTL()) { %>left<% } else {%>right<% } %>: 5px;"><%= Common.Utils.String.htmlEncode(name) %></div>',
+                            '<div style="width:122px;padding-<% if (Common.UI.isRTL()) { %>left<% } else {%>right<% } %>: 5px;"><%= Common.Utils.String.htmlEncode(scopeName) %></div>',
+                            '<div style="width:209px;"><%= Common.Utils.String.htmlEncode(range) %></div>',
                             '<% if (lock) { %>',
-                                '<div class="lock-user"><%=lockuser%></div>',
+                                '<div class="lock-user"><%=Common.Utils.String.htmlEncode(lockuser)%></div>',
                             '<% } %>',
                         '</div>'
-                ].join(''))
+                ].join('')),
+                tabindex: 1
             });
             this.rangeList.store.comparator = function(item1, item2) {
                 var n1 = item1.get(me.sort.type).toLowerCase(),
@@ -156,16 +156,16 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
             });
             this.btnDeleteRange.on('click', _.bind(this.onDeleteRange, this));
 
-            $('#name-manager-sort-name').on('click', _.bind(this.onSortNames, this, 'name'));
-            $('#name-manager-sort-scope').on('click', _.bind(this.onSortNames, this, 'scopeName'));
-            this.spanSortName = $('#name-manager-sort-name-span');
-            this.spanSortScope = $('#name-manager-sort-scope-span');
-            (this.sort.type=='name') ? this.spanSortScope.addClass('hidden') : this.spanSortName.addClass('hidden');
-            if (this.sort.direction<0) {
-                (this.sort.type=='name') ? this.spanSortName.addClass('sort-desc') : this.spanSortScope.addClass('sort-desc');
-            }
-
+            this.rangeList.on('header:click',  _.bind(this.onSortNames, this));
             this.afterRender();
+        },
+
+        getFocusedComponents: function() {
+            return [ this.cmbFilter, this.btnNewRange, this.btnEditRange, this.btnDeleteRange, this.rangeList].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.rangeList;
         },
 
         afterRender: function() {
@@ -188,15 +188,18 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                 var arr = [];
                 for (var i=0; i<this.ranges.length; i++) {
                     var scope = this.ranges[i].asc_getScope(),
-                        id = this.ranges[i].asc_getIsLock();
+                        id = this.ranges[i].asc_getIsLock(),
+                        type = this.ranges[i].asc_getType();
                     arr.push({
                         name: this.ranges[i].asc_getName(true),
                         scope: scope,
                         scopeName: (scope===null) ? this.textWorkbook: this.sheetNames[scope],
-                        range: this.ranges[i].asc_getRef(),
-                        isTable: (this.ranges[i].asc_getIsTable()===true),
+                        range: (type===Asc.c_oAscDefNameType.slicer) ? '' : this.ranges[i].asc_getRef(),
                         lock: (id!==null && id!==undefined),
-                        lockuser: (id) ? this.getUserName(id) : this.guestText
+                        lockuser: (id) ? (this.isUserVisible(id) ? this.getUserName(id) : this.lockText) : this.guestText,
+                        type: type,
+                        isTable: type===Asc.c_oAscDefNameType.table,
+                        isSlicer: type===Asc.c_oAscDefNameType.slicer
                     });
                 }
                 this.rangesStore.reset(arr);
@@ -246,7 +249,6 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                     this.rangeList.cmpEl.on('mouseover',  _.bind(me.onMouseOverLock, me)).on('mouseout',  _.bind(me.onMouseOutLock, me));
             }
             _.delay(function () {
-                me.rangeList.cmpEl.find('.listview').focus();
                 me.rangeList.scroller.update({alwaysVisibleY: true});
             }, 100, this);
         },
@@ -277,6 +279,8 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
         },
 
         onEditRange: function (isEdit) {
+            if (this._isWarningVisible) return;
+            
             if (this.locked) {
                 Common.NotificationCenter.trigger('namedrange:locked');
                 return;
@@ -285,7 +289,7 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                 xy = me.$window.offset(),
                 rec = this.rangeList.getSelectedRec(),
                 idx = _.indexOf(this.rangeList.store.models, rec),
-                oldname = (isEdit && rec) ? new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('isTable'), undefined, undefined, undefined, true) : null;
+                oldname = (isEdit && rec) ? new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('type'), undefined, undefined, undefined, true) : null;
 
             var win = new SSE.Views.NamedRangeEditDlg({
                 api: me.api,
@@ -306,9 +310,7 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                 }
             }).on('close', function() {
                 me.show();
-                _.delay(function () {
-                    me.rangeList.cmpEl.find('.listview').focus();
-                }, 100, me);
+                setTimeout(function(){ me.getDefaultFocusableComponent().focus(); }, 100);
             });
             
             me.hide();
@@ -318,8 +320,20 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
         onDeleteRange: function () {
             var rec = this.rangeList.getSelectedRec();
             if (rec) {
-                this.currentNamedRange = _.indexOf(this.rangeList.store.models, rec);
-                this.api.asc_delDefinedNames(new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('isTable'), undefined, undefined, undefined, true));
+                var me = this;
+                me._isWarningVisible = true;
+                Common.UI.warning({
+                    msg: Common.Utils.String.format(me.warnDelete, rec.get('name')),
+                    buttons: ['ok', 'cancel'],
+                    callback: function(btn) {
+                        if (btn == 'ok') {
+                            me.currentNamedRange = _.indexOf(me.rangeList.store.models, rec);
+                            me.api.asc_delDefinedNames(new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('type'), undefined, undefined, undefined, true));
+                        }
+                        setTimeout(function(){ me.getDefaultFocusableComponent().focus(); }, 100);
+                        me._isWarningVisible = false;
+                    }
+                });
             }
         },
 
@@ -336,16 +350,8 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
             this.close();
         },
 
-        onSortNames: function(type) {
-            if (type !== this.sort.type) {
-                this.sort = {type: type, direction: 1};
-                this.spanSortName.toggleClass('hidden');
-                this.spanSortScope.toggleClass('hidden');
-            } else {
-                this.sort.direction = -this.sort.direction;
-            }
-            var sorted = (type=='name') ? this.spanSortName : this.spanSortScope;
-            (this.sort.direction>0) ? sorted.removeClass('sort-desc') : sorted.addClass('sort-desc');
+        onSortNames: function(type, direction) {
+            this.sort = {type: type, direction: direction};
 
             this.rangeList.store.sort();
             this.rangeList.onResetItems();
@@ -357,12 +363,24 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
             if (usersStore){
                 var rec = usersStore.findUser(id);
                 if (rec)
-                    return rec.get('username');
+                    return AscCommon.UserInfoParser.getParsedName(rec.get('username'));
             }
             return this.guestText;
         },
 
+        isUserVisible: function(id){
+            var usersStore = SSE.getCollection('Common.Collections.Users');
+            if (usersStore){
+                var rec = usersStore.findUser(id);
+                if (rec)
+                    return !rec.get('hidden');
+            }
+            return true;
+        },
+
         onSelectRangeItem: function(lisvView, itemView, record) {
+            if (!record) return;
+
             this.userTipHide();
             var rawData = {},
                 isViewSelect = _.isFunction(record.toJSON);
@@ -375,7 +393,7 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
                 }
                 this.currentNamedRange = _.indexOf(this.rangeList.store.models, record);
                 this.btnEditRange.setDisabled(rawData.lock);
-                this.btnDeleteRange.setDisabled(rawData.lock || rawData.isTable);
+                this.btnDeleteRange.setDisabled(rawData.lock || rawData.isTable || rawData.isSlicer);
             }
         },
 
@@ -408,7 +426,6 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
         
         txtTitle: 'Name Manager',
         closeButtonText : 'Close',
-        okButtonText : 'Ok',
         textDataRange: 'Data Range',
         textNew: 'New',
         textEdit: 'Edit',
@@ -425,7 +442,9 @@ define([  'text!spreadsheeteditor/main/app/template/NameManagerDlg.template',
         textFilterWorkbook: 'Names Scoped to Workbook',
         textWorkbook: 'Workbook',
         guestText: 'Guest',
-        tipIsLocked: 'This element is being edited by another user.'
+        tipIsLocked: 'This element is being edited by another user.',
+        warnDelete: 'Are you sure you want to delete the name {0}?',
+        lockText: 'Locked'
 
     }, SSE.Views.NameManagerDlg || {}));
 });

@@ -4,14 +4,15 @@
 		<title>Использование формул в таблицах</title>
 		<meta charset="utf-8" />
         <meta name="description" content="Вставьте формулы в ячейки таблицы для выполнения простых вычислений" />
-		<link type="text/css" rel="stylesheet" href="../editor.css" />
+		<link type="text/css" rel="stylesheet" href="../../../../../../common/main/resources/help/editor.css" />
+		<link type = "text/css" rel = "stylesheet" href = "../../images/sprite.css" />
         <script type="text/javascript" src="../callback.js"></script>
-        <script type="text/javascript" src="../search/js/page-search.js"></script>
+        <script type="text/javascript" src="../../../../../../common/main/resources/help/search/js/page-search.js"></script>
 	</head>
 	<body>
 		<div class="mainpart">
         <div class="search-field">
-            <input id="search" class="searchBar" placeholder="Search" type="text" onkeypress="doSearch(event)">
+            <input id="search" class="searchBar" placeholder="Поиск" type="text" onkeypress="doSearch(event)">
         </div>
 			<h1>Использование формул в таблицах</h1>
             <h3>Вставка формулы</h3>
@@ -94,6 +95,12 @@
                     <td>FALSE()</td>
                     <td>Функция возвращает значение 0 (ЛОЖЬ) и <b>не</b> требует аргумента. </td>
                     <td>=FALSE<br />Возвращает 0</td>
+                </tr>
+                <tr>
+                    <td>Логические</td>
+                    <td>IF(logical_test, value_if_true, value_if_false)</td>
+                    <td>Функция используется для проверки логического выражения и возвращает одно значение, если проверяемое условие имеет значение ИСТИНА, и другое, если оно имеет значение ЛОЖЬ.</td>
+                    <td>=IF(3&gt;1,1,0)<br />Возвращает 1</td>
                 </tr>
                 <tr>
                     <td>Математические</td>

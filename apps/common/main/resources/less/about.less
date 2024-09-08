@@ -4,33 +4,39 @@
         margin-bottom: 5px;
 
         &:before {
-            content: data-uri('@{common-image-path}/about/logo.png');
+            content: ~"url('@{common-image-const-path}/about/logo_s.svg')";
 
-            @media
-            only screen and (-webkit-min-device-pixel-ratio: 2),
-            only screen and (min-resolution: 2dppx),
-            only screen and (min-resolution: 192dpi) {
-                content: data-uri('@{common-image-path}/about/logo@2x.png');
+            .theme-type-dark & {
+                content: ~"url('@{common-image-const-path}/about/logo-white_s.svg')";
             }
+
+            height: 45px;
+            width: auto;
         }
     }
 
     .asc-about-header {
         margin: 0 30px;
         font: 12px Tahoma;
+        .font-size-medium();
         letter-spacing: 1px;
-        color: #666666;
+        color: @text-normal-ie;
+        color: @text-normal;
+        .font-weight-bold();
         white-space: nowrap;
     }
 
     .asc-about-version {
         font: 15px Tahoma;
-        color: #b6b6b6;
+        color: @text-tertiary-ie;
+        color: @text-tertiary;
     }
 
     .asc-about-companyname {
         font: bold 15px Tahoma;
-        color: #333;
+        letter-spacing: 0.01em;
+        color: @text-normal-ie;
+        color: @text-normal;
     }
 
     label {
@@ -38,23 +44,28 @@
         &.asc-about-desc-name,
         &.asc-about-lic {
             font: 12px Tahoma;
-            color: #333;
+            .font-size-medium();
+            color: @text-normal-ie;
+            color: @text-normal;
         }
 
         &.asc-about-desc-name {
-            color: #666666;
+            color: @text-normal-ie;
+            color: @text-normal;
             white-space: pre;
         }
 
         &.asc-about-lic {
-            font-weight: bold;
+            .font-weight-bold();
         }
 
     }
 
     a {
         font: 12px Tahoma;
-        color: #333;
+        .font-size-medium();
+        color: @text-normal-ie;
+        color: @text-normal;
     }
 
     .separator.horizontal {

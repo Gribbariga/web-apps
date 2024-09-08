@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  * User: Julia.Radzhabova
  * Date: 20.02.15
@@ -41,7 +40,7 @@ define([
     'underscore',
     'backbone',
     'common/main/lib/component/Button',
-    'common/main/lib/component/Switcher',
+    'common/main/lib/component/CheckBox',
     'common/main/lib/view/SaveAsDlg',
     'common/main/lib/view/SelectFileDlg',
     'documenteditor/main/app/view/MailMergeEmailDlg'
@@ -91,48 +90,6 @@ define([
             this.mergeMailData = undefined;
 
             this.render();
-
-            this.btnInsField = new Common.UI.Button({
-                cls: 'btn-text-menu-default',
-                caption: this.textInsertField,
-                style: 'width: 100%;',
-                lock: [_set.noFields, _set.preview, _set.coAuth, _set.lostConnect],
-                menu        : new Common.UI.Menu({
-                    style: 'min-width: 190px;max-width: 400px;',
-                    maxHeight: 200,
-                    items: []
-                })
-            });
-            this.btnInsField.render( $('#mmerge-btn-ins-field',me.$el)) ;
-
-            this.txtFieldNum = new Common.UI.InputField({
-                el          : $('#mmerge-field-num', me.$el),
-                allowBlank  : true,
-                validateOnChange: false,
-                style       : 'width: 80px; vertical-align: middle;',
-                maskExp     : /[0-9]/,
-                value       : 1,
-                validation  : function(value) {
-                    if (/(^[0-9]+$)/.test(value)) {
-                        value = parseInt(value);
-                        if (value===undefined || value===null || value<1)
-                            me.txtFieldNum.setValue(1);
-                        else if (value > me._state.recipientsCount)
-                            me.txtFieldNum.setValue(me._state.recipientsCount);
-                    } else
-                        me.txtFieldNum.setValue(1);
-
-                    return true;
-                },
-                lock: [_set.noRecipients, _set.lostConnect]
-            }).on('changed:after', function(input, newValue, oldValue, e) {
-                var val = parseInt(me.txtFieldNum.getValue());
-                if (val !== parseInt(oldValue)) {
-                    me.api.asc_PreviewMailMergeResult(val-1);
-                    me.fireEvent('editcomplete', me);
-                }
-            });
-            this.emptyDBControls.push(this.txtFieldNum);
         },
 
         render: function () {
@@ -158,7 +115,55 @@ define([
         createDelayedControls: function() {
             var me = this,
                 _set = DE.enumLockMM;
-            
+
+            this.btnInsField = new Common.UI.Button({
+                parentEl: $('#mmerge-btn-ins-field',me.$el),
+                cls: 'btn-text-menu-default',
+                caption: this.textInsertField,
+                style: 'width: 100%;',
+                lock: [_set.noFields, _set.preview, _set.coAuth, _set.lostConnect],
+                menu        : new Common.UI.Menu({
+                    style: 'min-width: 190px;max-width: 400px;',
+                    maxHeight: 200,
+                    items: []
+                }),
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+
+            this.txtFieldNum = new Common.UI.InputField({
+                el          : $('#mmerge-field-num', me.$el),
+                allowBlank  : true,
+                validateOnChange: false,
+                style       : 'width: 80px; vertical-align: middle;',
+                maskExp     : /[0-9]/,
+                value       : 1,
+                validation  : function(value) {
+                    if (/(^[0-9]+$)/.test(value)) {
+                        value = parseInt(value);
+                        if (value===undefined || value===null || value<1)
+                            me.txtFieldNum.setValue(1);
+                        else if (value > me._state.recipientsCount)
+                            me.txtFieldNum.setValue(me._state.recipientsCount);
+                    } else
+                        me.txtFieldNum.setValue(1);
+
+                    return true;
+                },
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            }).on('changed:after', function(input, newValue, oldValue, e) {
+                var val = parseInt(me.txtFieldNum.getValue());
+                if (val !== parseInt(oldValue)) {
+                    me.api.asc_PreviewMailMergeResult(val-1);
+                    me.fireEvent('editcomplete', me);
+                }
+            });
+            this.emptyDBControls.push(this.txtFieldNum);
+
             this.btnEditData = new Common.UI.Button({
                 el: me.$el.find('#mmerge-button-edit-data'),
                 lock: [_set.preview, _set.lostConnect]
@@ -167,62 +172,78 @@ define([
 
             this.lblAddRecipients = $('#mmerge-lbl-add-recipients');
 
-            this.chHighlight = new Common.UI.Switcher({
+            this.chHighlight = new Common.UI.CheckBox({
                 el: me.$el.find('#mmerge-switcher-highlight'),
-                lock: [_set.noFields, _set.lostConnect]
+                labelText: this.textHighlight,
+                lock: [_set.noFields, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.chHighlight.on('change', _.bind(this.onCheckHighlightChange, this));
 
-            this.chPreview = new Common.UI.Switcher({
+            this.chPreview = new Common.UI.CheckBox({
                 el: me.$el.find('#mmerge-switcher-preview'),
-                lock: [_set.noRecipients, _set.lostConnect]
+                labelText: this.textPreview,
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.chPreview.on('change', _.bind(this.onCheckPreviewChange, this));
             this.emptyDBControls.push(this.chPreview);
 
             this.btnFirst = new Common.UI.Button({
+                parentEl: $('#mmerge-button-first', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'mmerge-first',
+                iconCls: 'toolbar__icon ' + (!Common.UI.isRTL() ? 'btn-firstitem' : 'btn-lastitem'),
                 disabled: true,
                 value: 0,
                 hint: this.txtFirst,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnFirst.render( $('#mmerge-button-first', me.$el));
             this.btnFirst.on('click', _.bind(this.onBtnPreviewFieldClick, this));
             this.emptyDBControls.push(this.btnFirst);
 
             this.btnPrev = new Common.UI.Button({
+                parentEl: $('#mmerge-button-prev', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'mmerge-prev',
+                iconCls: 'toolbar__icon ' + (!Common.UI.isRTL() ? 'btn-previtem' : 'btn-nextitem'),
                 disabled: true,
                 value: 1,
                 hint: this.txtPrev,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnPrev.render( $('#mmerge-button-prev', me.$el));
             this.btnPrev.on('click', _.bind(this.onBtnPreviewFieldClick, this));
             this.emptyDBControls.push(this.btnPrev);
 
             this.btnNext = new Common.UI.Button({
+                parentEl: $('#mmerge-button-next', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'mmerge-next',
+                iconCls: 'toolbar__icon ' + (!Common.UI.isRTL() ? 'btn-nextitem' : 'btn-previtem'),
                 value: 2,
                 hint: this.txtNext,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnNext.render( $('#mmerge-button-next', me.$el));
             this.btnNext.on('click', _.bind(this.onBtnPreviewFieldClick, this));
             this.emptyDBControls.push(this.btnNext);
 
             this.btnLast = new Common.UI.Button({
+                parentEl: $('#mmerge-button-last', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'mmerge-last',
+                iconCls: 'toolbar__icon ' + (!Common.UI.isRTL() ? 'btn-lastitem' : 'btn-firstitem'),
                 value: 3,
                 hint: this.txtLast,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnLast.render( $('#mmerge-button-last', me.$el));
             this.btnLast.on('click', _.bind(this.onBtnPreviewFieldClick, this));
             this.emptyDBControls.push(this.btnLast);
 
@@ -238,7 +259,10 @@ define([
                 menuStyle: 'min-width: 190px;',
                 editable: false,
                 data: this._arrMergeSrc,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbMergeTo.setValue(this._arrMergeSrc[0].value);
             this.cmbMergeTo.on('selected', _.bind(this.onCmbMergeToSelect, this));
@@ -249,7 +273,10 @@ define([
                 labelText: this.textAll,
                 name: 'asc-radio-merge',
                 checked: true,
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('change', _.bind(this.onRadioAllCurrent, this));
             this.emptyDBControls.push(this.radioAll);
 
@@ -257,7 +284,10 @@ define([
                 el: $('#mmerge-radio-current', me.$el),
                 labelText: this.textCurrent,
                 name: 'asc-radio-merge',
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('change', _.bind(this.onRadioAllCurrent, this));
             this.emptyDBControls.push(this.radioCurrent);
 
@@ -265,7 +295,10 @@ define([
                 el: $('#mmerge-radio-from-to', me.$el),
                 labelText: this.textFrom,
                 name: 'asc-radio-merge',
-                lock: [_set.noRecipients, _set.lostConnect]
+                lock: [_set.noRecipients, _set.lostConnect],
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('change', _.bind(this.onRadioFromToChange, this));
             this.emptyDBControls.push(this.radioFromTo);
 
@@ -301,7 +334,10 @@ define([
                         }
                     }
                     return true;
-                }
+                },
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.emptyDBControls.push(this.txtFieldFrom);
 
@@ -336,7 +372,10 @@ define([
                         }
                     }
                     return true;
-                }
+                },
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.txtFieldTo.on('changed:after', function() {
                 me._isToChanged = true;
@@ -455,13 +494,13 @@ define([
 
         onCheckHighlightChange: function(field, newValue, eOpts) {
             if (this.api)   {
-                this.api.asc_SetHighlightMailMergeFields(field.getValue());
+                this.api.asc_SetHighlightMailMergeFields(field.getValue()=='checked');
             }
             this.fireEvent('editcomplete', this);
         },
 
         onCheckPreviewChange: function(field, newValue, eOpts) {
-            var enable_preview = field.getValue();
+            var enable_preview = field.getValue()=='checked';
             var value = parseInt(this.txtFieldNum.getValue());
             if (this.api)   {
                 (enable_preview) ? this.api.asc_PreviewMailMergeResult(isNaN(value) ? 0 : value-1) :
@@ -530,7 +569,7 @@ define([
             }
         },
 
-        onSaveMailMerge: function(url) {
+        onSaveMailMerge: function(url, fileType) {
             var loadMask = DE.getController('Main').loadMask;
             loadMask && loadMask.hide();
 
@@ -539,7 +578,7 @@ define([
             if (this.cmbMergeTo.getValue() != Asc.c_oAscFileType.HTML) {
                 var defFileName = me.defFileName + ((this.cmbMergeTo.getValue() == Asc.c_oAscFileType.PDF) ? '.pdf' : '.docx');
                 if (me.mode.canRequestSaveAs) {
-                    Common.Gateway.requestSaveAs(url, defFileName);
+                    Common.Gateway.requestSaveAs(url, defFileName, fileType);
                 } else {
                     me._mailMergeDlg = new Common.Views.SaveAsDlg({
                         saveFolderUrl: me.mode.mergeFolderUrl,
@@ -600,9 +639,8 @@ define([
                     title: this.notcriticalErrorTitle,
                     msg: opts.data.error,
                     iconCls: 'warn',
-                    buttons: _.isEmpty(opts.data.createEmailAccountUrl) ? ['ok'] : ['custom', 'cancel'],
+                    buttons: _.isEmpty(opts.data.createEmailAccountUrl) ? ['ok'] : [{value: 'custom', caption: this.textGoToMail}, 'cancel'],
                     primary: _.isEmpty(opts.data.createEmailAccountUrl) ? ['ok'] : 'custom',
-                    customButtonText: this.textGoToMail,
                     callback: _.bind(function(btn){
                         if (btn == 'custom') {
                             window.open(opts.data.createEmailAccountUrl, "_blank");
@@ -732,7 +770,7 @@ define([
         },
 
         disableFieldBtns: function(num) {
-            var disabled_cmn = (this._state.recipientsCount<1 || !this.chPreview.getValue());
+            var disabled_cmn = (this._state.recipientsCount<1 || this.chPreview.getValue()!=='checked');
             var disabled = (disabled_cmn || num<1);
             if (this.btnFirst.isDisabled() !== disabled) this.btnFirst.setDisabled(disabled);
             if (this.btnPrev.isDisabled() !== disabled) this.btnPrev.setDisabled(disabled);
@@ -746,22 +784,22 @@ define([
         },
 
         onPreviewMailMergeResult: function(num) {
-            if (!this.chPreview.getValue())
+            if (this.chPreview.getValue()!=='checked')
                 this.chPreview.setValue(true);
             this.disableFieldBtns(num);
             this.disableEditing(true);
         },
 
         onEndPreviewMailMergeResult: function() {
-            if (this.chPreview.getValue())
+            if (this.chPreview.getValue()=='checked')
                 this.chPreview.setValue(false);
             this.disableFieldBtns(-1);
             this.disableEditing(false);
         },
 
         onStartMailMerge: function() {
-            this.btnInsField.menu.removeAll();
-            this.txtFieldNum.setValue(1);
+            this.btnInsField && this.btnInsField.menu.removeAll();
+            this.txtFieldNum && this.txtFieldNum.setValue(1);
             this.ChangeSettings({
                 recipientsCount: this.api.asc_GetReceptionsCount(),
                 fieldsList: this.api.asc_GetMailMergeFieldsNameList()
@@ -797,18 +835,29 @@ define([
         },
 
         disableEditing: function(disable) {
-            DE.getController('Toolbar').DisableToolbar(disable, disable);
-            DE.getController('RightMenu').SetDisabled(disable, true);
-            DE.getController('Statusbar').getView('Statusbar').SetDisabled(disable);
-            DE.getController('Common.Controllers.ReviewChanges').SetDisabled(disable);
-            DE.getController('DocumentHolder').getView().SetDisabled(disable);
-            DE.getController('Navigation') && DE.getController('Navigation').SetDisabled(disable);
-
-            var comments = DE.getController('Common.Controllers.Comments');
-            if (comments)
-                comments.setPreviewMode(disable);
-
-            DE.getController('LeftMenu').setPreviewMode(disable);
+            Common.NotificationCenter.trigger('editing:disable', disable, {
+                viewMode: disable,
+                reviewMode: false,
+                fillFormMode: false,
+                viewDocMode: false,
+                allowMerge: true,
+                allowSignature: false,
+                allowProtect: false,
+                rightMenu: {clear: false, disable: true},
+                statusBar: true,
+                leftMenu: {disable: false, previewMode: true},
+                fileMenu: false,
+                navigation: {disable: false, previewMode: true},
+                comments: {disable: false, previewMode: true},
+                chat: false,
+                review: true,
+                viewport: false,
+                documentHolder: {clear: false, disable: true},
+                toolbar: true,
+                plugins: false,
+                protect: false,
+                header: {docmode: true}
+            }, 'mailmerge');
 
             this.lockControls(DE.enumLockMM.preview, disable, {array: [this.btnInsField, this.btnEditData]});
         },
@@ -821,11 +870,11 @@ define([
         },
 
         openHelp: function(e) {
-            DE.getController('LeftMenu').getView('LeftMenu').showMenu('file:help', 'UsageInstructions\/UseMailMerge.htm');
+            Common.NotificationCenter.trigger('file:help', 'UsageInstructions\/UseMailMerge.htm');
         },
 
         disablePreviewMode: function() {
-            if (this.api && this.chPreview && this.chPreview.getValue())   {
+            if (this.api && this.chPreview && this.chPreview.getValue()=='checked')   {
                 this.api.asc_EndPreviewMailMergeResult();
             }
         },

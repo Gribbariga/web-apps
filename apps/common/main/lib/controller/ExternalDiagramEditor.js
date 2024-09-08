@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ExternalDiagramEditor.js
  *
- *  Created by Julia Radzhabova on 4/08/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/08/14
  *
  */
 
@@ -48,7 +46,7 @@ define([
     'common/main/lib/view/ExternalDiagramEditor'
 ], function () { 'use strict';
     Common.Controllers.ExternalDiagramEditor = Backbone.Controller.extend(_.extend((function() {
-        var appLang         = 'en',
+        var appLang         = '{{DEFAULT_LANG}}',
             customization   = undefined,
             targetApp       = '',
             externalEditor  = null,
@@ -56,10 +54,12 @@ define([
 
 
         var createExternalEditor = function() {
+            Common.UI.HintManager.setInternalEditorLoading(true);
+            !!customization && (customization.uiTheme = Common.localStorage.getItem("ui-theme-id", "theme-light"));
             externalEditor = new DocsAPI.DocEditor('id-diagram-editor-placeholder', {
                 width       : '100%',
                 height      : '100%',
-                documentType: 'spreadsheet',
+                documentType: 'cell',
                 document    : {
                     url         : '_chart_',
                     permissions : {
@@ -97,12 +97,14 @@ define([
                         'drag': _.bind(function(o, state){
                             externalEditor && externalEditor.serviceCommand('window:drag', state == 'start');
                         },this),
+                        'resize': _.bind(function(o, state){
+                            externalEditor && externalEditor.serviceCommand('window:resize', state == 'start');
+                        },this),
                         'show': _.bind(function(cmp){
                             var h = this.diagramEditorView.getHeight(),
-                                innerHeight = Common.Utils.innerHeight();
-                            if (innerHeight>h && h<700 || innerHeight<h) {
-                                h = Math.min(innerHeight, 700);
-                                this.diagramEditorView.setHeight(h);
+                                innerHeight = Common.Utils.innerHeight() - Common.Utils.InternalSettings.get('window-inactive-area-top');
+                            if (innerHeight<h) {
+                                this.diagramEditorView.setHeight(innerHeight);
                             }
 
                             if (externalEditor) {
@@ -117,7 +119,9 @@ define([
                                 }
                                 externalEditor.attachMouseEvents();
                             } else {
-                                createExternalEditor.apply(this);
+                                require(['api'], function () {
+                                    createExternalEditor.apply(this);
+                                }.bind(this));
                             }
                             this.isExternalEditorVisible = true;
                             this.isHandlerCalled = false;
@@ -127,6 +131,7 @@ define([
                                 externalEditor.detachMouseEvents();
                                 this.isExternalEditorVisible = false;
                             }
+                            Common.UI.HintManager.setInternalEditorLoading(false);
                         }, this)
                     }
                 });
@@ -141,6 +146,7 @@ define([
             setApi: function(api) {
                 this.api = api;
                 this.api.asc_registerCallback('asc_onCloseChartEditor', _.bind(this.onDiagrammEditingDisabled, this));
+                this.api.asc_registerCallback('asc_sendFromGeneralToFrameEditor', _.bind(this.onSendFromGeneralToFrameEditor, this));
                 return this;
             },
 
@@ -184,7 +190,7 @@ define([
                     iconCls: 'warn',
                     buttons: ['ok'],
                     callback: _.bind(function(btn){
-                        this.setControlsDisabled(false);
+                        this.diagramEditorView.setControlsDisabled(false);
                         this.diagramEditorView.hide();
                     }, this)
                 });
@@ -225,12 +231,23 @@ define([
                     if (eventData.type == "processMouse") {
                         if (eventData.data.event == 'mouse:up') {
                             this.diagramEditorView.binding.dragStop();
+                            if (this.diagramEditorView.binding.resizeStop)  this.diagramEditorView.binding.resizeStop();
                         } else
                         if (eventData.data.event == 'mouse:move') {
                             var x = parseInt(this.diagramEditorView.$window.css('left')) + eventData.data.pagex,
                                 y = parseInt(this.diagramEditorView.$window.css('top')) + eventData.data.pagey + 34;
                             this.diagramEditorView.binding.drag({pageX:x, pageY:y});
+                            if (this.diagramEditorView.binding.resize)  this.diagramEditorView.binding.resize({pageX:x, pageY:y});
                         }
+                    } else
+                    if (eventData.type == "resize") {
+                        var w = eventData.data.width,
+                            h = eventData.data.height;
+                        if (w>0 && h>0)
+                            this.diagramEditorView.setInnerSize(w, h);
+                    } else
+                    if (eventData.type == "frameToGeneralData") {
+                        this.api && this.api.asc_getInformationBetweenFrameAndGeneralEditor(eventData.data);
                     } else
                         this.diagramEditorView.fireEvent('internalmessage', this.diagramEditorView, eventData);
                 }
@@ -240,6 +257,10 @@ define([
                 if (data.type == 'mouseup' && this.isExternalEditorVisible) {
                     externalEditor && externalEditor.serviceCommand('processmouse', data);
                 }
+            },
+
+            onSendFromGeneralToFrameEditor: function(data) {
+                externalEditor && externalEditor.serviceCommand('generalToFrameData', data);
             },
 
             warningTitle: 'Warning',

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  TableSettings.js
  *
- *  Created by Julia Radzhabova on 2/07/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/07/14
  *
  */
 
@@ -51,7 +49,8 @@ define([
     'common/main/lib/component/ComboDataView',
     'common/main/lib/view/InsertTableDialog',
     'documenteditor/main/app/view/TableSettingsAdvanced',
-    'documenteditor/main/app/view/TableFormulaDialog'
+    'documenteditor/main/app/view/TableFormulaDialog',
+    'documenteditor/main/app/view/TableToTextDialog'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
 
@@ -73,7 +72,7 @@ define([
             this._initSettings = true;
 
             this._state = {
-                TemplateId: 0,
+                TemplateId: undefined,
                 CheckHeader: false,
                 CheckTotal: false,
                 CheckBanded: false,
@@ -84,7 +83,10 @@ define([
                 RepeatRow: false,
                 DisabledControls: false,
                 Width: null,
-                Height: null
+                Height: null,
+                beginPreviewStyles: true,
+                previewStylesCount: -1,
+                currentStyleFound: false
             };
             this.spinners = [];
             this.lockedControls = [];
@@ -130,7 +132,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onTableTemplateSelect: function(combo, record){
+        onTableTemplateSelect: function(btn, picker, itemView, record){
             if (this.api && !this._noApply) {
                 var properties = new Asc.CTableProp();
                 properties.put_TableStyle(record.get('templateId'));
@@ -148,8 +150,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsBackSelect: function(picker, color) {
-            this.btnBackColor.setColor(color);
+        onColorsBackSelect: function(btn, color) {
             this.CellColor = {Value: 1, Color: color};
 
             if (this.api) {
@@ -169,14 +170,6 @@ define([
             }
 
             this.fireEvent('editcomplete', this);
-        },
-
-        addNewColor: function(picker, btn) {
-            picker.addNewColor((typeof(btn.color) == 'object') ? btn.color.color : btn.color);
-        },
-
-        onColorsBorderSelect: function(picker, color) {
-            this.btnBorderColor.setColor(color);
         },
 
         onBtnBordersClick: function(btn, eOpts){
@@ -231,7 +224,7 @@ define([
         },
 
         render: function () {
-            var el = $(this.el);
+            var el = this.$el || $(this.el);
             el.html(this.template({
                 scope: this
             }));
@@ -240,45 +233,70 @@ define([
         setApi: function(o) {
             this.api = o;
             if (o) {
-                this.api.asc_registerCallback('asc_onInitTableTemplates', _.bind(this._onInitTemplates, this));
+                this.api.asc_registerCallback('asc_onInitTableTemplates', _.bind(this.onInitTableTemplates, this));
+                this.api.asc_registerCallback('asc_onBeginTableStylesPreview', _.bind(this.onBeginTableStylesPreview, this));
+                this.api.asc_registerCallback('asc_onAddTableStylesPreview', _.bind(this.onAddTableStylesPreview, this));
+                this.api.asc_registerCallback('asc_onEndTableStylesPreview', _.bind(this.onEndTableStylesPreview, this));
             }
             return this;
         },
 
         createDelayedControls: function() {
+            var me = this;
+
+            this._tableTemplates && this._onInitTemplates();
+
             this.chHeader = new Common.UI.CheckBox({
                 el: $('#table-checkbox-header'),
-                labelText: this.textHeader
+                labelText: this.textHeader,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chHeader);
 
             this.chTotal = new Common.UI.CheckBox({
                 el: $('#table-checkbox-total'),
-                labelText: this.textTotal
+                labelText: this.textTotal,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chTotal);
 
             this.chBanded = new Common.UI.CheckBox({
                 el: $('#table-checkbox-banded'),
-                labelText: this.textBanded
+                labelText: this.textBanded,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chBanded);
 
             this.chFirst = new Common.UI.CheckBox({
                 el: $('#table-checkbox-first'),
-                labelText: this.textFirst
+                labelText: this.textFirst,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chFirst);
 
             this.chLast = new Common.UI.CheckBox({
                 el: $('#table-checkbox-last'),
-                labelText: this.textLast
+                labelText: this.textLast,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chLast);
 
             this.chColBanded = new Common.UI.CheckBox({
                 el: $('#table-checkbox-col-banded'),
-                labelText: this.textBanded
+                labelText: this.textBanded,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chColBanded);
 
@@ -290,27 +308,30 @@ define([
             this.chColBanded.on('change', _.bind(this.onCheckTemplateChange, this, 5));
 
             var _arrBorderPosition = [
-                ['l', 'btn-borders-small btn-position-left', 'table-button-border-left',            this.tipLeft],
-                ['c','btn-borders-small btn-position-inner-vert', 'table-button-border-inner-vert', this.tipInnerVert],
-                ['r','btn-borders-small btn-position-right', 'table-button-border-right',           this.tipRight],
-                ['t','btn-borders-small btn-position-top', 'table-button-border-top',               this.tipTop],
-                ['m','btn-borders-small btn-position-inner-hor', 'table-button-border-inner-hor',   this.tipInnerHor],
-                ['b', 'btn-borders-small btn-position-bottom', 'table-button-border-bottom',        this.tipBottom],
-                ['cm', 'btn-borders-small btn-position-inner', 'table-button-border-inner',         this.tipInner],
-                ['lrtb', 'btn-borders-small btn-position-outer', 'table-button-border-outer',       this.tipOuter],
-                ['lrtbcm', 'btn-borders-small btn-position-all', 'table-button-border-all',         this.tipAll],
-                ['', 'btn-borders-small btn-position-none', 'table-button-border-none',             this.tipNone]
+                ['l', 'toolbar__icon btn-border-left', 'table-button-border-left',              this.tipLeft,       'bottom'],
+                ['c', 'toolbar__icon btn-border-insidevert', 'table-button-border-inner-vert',  this.tipInnerVert,  'bottom'],
+                ['r', 'toolbar__icon btn-border-right', 'table-button-border-right',            this.tipRight,      'bottom'],
+                ['t', 'toolbar__icon btn-border-top', 'table-button-border-top',                this.tipTop,        'bottom'],
+                ['m', 'toolbar__icon btn-border-insidehor', 'table-button-border-inner-hor',    this.tipInnerHor,   'bottom'],
+                ['b', 'toolbar__icon btn-border-bottom', 'table-button-border-bottom',          this.tipBottom,     'bottom'],
+                ['cm', 'toolbar__icon btn-border-inside', 'table-button-border-inner',          this.tipInner,      'top'],
+                ['lrtb', 'toolbar__icon btn-border-out', 'table-button-border-outer',           this.tipOuter,      'top'],
+                ['lrtbcm', 'toolbar__icon btn-border-all', 'table-button-border-all',           this.tipAll,        'top'],
+                ['', 'toolbar__icon btn-border-no', 'table-button-border-none',                 this.tipNone,       'top']
             ];
 
             this._btnsBorderPosition = [];
             _.each(_arrBorderPosition, function(item, index, list){
                 var _btn = new Common.UI.Button({
-                    cls: 'btn-toolbar',
+                    parentEl: $('#'+item[2]),
+                    cls: 'btn-toolbar borders--small',
                     iconCls: item[1],
                     strId   :item[0],
-                    hint: item[3]
+                    hint: item[3],
+                    dataHint: '1',
+                    dataHintDirection: item[4],
+                    dataHintOffset: 'small'
                 });
-                _btn.render( $('#'+item[2])) ;
                 _btn.on('click', _.bind(this.onBtnBordersClick, this));
                 this._btnsBorderPosition.push( _btn );
                 this.lockedControls.push(_btn);
@@ -318,7 +339,10 @@ define([
 
             this.cmbBorderSize = new Common.UI.ComboBorderSize({
                 el: $('#table-combo-border-size'),
-                style: "width: 93px;"
+                style: "width: 93px;",
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.BorderSize = this.cmbBorderSize.store.at(1).get('value');
             this.cmbBorderSize.setValue(this.BorderSize);
@@ -326,9 +350,12 @@ define([
             this.lockedControls.push(this.cmbBorderSize);
 
             this.btnEdit = new Common.UI.Button({
-                cls: 'btn-icon-default',
-                iconCls: 'btn-edit-table',
-                menu        : new Common.UI.Menu({
+                parentEl: $('#table-btn-edit'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-rows-and-columns',
+                caption     : this.textEdit,
+                style       : 'width: 100%;',
+                menu: new Common.UI.Menu({
                     menuAlign: 'tr-br',
                     items: [
                         { caption: this.selectRowText, value: 0 },
@@ -348,9 +375,11 @@ define([
                         { caption: this.mergeCellsText,  value: 11 },
                         { caption: this.splitCellsText,  value: 12 }
                     ]
-                })
+                }),
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
-            this.btnEdit.render( $('#table-btn-edit')) ;
             this.mnuMerge = this.btnEdit.menu.items[this.btnEdit.menu.items.length-2];
             this.mnuSplit = this.btnEdit.menu.items[this.btnEdit.menu.items.length-1];
 
@@ -365,7 +394,10 @@ define([
 
             this.chRepeatRow = new Common.UI.CheckBox({
                 el: $('#table-checkbox-repeat-row'),
-                labelText: this.strRepeatRow
+                labelText: this.strRepeatRow,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.chRepeatRow.on('change', _.bind(this.onCheckRepeatRowChange, this));
             this.lockedControls.push(this.chRepeatRow);
@@ -373,39 +405,52 @@ define([
             this.numHeight = new Common.UI.MetricSpinner({
                 el: $('#table-spin-cell-height'),
                 step: .1,
-                width: 115,
+                width: 90,
                 defaultUnit : "cm",
                 value: '1 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.numHeight.on('change', _.bind(function(field, newValue, oldValue, eOpts){			
 				var _props = new Asc.CTableProp();
 				_props.put_RowHeight(Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));				
 				this.api.tblApply(_props);
             }, this));
+            this.numHeight.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
             this.lockedControls.push(this.numHeight);
             this.spinners.push(this.numHeight);
 
             this.numWidth = new Common.UI.MetricSpinner({
                 el: $('#table-spin-cell-width'),
                 step: .1,
-                width: 115,
+                width: 90,
                 defaultUnit : "cm",
                 value: '1 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.numWidth.on('change', _.bind(function(field, newValue, oldValue, eOpts){
 				var _props = new Asc.CTableProp();
 				_props.put_ColumnWidth(Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));
 				this.api.tblApply(_props);
             }, this));
+            this.numWidth.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
             this.lockedControls.push(this.numWidth);
             this.spinners.push(this.numWidth);
 
             this.btnDistributeRows = new Common.UI.Button({
-                el: $('#table-btn-distrub-rows')
+                parentEl: $('#table-btn-distrub-rows', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-distribute-rows',
+                hint: this.textDistributeRows,
+                dataHint: '1',
+                dataHintDirection: 'top'
             });
             this.lockedControls.push(this.btnDistributeRows);
             this.btnDistributeRows.on('click', _.bind(function(btn){
@@ -413,7 +458,13 @@ define([
             }, this));
 
             this.btnDistributeCols = new Common.UI.Button({
-                el: $('#table-btn-distrub-cols')
+                parentEl: $('#table-btn-distrub-cols', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-distribute-columns',
+                hint: this.textDistributeCols,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.btnDistributeCols);
             this.btnDistributeCols.on('click', _.bind(function(btn){
@@ -426,15 +477,27 @@ define([
             this.lockedControls.push(this.btnAddFormula);
             this.btnAddFormula.on('click', _.bind(this.onAddFormula, this));
 
+            this.btnConvert = new Common.UI.Button({
+                parentEl: $('#table-btn-convert-to-text'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-table-to-text',
+                caption     : this.textConvert,
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'medium'
+            });
+            this.btnConvert.on('click', _.bind(this.onConvertTable, this));
+            this.lockedControls.push(this.btnConvert);
+
             this.linkAdvanced = $('#table-advanced-link');
             $(this.el).on('click', '#table-advanced-link', _.bind(this.openAdvancedSettings, this));
         },
 
         createDelayedElements: function() {
+            this._initSettings = false;
             this.createDelayedControls();
             this.UpdateThemeColors();
             this.updateMetricUnit();
-            this._initSettings = false;
         },
 
         ChangeSettings: function(props) {
@@ -462,22 +525,14 @@ define([
                 }
 
                 //for table-template
-                value = props.get_TableStyle();
+               value = props.get_TableStyle();
                 if (this._state.TemplateId!==value || this._isTemplatesChanged) {
-                    this.cmbTableTemplate.suspendEvents();
-                    var rec = this.cmbTableTemplate.menuPicker.store.findWhere({
-                        templateId: value
-                    });
-                    this.cmbTableTemplate.menuPicker.selectRecord(rec);
-                    this.cmbTableTemplate.resumeEvents();
-
-                    if (this._isTemplatesChanged) {
-                        if (rec)
-                            this.cmbTableTemplate.fillComboView(this.cmbTableTemplate.menuPicker.getSelectedRec(),true);
-                        else
-                            this.cmbTableTemplate.fillComboView(this.cmbTableTemplate.menuPicker.store.at(0), true);
-                    }
-                    this._state.TemplateId=value;
+                    this._state.TemplateId = value;
+                    var template = this.api.asc_getTableStylesPreviews(false, [this._state.TemplateId]);
+                    if (template && template.length>0)
+                        this.$el.find('.icon-template-table').css({'background-image': 'url(' + template[0].asc_getImage() + ')', 'height': '52px', 'width': '72px', 'background-position': 'center', 'background-size': 'auto 52px'});
+                    this._state.currentStyleFound = false;
+                    this.selectCurrentTableStyle();
                 }
                 this._isTemplatesChanged = false;
 
@@ -570,9 +625,9 @@ define([
                 value = props.get_RowsInHeader();
                 if ( this._state.RepeatRow!==value ) {
                     this.chRepeatRow.setValue(!!value, true);
-                    this.chRepeatRow.setDisabled(value === null);
                     this._state.RepeatRow=value;
                 }
+                this.chRepeatRow.setDisabled(this._state.RepeatRow === null || this._locked);
             }
         },
 
@@ -583,6 +638,10 @@ define([
                     spinner.setDefaultUnit(Common.Utils.Metric.getCurrentMetricName());
                     spinner.setStep(Common.Utils.Metric.getCurrentMetric()==Common.Utils.Metric.c_MetricUnits.pt ? 1 : 0.1);
                 }
+                var val = this._state.Width;
+                this.numWidth && this.numWidth.setValue((val !== null && val !== undefined) ? Common.Utils.Metric.fnRecalcFromMM(val) : '', true);
+                val = this._state.Height;
+                this.numHeight && this.numHeight.setValue((val !== null && val !== undefined) ? Common.Utils.Metric.fnRecalcFromMM(val) : '', true);
             }
         },
 
@@ -632,7 +691,13 @@ define([
                 var size = parseFloat(this.BorderSize);
                 border.put_Value(1);
                 border.put_Size(size * 25.4 / 72.0);
-                var color = Common.Utils.ThemeColor.getRgbColor(this.btnBorderColor.color);
+                var color;
+                if (this.btnBorderColor.isAutoColor()) {
+                    color = new Asc.asc_CColor();
+                    color.put_auto(true);
+                } else {
+                    color = Common.Utils.ThemeColor.getRgbColor(this.btnBorderColor.color);
+                }
                 border.put_Color(color);
             }
             else {
@@ -641,92 +706,201 @@ define([
         },
 
         UpdateThemeColors: function() {
+            if (this._initSettings) return;
              if (!this.btnBackColor) {
                 // create color buttons
                  this.btnBorderColor = new Common.UI.ColorButton({
-                     style: "width:45px;",
-                     menu        : new Common.UI.Menu({
-                         items: [
-                             { template: _.template('<div id="table-border-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                             { template: _.template('<a id="table-border-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                         ]
-                     })
+                     parentEl: $('#table-border-color-btn'),
+                     color: 'auto',
+                     auto: true,
+                     eyeDropper: true,
+                     dataHint: '1',
+                     dataHintDirection: 'bottom',
+                     dataHintOffset: 'big'
                  });
-                 this.btnBorderColor.render( $('#table-border-color-btn'));
-                 this.btnBorderColor.setColor('000000');
                  this.lockedControls.push(this.btnBorderColor);
-                 this.borderColor = new Common.UI.ThemeColorPalette({
-                     el: $('#table-border-color-menu')
-                 });
-                 this.borderColor.on('select', _.bind(this.onColorsBorderSelect, this));
-                 this.btnBorderColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.borderColor, this.btnBorderColor));
+                 this.borderColor = this.btnBorderColor.getPicker();
+                 this.btnBorderColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                 this.btnBorderColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
 
                  this.btnBackColor = new Common.UI.ColorButton({
-                     style: "width:45px;",
-                     menu        : new Common.UI.Menu({
-                         items: [
-                             { template: _.template('<div id="table-back-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                             { template: _.template('<a id="table-back-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                         ]
-                     })
+                     parentEl: $('#table-back-color-btn'),
+                     transparent: true,
+                     eyeDropper: true,
+                     dataHint: '1',
+                     dataHintDirection: 'bottom',
+                     dataHintOffset: 'big'
                  });
-                 this.btnBackColor.render( $('#table-back-color-btn'));
                  this.lockedControls.push(this.btnBackColor);
-                 this.colorsBack = new Common.UI.ThemeColorPalette({
-                     el: $('#table-back-color-menu'),
-                     transparent: true
-                 });
-                 this.colorsBack.on('select', _.bind(this.onColorsBackSelect, this));
-                 this.btnBackColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsBack, this.btnBackColor));
+                 this.colorsBack = this.btnBackColor.getPicker();
+                 this.btnBackColor.on('color:select', _.bind(this.onColorsBackSelect, this));
+                 this.btnBackColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                 this.btnBackColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
              }
              this.colorsBack.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
              this.borderColor.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
-             this.btnBorderColor.setColor(this.borderColor.getColor());
+             !this.btnBorderColor.isAutoColor() && this.btnBorderColor.setColor(this.borderColor.getColor());
         },
 
-        _onInitTemplates: function(Templates){
+        selectCurrentTableStyle: function() {
+            if (!this.mnuTableTemplatePicker || this._state.beginPreviewStyles) return;
+
+            var rec = this.mnuTableTemplatePicker.store.findWhere({
+                templateId: this._state.TemplateId
+            });
+            if (!rec && this._state.previewStylesCount===this.mnuTableTemplatePicker.store.length) {
+                rec = this.mnuTableTemplatePicker.store.at(0);
+            }
+            if (rec) {
+                this._state.currentStyleFound = true;
+                this.btnTableTemplate.suspendEvents();
+                this.mnuTableTemplatePicker.selectRecord(rec, true);
+                this.btnTableTemplate.resumeEvents();
+                this.$el.find('.icon-template-table').css({'background-image': 'url(' + rec.get("imageUrl") + ')', 'height': '52px', 'width': '72px', 'background-position': 'center', 'background-size': 'auto 52px'});
+            }
+        },
+
+        onBeginTableStylesPreview: function(count){
+            this._state.beginPreviewStyles = true;
+            this._state.currentStyleFound = false;
+            this._state.previewStylesCount = count;
+            this._state.groups = {
+                'menu-table-group-custom':              {id: 'menu-table-group-custom',             caption: this.txtGroupTable_Custom,             index: 0,   templateCount: 0},
+                'menu-table-group-plain':               {id: 'menu-table-group-plain',              caption: this.txtGroupTable_Plain,              index: 1,   templateCount: 0},
+                'menu-table-group-grid':                {id: 'menu-table-group-grid',               caption: this.txtGroupTable_Grid,               index: 2,   templateCount: 0},
+                'menu-table-group-list':                {id: 'menu-table-group-list',               caption: this.txtGroupTable_List,               index: 3,   templateCount: 0},
+                'menu-table-group-bordered-and-lined':  {id: 'menu-table-group-bordered-and-lined', caption: this.txtGroupTable_BorderedAndLined,   index: 4,   templateCount: 0},
+                'menu-table-group-no-name':             {id: 'menu-table-group-no-name',            caption: '&nbsp',                               index: 5,   templateCount: 0},
+            };
+        },
+
+        onEndTableStylesPreview: function(){
+            !this._state.currentStyleFound && this.selectCurrentTableStyle();
+            if (this.mnuTableTemplatePicker) {
+                this.mnuTableTemplatePicker.scroller.update({alwaysVisibleY: true});
+                if (this.mnuTableTemplatePicker.isVisible())
+                    this.mnuTableTemplatePicker.scrollToRecord(this.mnuTableTemplatePicker.getSelectedRec());
+            }
+        },
+
+        onAddTableStylesPreview: function(Templates){
+            var self = this;
+
+            _.each(Templates, function(template){
+                var tip = template.asc_getDisplayName();
+                var groupItem = '';
+
+                if (template.asc_getType()==0) {
+                    var arr = tip.split(' ');
+                    
+                    if(new RegExp('Table Grid', 'i').test(tip)){
+                        groupItem = 'menu-table-group-plain';
+                    }
+                    else if(new RegExp('Lined|Bordered', 'i').test(tip)) {
+                        groupItem = 'menu-table-group-bordered-and-lined';
+                    }
+                    else{
+                        if(arr[0]){
+                            groupItem = 'menu-table-group-' + arr[0].toLowerCase();
+                        }
+                        if(self._state.groups.hasOwnProperty(groupItem) == false) {
+                            groupItem = 'menu-table-group-no-name';
+                        }
+                        
+                    }
+
+                    ['Table Grid', 'Plain Table', 'Grid Table', 'List Table', 'Light', 'Dark', 'Colorful', 'Accent', 'Bordered & Lined', 'Bordered', 'Lined'].forEach(function(item){
+                        var str = 'txtTable_' + item.replace('&', 'And').replace(new RegExp(' ', 'g'), '');
+                        if (self[str])
+                            tip = tip.replace(item, self[str]);
+                    });
+
+                }
+                else {
+                    groupItem = 'menu-table-group-custom'
+                }
+
+                var templateObj = {
+                    imageUrl: template.asc_getImage(),
+                    id     : Common.UI.getId(),
+                    group : groupItem,
+                    templateId: template.asc_getId(),
+                    tip    : tip
+                };
+                var templateIndex = 0;
+
+                for(var group in self._state.groups) {
+                    if(self._state.groups[group].index <= self._state.groups[groupItem].index) {
+                        templateIndex += self._state.groups[group].templateCount;
+                    }
+                }
+
+                if (self._state.beginPreviewStyles) {
+                    self._state.beginPreviewStyles = false;
+                    self.mnuTableTemplatePicker && self.mnuTableTemplatePicker.groups.reset(self._state.groups[groupItem]);
+                    self.mnuTableTemplatePicker && self.mnuTableTemplatePicker.store.reset(templateObj);
+                    self.mnuTableTemplatePicker.groups.comparator = function(item) {
+                        return item.get('index');
+                    };
+                } 
+                else {
+                    if(self._state.groups[groupItem].templateCount == 0) {
+                        self.mnuTableTemplatePicker && self.mnuTableTemplatePicker.groups.add(self._state.groups[groupItem]);
+                    } 
+                    self.mnuTableTemplatePicker && self.mnuTableTemplatePicker.store.add(templateObj, {at: templateIndex});
+                }
+
+                self._state.groups[groupItem].templateCount += 1;
+            });
+            !this._state.currentStyleFound && this.selectCurrentTableStyle();
+        },
+
+        onInitTableTemplates: function(){
+            if (this._initSettings) {
+                this._tableTemplates = true;
+                return;
+            }
+            this._onInitTemplates();
+        },
+
+        _onInitTemplates: function(){
             var self = this;
             this._isTemplatesChanged = true;
 
-            if (!this.cmbTableTemplate) {
-                this.cmbTableTemplate = new Common.UI.ComboDataView({
-                    itemWidth: 70,
-                    itemHeight: 50,
-                    menuMaxHeight: 300,
-                    enableKeyEvents: true,
-                    cls: 'combo-template'
+            if (!this.btnTableTemplate) {
+                this.btnTableTemplate = new Common.UI.Button({
+                    cls         : 'btn-large-dataview template-table',
+                    iconCls     : 'icon-template-table',
+                    scaling     : false,
+                    menu        : new Common.UI.Menu({
+                        style: 'width: 588px;',
+                        items: [
+                            { template: _.template('<div id="id-table-menu-template" class="menu-table-template"></div>') }
+                        ]
+                    }),
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.cmbTableTemplate.render($('#table-combo-template'));
-                this.cmbTableTemplate.openButton.menu.cmpEl.css({
-                    'min-width': 175,
-                    'max-width': 175
-                });
-                this.cmbTableTemplate.on('click', _.bind(this.onTableTemplateSelect, this));
-                this.cmbTableTemplate.openButton.menu.on('show:after', function () {
-                    self.cmbTableTemplate.menuPicker.scroller.update({alwaysVisibleY: true});
-                });
-                this.lockedControls.push(this.cmbTableTemplate);
-            }
-            
-            var count = self.cmbTableTemplate.menuPicker.store.length;
-            if (count>0 && count==Templates.length) {
-                var data = self.cmbTableTemplate.menuPicker.store.models;
-                _.each(Templates, function(template, index){
-                    data[index].set('imageUrl', template.asc_getImage());
-                });
-            } else {
-                self.cmbTableTemplate.menuPicker.store.reset([]);
-                var arr = [];
-                _.each(Templates, function(template){
-                    arr.push({
-                        imageUrl: template.asc_getImage(),
-                        id     : Common.UI.getId(),
-                        templateId: template.asc_getId(),
-                        tip    : template.asc_getDisplayName()
+                this.btnTableTemplate.on('render:after', function(btn) {
+                    self.mnuTableTemplatePicker = new Common.UI.DataView({
+                        el: $('#id-table-menu-template'),
+                        parentMenu: btn.menu,
+                        restoreHeight: 350,
+                        groups: new Common.UI.DataViewGroupStore(),
+                        store: new Common.UI.DataViewStore(),
+                        itemTemplate: _.template('<div id="<%= id %>" class="item"><img src="<%= imageUrl %>" height="52" width="72"></div>'),
+                        style: 'max-height: 350px;',
+                        cls: 'classic',
+                        delayRenderTips: true
                     });
                 });
-                self.cmbTableTemplate.menuPicker.store.add(arr);
+                this.btnTableTemplate.render($('#table-btn-template'));
+                this.btnTableTemplate.cmpEl.find('.icon-template-table').css({'height': '52px', 'width': '72px', 'background-position': 'center', 'background-size': 'auto 52px'});
+                this.lockedControls.push(this.btnTableTemplate);
+                this.mnuTableTemplatePicker.on('item:click', _.bind(this.onTableTemplateSelect, this, this.btnTableTemplate));
             }
+            this.api.asc_generateTableStylesPreviews();
         },
 
         openAdvancedSettings: function(e) {
@@ -786,6 +960,21 @@ define([
             }
         },
 
+        onConvertTable: function(e) {
+            var me = this;
+            if (me.api && !this._locked){
+                (new DE.Views.TableToTextDialog({
+                    handler: function(dlg, result) {
+                        if (result == 'ok') {
+                            var settings = dlg.getSettings();
+                            me.api.asc_ConvertTableToText(settings.type, settings.separator, settings.nested);
+                        }
+                        me.fireEvent('editcomplete', me);
+                    }
+                })).show();
+            }
+        },
+
         setLocked: function (locked) {
             this._locked = locked;
         },
@@ -798,8 +987,17 @@ define([
                 _.each(this.lockedControls, function(item) {
                     item.setDisabled(disable);
                 });
-                this.linkAdvanced.toggleClass('disabled', disable);
+                this.linkAdvanced && this.linkAdvanced.toggleClass('disabled', disable);
             }
+        },
+
+        onEyedropperStart: function (btn) {
+            this.api.asc_startEyedropper(_.bind(btn.eyedropperEnd, btn));
+            this.fireEvent('eyedropper', true);
+        },
+
+        onEyedropperEnd: function () {
+            this.fireEvent('eyedropper', false);
         },
 
         textBorders:        'Border\'s Style',
@@ -823,9 +1021,6 @@ define([
         textSelectBorders       : 'Select borders that you want to change',
         textAdvanced            : 'Show advanced settings',
         txtNoBorders            : 'No borders',
-        textOK                  : 'OK',
-        textCancel              : 'Cancel',
-        textNewColor            : 'Add New Custom Color',
         textTemplate            : 'Select From Template',
         textRows                : 'Rows',
         textColumns             : 'Columns',
@@ -846,12 +1041,29 @@ define([
         tipInnerVert:       'Set Vertical Inner Lines Only',
         tipInnerHor:        'Set Horizontal Inner Lines Only',
         tipOuter:           'Set Outer Border Only',
-        textCellSize: 'Cell Size',
+        textCellSize: 'Rows & Columns Size',
         textHeight: 'Height',
         textWidth: 'Width',
         textDistributeRows: 'Distribute rows',
         textDistributeCols: 'Distribute columns',
-        textAddFormula: 'Add formula'
+        textAddFormula: 'Add formula',
+        txtTable_TableGrid: 'Table Grid',
+        txtTable_PlainTable: 'Plain Table',
+        txtTable_GridTable: 'Grid Table',
+        txtTable_ListTable: 'List Table',
+        txtTable_Light: 'Light',
+        txtTable_Dark: 'Dark',
+        txtTable_Colorful: 'Colorful',
+        txtTable_Accent: 'Accent',
+        txtTable_Lined: 'Lined',
+        txtTable_Bordered: 'Bordered',
+        txtTable_BorderedAndLined: 'Bordered & Lined',
+        txtGroupTable_Custom: 'Custom',
+        txtGroupTable_Plain: 'Plain Tables',
+        txtGroupTable_Grid: 'Grid Tables',
+        txtGroupTable_List: 'List Tables',
+        txtGroupTable_BorderedAndLined: 'Bordered & Lined Tables',
+        textConvert: 'Convert Table to Text',
 
     }, DE.Views.TableSettings || {}));
 });

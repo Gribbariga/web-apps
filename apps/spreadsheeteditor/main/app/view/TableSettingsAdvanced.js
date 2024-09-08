@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  TableSettingsAdvanced.js
  *
- *  Created by Julia Radzhabova on 1/19/17
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 1/19/17
  *
  */
 
@@ -47,7 +45,7 @@ define([    'text!spreadsheeteditor/main/app/template/TableSettingsAdvanced.temp
     SSE.Views.TableSettingsAdvanced = Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             contentWidth: 300,
-            height: 342,
+            contentHeight: 257,
             toggleGroup: 'table-adv-settings-group',
             properties: null,
             storageName: 'sse-table-settings-adv-category'
@@ -96,6 +94,23 @@ define([    'text!spreadsheeteditor/main/app/template/TableSettingsAdvanced.temp
             this.afterRender();
         },
 
+        getFocusedComponents: function() {
+            return this.btnsCategory.concat([ this.inputAltTitle, this.textareaAltDescription ]).concat(this.getFooterButtons());  // 0 tab
+        },
+
+        onCategoryClick: function(btn, index) {
+            Common.Views.AdvancedSettingsWindow.prototype.onCategoryClick.call(this, btn, index);
+
+            var me = this;
+            setTimeout(function(){
+                switch (index) {
+                    case 0:
+                        me.inputAltTitle.focus();
+                        break;
+                }
+            }, 10);
+        },
+
         afterRender: function() {
             this._setDefaults(this._originalProps);
             if (this.storageName) {
@@ -124,8 +139,6 @@ define([    'text!spreadsheeteditor/main/app/template/TableSettingsAdvanced.temp
         },
 
         textTitle:      'Table - Advanced Settings',
-        cancelButtonText: 'Cancel',
-        okButtonText:   'Ok',
         textAlt: 'Alternative Text',
         textAltTitle: 'Title',
         textAltDescription: 'Description',

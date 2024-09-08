@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -34,8 +33,7 @@
 /**
  *  TableSettings.js
  *
- *  Created by Julia Radzhabova on 3/28/16
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 3/28/16
  *
  */
 
@@ -48,7 +46,8 @@ define([
     'common/main/lib/component/CheckBox',
     'common/main/lib/component/ComboDataView',
     'spreadsheeteditor/main/app/view/TableOptionsDialog',
-    'spreadsheeteditor/main/app/view/TableSettingsAdvanced'
+    'spreadsheeteditor/main/app/view/TableSettingsAdvanced',
+    'spreadsheeteditor/main/app/view/SlicerAddDialog'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
 
@@ -85,6 +84,8 @@ define([
             };
             this.lockedControls = [];
             this._locked = false;
+            this.wsLock = false;
+            this.wsProps = [];
             this.isEditCell = false;
 
             this._originalProps = null;
@@ -100,7 +101,7 @@ define([
             Common.NotificationCenter.trigger('edit:complete', this);
         },
 
-        onTableTemplateSelect: function(combo, record){
+        onTableTemplateSelect: function(btn, picker, itemView, record){
             if (this.api && !this._noApply) {
                 this.api.asc_changeAutoFilter(this._state.TableName, Asc.c_oAscChangeFilterOptions.style, record.get('name'));
             }
@@ -183,47 +184,72 @@ define([
             return this;
         },
 
+        setMode: function(mode) {
+            this.mode = mode;
+        },
+
         createDelayedControls: function() {
             var me = this;
             this.chHeader = new Common.UI.CheckBox({
                 el: $('#table-checkbox-header'),
-                labelText: this.textHeader
+                labelText: this.textHeader,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chHeader);
 
             this.chTotal = new Common.UI.CheckBox({
                 el: $('#table-checkbox-total'),
-                labelText: this.textTotal
+                labelText: this.textTotal,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chTotal);
 
             this.chBanded = new Common.UI.CheckBox({
                 el: $('#table-checkbox-banded'),
-                labelText: this.textBanded
+                labelText: this.textBanded,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chBanded);
 
             this.chFirst = new Common.UI.CheckBox({
                 el: $('#table-checkbox-first'),
-                labelText: this.textFirst
+                labelText: this.textFirst,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chFirst);
 
             this.chLast = new Common.UI.CheckBox({
                 el: $('#table-checkbox-last'),
-                labelText: this.textLast
+                labelText: this.textLast,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chLast);
 
             this.chColBanded = new Common.UI.CheckBox({
                 el: $('#table-checkbox-col-banded'),
-                labelText: this.textBanded
+                labelText: this.textBanded,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chColBanded);
 
             this.chFilter = new Common.UI.CheckBox({
                 el: $('#table-checkbox-filter'),
-                labelText: this.textFilter
+                labelText: this.textFilter,
+                dataHint: '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.lockedControls.push(this.chFilter);
 
@@ -245,15 +271,25 @@ define([
             this.lockedControls.push(this.txtTableName);
 
             this.btnSelectData = new Common.UI.Button({
-                el: $('#table-btn-select-data')
+                parentEl: $('#table-btn-select-data'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-resize-table',
+                caption     : this.textResize,
+                style       : 'width: 100%;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.btnSelectData.on('click', _.bind(this.onSelectData, this));
             this.lockedControls.push(this.btnSelectData);
 
             this.btnEdit = new Common.UI.Button({
-                cls: 'btn-icon-default',
-                iconCls: 'btn-edit-table',
-                menu        : new Common.UI.Menu({
+                parentEl: $('#table-btn-edit'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-rows-and-columns',
+                caption     : this.textEdit,
+                style       : 'width: 100%;',
+                menu: new Common.UI.Menu({
                     menuAlign: 'tr-br',
                     items: [
                         { caption: this.selectRowText,      value:  Asc.c_oAscChangeSelectionFormatTable.row,   idx: 0 },
@@ -270,9 +306,12 @@ define([
                         { caption: this.deleteColumnText,   value: Asc.c_oAscDeleteOptions.DeleteColumns,   idx: 9 },
                         { caption: this.deleteTableText,    value: Asc.c_oAscDeleteOptions.DeleteTable,     idx: 10 }
                     ]
-                })
+                }),
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
-            this.btnEdit.render( $('#table-btn-edit')) ;
+
             this.btnEdit.menu.on('show:after', _.bind( function(menu){
                 if (this.api) {
                     menu.items[5].setDisabled(!this._originalProps.asc_getIsInsertRowAbove());
@@ -289,13 +328,64 @@ define([
             this.lockedControls.push(this.btnEdit);
 
             this.btnConvertRange = new Common.UI.Button({
-                el: $('#table-btn-convert-range')
+                parentEl: $('#table-btn-convert-range'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-convert-to-range',
+                caption     : this.textConvertRange,
+                style       : 'width: 100%;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
+
             this.btnConvertRange.on('click', _.bind(function(btn){
                 if (this.api) this.api.asc_convertTableToRange(this._state.TableName);
                 Common.NotificationCenter.trigger('edit:complete', this);
             }, this));
             this.lockedControls.push(this.btnConvertRange);
+
+            this.btnRemDuplicates = new Common.UI.Button({
+                parentEl: $('#table-btn-rem-duplicates'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-remove-duplicates',
+                caption     : this.textRemDuplicates,
+                style       : 'width: 100%;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+            this.btnRemDuplicates.on('click', _.bind(function(btn){
+                Common.NotificationCenter.trigger('data:remduplicates', this);
+            }, this));
+            this.lockedControls.push(this.btnRemDuplicates);
+
+            this.btnSlicer = new Common.UI.Button({
+                parentEl: $('#table-btn-slicer'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-slicer',
+                caption     : this.textSlicer,
+                style       : 'width: 100%;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+            this.btnSlicer.on('click', _.bind(this.onInsertSlicerClick, this));
+            this.lockedControls.push(this.btnSlicer);
+
+            this.btnPivot = new Common.UI.Button({
+                parentEl: $('#table-btn-pivot'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-pivot-sum',
+                caption     : this.textPivot,
+                style       : 'width: 100%;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+            this.btnPivot.on('click', _.bind(this.onInsertPivotClick, this));
+            this.lockedControls.push(this.btnPivot);
+
+            this.$el.find('.pivot-only').toggleClass('hidden', !this.mode.canFeaturePivot);
 
             $(this.el).on('click', '#table-advanced-link', _.bind(this.openAdvancedSettings, this));
 
@@ -323,10 +413,12 @@ define([
             }
         },
 
-        ChangeSettings: function(props) {
+        ChangeSettings: function(props, wsLock, wsProps) {
             if (this._initSettings)
                 this.createDelayedControls();
 
+            this.wsLock = wsLock;
+            this.wsProps = wsProps;
             this.disableControls(this._locked); // need to update combodataview after disabled state
 
             if (props )//formatTableInfo
@@ -390,27 +482,26 @@ define([
                     this._state.CheckFilter=value;
                 }
                 if (this.chFilter.isDisabled() !== (!this._state.CheckHeader || this._locked || value===null))
-                    this.chFilter.setDisabled(!this._state.CheckHeader || this._locked || value===null);
+                    this.chFilter.setDisabled(!this._state.CheckHeader || this._locked || value===null || this.wsLock);
 
-                if (needTablePictures)
+                if (needTablePictures || !this.mnuTableTemplatePicker)
                     this.onApiInitTableTemplates(this.api.asc_getTablePictures(props));
 
                 //for table-template
                 value = props.asc_getTableStyleName();
                 if (this._state.TemplateName!==value || this._isTemplatesChanged) {
-                    this.cmbTableTemplate.suspendEvents();
-                    var rec = this.cmbTableTemplate.menuPicker.store.findWhere({
+                    var rec = this.mnuTableTemplatePicker.store.findWhere({
                         name: value
                     });
-                    this.cmbTableTemplate.menuPicker.selectRecord(rec);
-                    this.cmbTableTemplate.resumeEvents();
-
-                    if (this._isTemplatesChanged) {
-                        if (rec)
-                            this.cmbTableTemplate.fillComboView(this.cmbTableTemplate.menuPicker.getSelectedRec(),true);
-                        else
-                            this.cmbTableTemplate.fillComboView(this.cmbTableTemplate.menuPicker.store.at(0), true);
+                    if (!rec) {
+                        rec = this.mnuTableTemplatePicker.store.at(0);
                     }
+                    this.btnTableTemplate.suspendEvents();
+                    this.mnuTableTemplatePicker.selectRecord(rec, true);
+                    this.btnTableTemplate.resumeEvents();
+
+                    this.$el.find('.icon-template-table').css({'background-image': 'url(' + rec.get("imageUrl") + ')', 'height': '44px', 'width': '60px', 'background-position': 'center', 'background-size': 'cover'});
+
                     this._state.TemplateName=value;
                 }
                 this._isTemplatesChanged = false;
@@ -419,58 +510,158 @@ define([
 
         onSendThemeColors: function() {
             // get new table templates
-            if (this.cmbTableTemplate) {
-                this.onApiInitTableTemplates(this.api.asc_getTablePictures(this._originalProps));
-                this.cmbTableTemplate.menuPicker.scroller.update({alwaysVisibleY: true});
-            }
+            this.btnTableTemplate && this.onApiInitTableTemplates(this.api.asc_getTablePictures(this._originalProps));
         },
 
         onApiInitTableTemplates: function(Templates){
             var self = this;
             this._isTemplatesChanged = true;
 
-            if (!this.cmbTableTemplate) {
-                this.cmbTableTemplate = new Common.UI.ComboDataView({
-                    itemWidth: 61,
-                    itemHeight: 46,
-                    menuMaxHeight: 300,
-                    enableKeyEvents: true
+            if (!this.btnTableTemplate) {
+                this.btnTableTemplate = new Common.UI.Button({
+                    cls         : 'btn-large-dataview sheet-template-table',
+                    iconCls     : 'icon-template-table',
+                    scaling     : false,
+                    menu        : new Common.UI.Menu({
+                        items: [
+                            { template: _.template('<div id="id-table-menu-template" class="menu-table-template"  style="margin: 0 4px;"></div>') }
+                        ]
+                    }),
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big',
                 });
-                this.cmbTableTemplate.render($('#table-combo-template'));
-                this.cmbTableTemplate.openButton.menu.cmpEl.css({
-                    'min-width': 175,
-                    'max-width': 175
-                });
-                this.cmbTableTemplate.on('click', _.bind(this.onTableTemplateSelect, this));
-                this.cmbTableTemplate.openButton.menu.on('show:after', function () {
-                    self.cmbTableTemplate.menuPicker.scroller.update({alwaysVisibleY: true});
-                });
-                this.lockedControls.push(this.cmbTableTemplate);
-                if (this._locked) this.cmbTableTemplate.setDisabled(this._locked);
-            }
-
-            var count = self.cmbTableTemplate.menuPicker.store.length;
-            if (count>0 && count==Templates.length) {
-                var data = self.cmbTableTemplate.menuPicker.store.models;
-                _.each(Templates, function(template, index){
-                    data[index].set('imageUrl', template.asc_getImage());
-                });
-            } else {
-                self.cmbTableTemplate.menuPicker.store.reset([]);
-                var arr = [];
-                _.each(Templates, function(template){
-                    arr.push({
-                        id          : Common.UI.getId(),
-                        name        : template.asc_getName(),
-                        caption     : template.asc_getDisplayName(),
-                        type        : template.asc_getType(),
-                        imageUrl    : template.asc_getImage(),
-                        allowSelected : true,
-                        selected    : false,
-                        tip         : template.asc_getDisplayName()
+                this.btnTableTemplate.on('render:after', function(btn) {
+                    self.mnuTableTemplatePicker = new Common.UI.DataView({
+                        el: $('#id-table-menu-template'),
+                        parentMenu: btn.menu,
+                        restoreHeight: 325,
+                        groups: new Common.UI.DataViewGroupStore(),
+                        store: new Common.UI.DataViewStore(),
+                        itemTemplate: _.template('<div id="<%= id %>" class="item-template"><img src="<%= imageUrl %>" height="44" width="60"></div>'),
+                        style: 'max-height: 325px;',
+                        cls: 'classic',
+                        delayRenderTips: true
                     });
                 });
-                self.cmbTableTemplate.menuPicker.store.add(arr);
+
+                this.btnTableTemplate.menu.on('show:before', function(menu) {
+                    if (menu && self.mnuTableTemplatePicker) {
+                        var picker = self.mnuTableTemplatePicker,
+                            columnCount = 7;
+        
+                        if (picker.cmpEl) {
+                            var itemEl = $(picker.cmpEl.find('.dataview.inner .item-template').get(0)).parent(),
+                                itemMargin = 8,
+                                itemWidth = itemEl.is(':visible') ? parseFloat(itemEl.css('width')) : 60;
+        
+                            var menuWidth = columnCount * (itemMargin + itemWidth) + 11, // for scroller
+                                menuMargins = parseFloat(picker.cmpEl.css('margin-left')) + parseFloat(picker.cmpEl.css('margin-right'));
+                            if (menuWidth + menuMargins>Common.Utils.innerWidth())
+                                menuWidth = Math.max(Math.floor((Common.Utils.innerWidth()-menuMargins-11)/(itemMargin + itemWidth)), 2) * (itemMargin + itemWidth) + 11;
+                            picker.cmpEl.css({
+                                'width': menuWidth
+                            });
+                            menu.alignPosition();
+                        }
+                    }
+                });
+
+                this.btnTableTemplate.render($('#table-btn-template'));
+                this.lockedControls.push(this.btnTableTemplate);
+                this.mnuTableTemplatePicker.on('item:click', _.bind(this.onTableTemplateSelect, this, this.btnTableTemplate));
+                if (this._locked) this.btnTableTemplate.setDisabled(this._locked || this.wsProps['FormatCells']);
+            }
+
+
+            var count = self.mnuTableTemplatePicker.store.length;
+            if (count>0 && count==Templates.length) {
+                var data = self.mnuTableTemplatePicker.dataViewItems;
+                var findDataViewItem = function(template) {
+                    for(var i = 0; i < data.length; i++) {
+                        if(data[i].model.get('name') && data[i].model.get('name') === template.asc_getName()) return data[i];
+                        else if(data[i].model.get('caption') === template.asc_getDisplayName()) return data[i];
+                    }
+                    return undefined;
+                };
+
+                data && _.each(Templates, function(template, index){
+                    var img = template.asc_getImage();
+                    var dataViewItem = findDataViewItem(template);
+                    dataViewItem && dataViewItem.model.set('imageUrl', img, {silent: true});
+                    dataViewItem && $(dataViewItem.el).find('img').attr('src', img);
+                });
+            } else {            
+                var templates = [];
+                var groups = [
+                    {id: 'menu-table-group-custom',    caption: self.txtGroupTable_Custom, templates: []},
+                    {id: 'menu-table-group-light',     caption: self.txtGroupTable_Light,  templates: []},
+                    {id: 'menu-table-group-medium',    caption: self.txtGroupTable_Medium, templates: []},
+                    {id: 'menu-table-group-dark',      caption: self.txtGroupTable_Dark,   templates: []},
+                    {id: 'menu-table-group-no-name',   caption: '&nbsp',                 templates: []},
+                ];
+                _.each(Templates, function(item){
+                    var tip = item.asc_getDisplayName(),
+                        groupItem = '',
+                        lastWordInTip = null;
+                    
+                    if (item.asc_getType()==0) {
+                        var arr = tip.split(' ');
+                        lastWordInTip = arr.pop();
+                            
+                        if(item.asc_getName() === null){
+                            groupItem = 'menu-table-group-light';
+                        }
+                        else {
+                            if(arr.length > 0){
+                                groupItem = 'menu-table-group-' + arr[arr.length - 1].toLowerCase();
+                            }
+                            if(groups.some(function(item) {return item.id === groupItem;}) == false) {
+                                groupItem = 'menu-table-group-no-name';
+                            }
+                        }
+                        arr = 'txtTable_' + arr.join('');
+                        tip = self[arr] ? self[arr] + ' ' + lastWordInTip : tip;
+                        lastWordInTip = parseInt(lastWordInTip);
+                    }
+                    else {
+                        groupItem = 'menu-table-group-custom'
+                    }                        
+                    groups.filter(function(item){ return item.id == groupItem; })[0].templates.push({
+                        id          : Common.UI.getId(),
+                        name        : item.asc_getName(),
+                        caption     : item.asc_getDisplayName(),
+                        type        : item.asc_getType(),
+                        imageUrl    : item.asc_getImage(),
+                        group       : groupItem, 
+                        allowSelected : true,
+                        selected    : false,
+                        tip         : tip,
+                        numInGroup  : (lastWordInTip != null && !isNaN(lastWordInTip) ? lastWordInTip : null)
+                    });
+                });
+
+                var sortFunc = function(a, b) {
+                    var aNum = a.numInGroup,
+                        bNum = b.numInGroup;
+                    return aNum - bNum;
+                };
+
+                groups[1].templates.sort(sortFunc);
+                groups[2].templates.sort(sortFunc);
+                groups[3].templates.sort(sortFunc);
+
+                groups = groups.filter(function(item, index){
+                    return item.templates.length > 0
+                });
+                
+                groups.forEach(function(item){
+                    templates = templates.concat(item.templates);
+                    delete item.templates;
+                });
+
+                self.mnuTableTemplatePicker.groups.reset(groups);
+                self.mnuTableTemplatePicker.store.reset(templates);
             }
         },
 
@@ -513,6 +704,26 @@ define([
             }
         },
 
+        onInsertSlicerClick: function() {
+            var me = this,
+                props = me.api.asc_beforeInsertSlicer();
+            if (props) {
+                (new SSE.Views.SlicerAddDialog({
+                    props: props,
+                    handler: function (result, settings) {
+                        if (me && me.api && result == 'ok') {
+                            me.api.asc_insertSlicer(settings);
+                        }
+                        Common.NotificationCenter.trigger('edit:complete', me);
+                    }
+                })).show();
+            }
+        },
+
+        onInsertPivotClick: function() {
+            this.fireEvent('pivottable:create');
+        },
+
         onApiEditCell: function(state) {
             this.isEditCell = (state != Asc.c_oAscCellEditorState.editEnd);
             if ( state == Asc.c_oAscCellEditorState.editStart || state == Asc.c_oAscCellEditorState.editEnd)
@@ -527,13 +738,16 @@ define([
             if (this._initSettings) return;
             disable = disable || this.isEditCell;
 
-            if (this._state.DisabledControls!==disable) {
-                this._state.DisabledControls = disable;
-                _.each(this.lockedControls, function(item) {
-                    item.setDisabled(disable);
-                });
-                this.linkAdvanced.toggleClass('disabled', disable);
-            }
+            var me = this;
+            _.each(this.lockedControls, function(item) {
+                item.setDisabled(disable || me.wsLock);
+            });
+            this.linkAdvanced.toggleClass('disabled', disable || this.wsLock);
+            this.btnTableTemplate && this.btnTableTemplate.setDisabled(disable || this.wsProps['FormatCells']);
+            this.chBanded.setDisabled(disable || this.wsProps['FormatCells']);
+            this.chFirst.setDisabled(disable || this.wsProps['FormatCells']);
+            this.chLast.setDisabled(disable || this.wsProps['FormatCells']);
+            this.chColBanded.setDisabled(disable || this.wsProps['FormatCells']);
         },
 
         textEdit:           'Rows & Columns',
@@ -548,8 +762,6 @@ define([
         deleteRowText           : 'Delete Row',
         deleteColumnText        : 'Delete Column',
         deleteTableText         : 'Delete Table',
-        textOK                  : 'OK',
-        textCancel              : 'Cancel',
         textTemplate            : 'Select From Template',
         textRows                : 'Rows',
         textColumns             : 'Columns',
@@ -571,7 +783,19 @@ define([
         textAdvanced:   'Show advanced settings',
         textConvertRange: 'Convert to range',
         textLongOperation: 'Long operation',
-        warnLongOperation: 'The operation you are about to perform might take rather much time to complete.<br>Are you sure you want to continue?'
-
+        warnLongOperation: 'The operation you are about to perform might take rather much time to complete.<br>Are you sure you want to continue?',
+        textRemDuplicates: 'Remove duplicates',
+        textSlicer: 'Insert slicer',
+        textPivot: 'Insert pivot table',
+        textActions: 'Table actions',
+        txtTable_TableStyleMedium: 'Table Style Medium',
+        txtTable_TableStyleDark: 'Table Style Dark',
+        txtTable_TableStyleLight: 'Table Style Light',
+        txtGroupTable_Custom: 'Custom',
+        txtGroupTable_Light: 'Light',
+        txtGroupTable_Medium: 'Medium',
+        txtGroupTable_Dark: 'Dark',
+        
+        
     }, SSE.Views.TableSettings || {}));
 });

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,11 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  TreeView.js
  *
- *  Created by Julia Radzhabova on 12/14/17
+ *  Created on 12/14/17
  *
  */
 
@@ -59,6 +58,7 @@ define([
                 selected: false,
                 allowSelected: true,
                 disabled: false,
+                getTipFromName: true,
                 level: 0,
                 index: 0
             }
@@ -159,30 +159,44 @@ define([
                 showLast: true,
                 allowScrollbar: true,
                 scrollAlwaysVisible: true,
-                emptyItemText: ''
+                emptyItemText: '',
+                keyMoveDirection: 'both'
             },
 
             template: _.template([
-                '<div class="treeview inner"></div>'
+                '<div class="treeview inner" style="<%= style %>"></div>'
             ].join('')),
 
             initialize : function(options) {
                 options.store = options.store || new Common.UI.TreeViewStore();
                 options.emptyItemText = options.emptyItemText || '';
-                options.itemTemplate = options.itemTemplate || _.template([
+                options.itemTemplate = options.itemTemplate || (!Common.UI.isRTL() ? _.template([
                     '<div id="<%= id %>" class="tree-item <% if (!isVisible) { %>' + 'hidden' + '<% } %>" style="display: block;padding-left: <%= level*16 + 24 %>px;">',
                     '<% if (hasSubItems) { %>',
                         '<div class="tree-caret img-commonctrl ' + '<% if (!isExpanded) { %>' + 'up' + '<% } %>' + '" style="margin-left: <%= level*16 %>px;"></div>',
                     '<% } %>',
                     '<% if (isNotHeader) { %>',
-                        '<div class="name not-header"><%= name %></div>',
+                        '<div class="name not-header"><%= Common.Utils.String.htmlEncode(name) %></div>',
                     '<% } else if (isEmptyItem) { %>',
                         '<div class="name empty">' + options.emptyItemText + '</div>',
                     '<% } else { %>',
-                        '<div class="name"><%= name %></div>',
+                        '<div class="name"><%= Common.Utils.String.htmlEncode(name) %></div>',
                     '<% } %>',
                     '</div>'
-                ].join(''));
+                ].join('')) : _.template([
+                    '<div id="<%= id %>" class="tree-item <% if (!isVisible) { %>' + 'hidden' + '<% } %>" style="display: block;padding-right: <%= level*16 + 24 %>px;">',
+                    '<% if (hasSubItems) { %>',
+                        '<div class="tree-caret img-commonctrl ' + '<% if (!isExpanded) { %>' + 'up' + '<% } %>' + '" style="margin-right: <%= level*16 %>px;"></div>',
+                    '<% } %>',
+                    '<% if (isNotHeader) { %>',
+                        '<div class="name not-header"><%= Common.Utils.String.htmlEncode(name) %></div>',
+                    '<% } else if (isEmptyItem) { %>',
+                        '<div class="name empty">' + options.emptyItemText + '</div>',
+                    '<% } else { %>',
+                        '<div class="name"><%= Common.Utils.String.htmlEncode(name) %></div>',
+                    '<% } %>',
+                    '</div>'
+                ].join('')));
                 Common.UI.DataView.prototype.initialize.call(this, options);
             },
 
@@ -193,11 +207,11 @@ define([
                 });
 
                 if (view) {
-                    var innerEl = $(this.el).find('.inner').addBack().filter('.inner');
+                    var innerEl = (this.$el || $(this.el)).find('.inner').addBack().filter('.inner');
                     if (innerEl) {
                         (this.dataViewItems.length<1) && innerEl.find('.empty-text').remove();
 
-                        if (opts && opts.at!==undefined) {
+                        if (opts && (typeof opts.at==='number')) {
                             var idx = opts.at;
                             var innerDivs = innerEl.find('> div');
                             if (idx > 0)
@@ -211,19 +225,7 @@ define([
                             this.dataViewItems.push(view);
                         }
 
-                        var name = record.get('name');
-                        if (name.length > 37 - record.get('level')*2)
-                            record.set('tip', name);
-                        if (record.get('tip')) {
-                            var view_el = $(view.el);
-                            view_el.attr('data-toggle', 'tooltip');
-                            view_el.tooltip({
-                                title       : record.get('tip'),
-                                placement   : 'cursor',
-                                zIndex : this.tipZIndex
-                            });
-                        }
-
+                        this.updateTip(view);
                         this.listenTo(view, 'change',      this.onChangeItem);
                         this.listenTo(view, 'remove',      this.onRemoveItem);
                         this.listenTo(view, 'click',       this.onClickItem);
@@ -239,31 +241,159 @@ define([
 
             onClickItem: function(view, record, e) {
                 var btn = $(e.target);
-                if (btn && btn.hasClass('tree-caret')) {
+                if (btn && (btn.hasClass('tree-caret') || btn.hasClass('btn-tree-caret'))) {
                     var tip = view.$el.data('bs.tooltip');
                     if (tip) (tip.tip()).remove();
 
                     var isExpanded = !record.get('isExpanded');
                     record.set('isExpanded', isExpanded);
                     this.store[(isExpanded) ? 'expandSubItems' : 'collapseSubItems'](record);
-                    this.scroller.update({minScrollbarLength: 40, alwaysVisibleY: this.scrollAlwaysVisible});
+                    this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
                 } else
                     Common.UI.DataView.prototype.onClickItem.call(this, view, record, e);
             },
 
             expandAll: function() {
                 this.store.expandAll();
-                this.scroller.update({minScrollbarLength: 40, alwaysVisibleY: this.scrollAlwaysVisible});
+                this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
             },
 
             collapseAll: function() {
                 this.store.collapseAll();
-                this.scroller.update({minScrollbarLength: 40, alwaysVisibleY: this.scrollAlwaysVisible});
+                this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
             },
 
             expandToLevel: function(expandLevel) {
                 this.store.expandToLevel(expandLevel);
-                this.scroller.update({minScrollbarLength: 40, alwaysVisibleY: this.scrollAlwaysVisible});
+                this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
+            },
+
+            expandRecord: function(record) {
+                if (record) {
+                    record.set('isExpanded', true);
+                    this.store.expandSubItems(record);
+                    this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
+                }
+            },
+
+            collapseRecord: function(record) {
+                if (record) {
+                    record.set('isExpanded', false);
+                    this.store.collapseSubItems(record);
+                    this.scroller.update({minScrollbarLength: this.minScrollbarLength, alwaysVisibleY: this.scrollAlwaysVisible});
+                }
+            },
+
+            onKeyDown: function (e, data) {
+                if ( this.disabled ) return;
+                if (data===undefined) data = e;
+                if (_.indexOf(this.moveKeys, data.keyCode)>-1 || data.keyCode==Common.UI.Keys.RETURN) {
+                    data.preventDefault();
+                    data.stopPropagation();
+                    var rec = this.getSelectedRec();
+                    if (this.lastSelectedRec===null)
+                        this.lastSelectedRec = rec;
+                    if (data.keyCode==Common.UI.Keys.RETURN) {
+                        this.lastSelectedRec = null;
+                        if (this.selectedBeforeHideRec) // only for ComboDataView menuPicker
+                            rec = this.selectedBeforeHideRec;
+                        this.trigger('item:click', this, this, rec, e);
+                        this.trigger('item:select', this, this, rec, e);
+                        this.trigger('entervalue', this, rec, e);
+                        if (this.parentMenu)
+                            this.parentMenu.hide();
+                    } else {
+                        var idx = _.indexOf(this.store.models, rec);
+                        if (idx<0) {
+                            if (data.keyCode==Common.UI.Keys.LEFT) {
+                                var target = $(e.target).closest('.dropdown-submenu.over');
+                                if (target.length>0) {
+                                    target.removeClass('over');
+                                    target.find('> a').focus();
+                                } else
+                                    idx = 0;
+                            } else
+                                idx = 0;
+                        } else if (this.options.keyMoveDirection == 'both') {
+                            var hasSubItems = rec.get('hasSubItems');
+                            var hasParent = rec.get('hasParent');
+                            var isExpanded = rec.get('isExpanded');
+                            if (data.keyCode==Common.UI.Keys.LEFT) {
+                                if (hasSubItems && isExpanded)
+                                    this.collapseRecord(rec);
+                            } else if (data.keyCode==Common.UI.Keys.RIGHT) {
+                                if (hasSubItems && !isExpanded)
+                                    this.expandRecord(rec);
+                            } else {
+                                if (data.keyCode==Common.UI.Keys.DOWN) {
+                                    for (var i=idx+1; i<this.store.length; i++) {
+                                        if (this.store.at(i).get('isVisible')) {
+                                            idx=i;
+                                            break;
+                                        }
+                                    }
+                                } else if (data.keyCode==Common.UI.Keys.UP) {
+                                    for (var i=idx-1; i>=0; i--) {
+                                        if (this.store.at(i).get('isVisible')) {
+                                            idx=i;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            idx = (data.keyCode==Common.UI.Keys.UP || data.keyCode==Common.UI.Keys.LEFT)
+                                ? Math.max(0, idx-1)
+                                : Math.min(this.store.length - 1, idx + 1) ;
+                        }
+
+                        if (idx !== undefined && idx>=0) rec = this.store.at(idx);
+                        if (rec) {
+                            this._fromKeyDown = true;
+                            this.selectRecord(rec);
+                            this._fromKeyDown = false;
+                            this.scrollToRecord(rec);
+                        }
+                    }
+                } else {
+                    this.trigger('item:keydown', this, rec, e);
+                }
+            },
+
+            focus: function() {
+                this.cmpEl && this.cmpEl.find('.treeview').focus();
+            },
+
+            updateTip: function(item) {
+                var record = item.model,
+                    name = record.get('name'),
+                    me = this;
+
+                record.get('getTipFromName') && record.set('tip', name.length > 37 - record.get('level')*2 ? name : '');
+
+                var el = item.$el || $(item.el),
+                    tip = el.data('bs.tooltip');
+                if (tip)
+                    tip.updateTitle(record.get('tip'));
+                else if (record.get('tip') && el.attr('data-toggle')!=='tooltip') { // init tooltip
+                    el.attr('data-toggle', 'tooltip');
+                    if (this.delayRenderTips)
+                        el.one('mouseenter', function(){
+                            el.tooltip({
+                                title       : record.get('tip'),
+                                placement   : 'cursor',
+                                zIndex : me.tipZIndex
+                            });
+                            el.mouseenter();
+                        });
+                    else {
+                        el.tooltip({
+                            title       : record.get('tip'),
+                            placement   : 'cursor',
+                            zIndex : me.tipZIndex
+                        });
+                    }
+                }
             }
         }
     })());

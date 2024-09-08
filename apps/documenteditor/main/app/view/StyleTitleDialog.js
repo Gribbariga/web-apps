@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,9 +28,9 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
- * Created by Vladimir Karas on 26.05.15.
+ * Created on 26.05.15.
  */
 if (Common === undefined)
     var Common = {};
@@ -45,9 +44,9 @@ define([
     DE.Views.StyleTitleDialog = Common.UI.Window.extend(_.extend({
         options: {
             width: 350,
-            height: 200,
             style: 'min-width: 230px;',
-            cls: 'modal-dlg'
+            cls: 'modal-dlg',
+            buttons: ['ok', 'cancel']
         },
 
             initialize : function(options) {
@@ -62,11 +61,6 @@ define([
 
                         '<label class="input-row" style="margin-bottom: -5px; margin-top: 5px;">' + this.textNextStyle + '</label>',
                         '<div id="id-dlg-style-next-par" class="input-group-nr" style="margin-bottom: 5px;" ></div>',
-                    '</div>',
-
-                    '<div class="footer right">',
-                        '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                        '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
                     '</div>'
                 ].join('');
 
@@ -89,6 +83,7 @@ define([
                 style       : 'width: 100%;',
                 validateOnBlur: false,
                 validation  : function(value) {
+                    value = value.trim();
                     var isvalid = value != '';
 
                     if (isvalid) {
@@ -107,6 +102,7 @@ define([
                 style       : 'width: 100%;',
                 menuStyle   : 'width: 100%; max-height: 210px;',
                 editable    : false,
+                takeFocusOnClose: true,
                 cls         : 'input-group-nr',
                 data        : this.options.formats,
                 disabled    : (this.options.formats.length==0)
@@ -114,18 +110,17 @@ define([
             this.cmbNextStyle.setValue(-1);
         },
 
-        show: function() {
-            Common.UI.Window.prototype.show.apply(this, arguments);
+        getFocusedComponents: function() {
+            return [this.inputTitle, this.cmbNextStyle].concat(this.getFooterButtons());
+        },
 
-            var me = this;
-            _.delay(function(){
-                me.inputTitle.cmpEl.find('input').focus();
-            },500);
+        getDefaultFocusableComponent: function () {
+            return this.inputTitle;
         },
 
         getTitle: function () {
             var me = this;
-            return me.inputTitle.getValue();
+            return me.inputTitle.getValue().trim();
         },
 
         getNextStyle: function () {
@@ -147,7 +142,7 @@ define([
                 if (state == 'ok') {
                     var checkurl = this.inputTitle.checkValidate();
                     if (checkurl !== true)  {
-                        this.inputTitle.cmpEl.find('input').focus();
+                        this.inputTitle.focus();
                         return;
                     }
                 }

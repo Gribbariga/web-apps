@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 define([
     'core',
     'common/main/lib/util/Shortcuts',
@@ -52,18 +51,27 @@ define([
                     'hide': _.bind(this.onHideChat, this)
                 },
                 'Common.Views.Plugins': {
-                    'plugin:open': _.bind(this.onPluginOpen, this),
-                    'hide':        _.bind(this.onHidePlugins, this)
+                    'plugins:addtoleft': _.bind(this.addNewPlugin, this),
+                    'pluginsleft:open': _.bind(this.openPlugin, this),
+                    'pluginsleft:close': _.bind(this.closePlugin, this),
+                    'pluginsleft:hide': _.bind(this.onHidePlugins, this),
+                    'pluginsleft:updateicons': _.bind(this.updatePluginButtonsIcons, this)
                 },
                 'Common.Views.Header': {
-                    'file:settings': _.bind(this.clickToolbarSettings,this),
-                    'click:users': _.bind(this.clickStatusbarUsers, this)
+                    'history:show': function () {
+                        if ( !this.leftMenu.panelHistory.isVisible() )
+                            this.clickMenuFileItem('header', 'history');
+                        }.bind(this),
+                    'rename': _.bind(function (value) {
+                        this.mode && this.mode.wopi && this.api ? this.api.asc_wopi_renameFile(value) : Common.Gateway.requestRename(value);
+                    }, this)
                 },
                 'LeftMenu': {
                     'file:show': _.bind(this.fileShowHide, this, true),
                     'file:hide': _.bind(this.fileShowHide, this, false),
                     'comments:show': _.bind(this.commentsShowHide, this, true),
-                    'comments:hide': _.bind(this.commentsShowHide, this, false)
+                    'comments:hide': _.bind(this.commentsShowHide, this, false),
+                    'button:click':  _.bind(this.onBtnCategoryClick, this)
                 },
                 'Common.Views.About': {
                     'show':    _.bind(this.aboutShowHide, this, true),
@@ -76,6 +84,7 @@ define([
                     'saveas:format': _.bind(this.clickSaveAsFormat, this),
                     'savecopy:format': _.bind(this.clickSaveCopyAsFormat, this),
                     'settings:apply': _.bind(this.applySettings, this),
+                    'spellcheck:apply': _.bind(this.applySpellcheckSettings, this),
                     'create:new': _.bind(this.onCreateNew, this),
                     'recent:open': _.bind(this.onOpenRecent, this)
                 },
@@ -85,40 +94,42 @@ define([
                     'file:close': this.clickToolbarTab.bind(this, 'other'),
                     'save:disabled' : this.changeToolbarSaveState.bind(this)
                 },
-                'SearchDialog': {
-                    'hide': _.bind(this.onSearchDlgHide, this),
-                    'search:back': _.bind(this.onQuerySearch, this, 'back'),
-                    'search:next': _.bind(this.onQuerySearch, this, 'next'),
-                    'search:replace': _.bind(this.onQueryReplace, this),
-                    'search:replaceall': _.bind(this.onQueryReplaceAll, this),
-                    'search:highlight': _.bind(this.onSearchHighlight, this)
-                },
                 'Common.Views.ReviewChanges': {
                     'collaboration:chat': _.bind(this.onShowHideChat, this)
+                },
+                'SearchBar': {
+                    'search:show': _.bind(this.onShowHideSearch, this)
+                },
+                'ViewTab': {
+                    'leftmenu:hide': _.bind(this.onLeftMenuHide, this)
                 }
             });
             Common.NotificationCenter.on('app:comment:add', _.bind(this.onAppAddComment, this));
+            Common.NotificationCenter.on('leftmenu:change', _.bind(this.onMenuChange, this));
+            Common.NotificationCenter.on('collaboration:history', _.bind(function () {
+                if ( !this.leftMenu.panelHistory.isVisible() )
+                    this.clickMenuFileItem(null, 'history');
+            }, this));
+            Common.NotificationCenter.on('file:print', _.bind(this.clickToolbarPrint, this));
         },
 
         onLaunch: function() {
             this.leftMenu = this.createView('LeftMenu').render();
-            this.leftMenu.btnSearch.on('toggle', _.bind(this.onMenuSearch, this));
+            this.leftMenu.btnSearchBar.on('toggle', _.bind(this.onMenuSearchBar, this));
 
-            Common.util.Shortcuts.delegateShortcuts({
-                shortcuts: {
-                    'command+shift+s,ctrl+shift+s': _.bind(this.onShortcut, this, 'save'),
-                    'command+f,ctrl+f': _.bind(this.onShortcut, this, 'search'),
-                    'ctrl+h': _.bind(this.onShortcut, this, 'replace'),
-                    'alt+f': _.bind(this.onShortcut, this, 'file'),
-                    'esc': _.bind(this.onShortcut, this, 'escape'),
-                    /** coauthoring begin **/
-                    'alt+q': _.bind(this.onShortcut, this, 'chat'),
-                    'command+shift+h,ctrl+shift+h': _.bind(this.onShortcut, this, 'comments'),
-                    /** coauthoring end **/
-                    'f1': _.bind(this.onShortcut, this, 'help')
-                }
-            });
-
+            var keymap = {
+                'command+shift+s,ctrl+shift+s': _.bind(this.onShortcut, this, 'save'),
+                'command+f,ctrl+f': _.bind(this.onShortcut, this, 'search'),
+                'ctrl+h': _.bind(this.onShortcut, this, 'replace'),
+                'esc': _.bind(this.onShortcut, this, 'escape'),
+                /** coauthoring begin **/
+                'command+shift+h,ctrl+shift+h': _.bind(this.onShortcut, this, 'comments'),
+                /** coauthoring end **/
+                'f1': _.bind(this.onShortcut, this, 'help')
+            };
+            keymap[Common.Utils.isMac ? 'ctrl+alt+f' : 'alt+f'] = _.bind(this.onShortcut, this, 'file');
+            keymap[Common.Utils.isMac ? 'ctrl+alt+q' : 'alt+q'] = _.bind(this.onShortcut, this, 'chat');
+            Common.util.Shortcuts.delegateShortcuts({shortcuts:keymap});
             Common.util.Shortcuts.suspendEvents();
 
             var me = this;
@@ -140,7 +151,6 @@ define([
 
         setApi: function(api) {
             this.api = api;
-            this.api.asc_registerCallback('asc_onRenameCellTextEnd',    _.bind(this.onRenameText, this));
             this.api.asc_registerCallback('asc_onCoAuthoringDisconnect', _.bind(this.onApiServerDisconnect, this));
             Common.NotificationCenter.on('api:disconnect',              _.bind(this.onApiServerDisconnect, this));
             this.api.asc_registerCallback('asc_onDownloadUrl',          _.bind(this.onDownloadUrl, this));
@@ -157,7 +167,8 @@ define([
                         var collection = comments[name],
                             resolved = Common.Utils.InternalSettings.get("sse-settings-resolvedcomment");
                         for (var i = 0; i < collection.length; ++i) {
-                            if (collection.at(i).get('userid') !== this.mode.user.id && (resolved || !collection.at(i).get('resolved'))) {
+                            var comment = collection.at(i);
+                            if (!comment.get('hide') && comment.get('userid') !== this.mode.user.id && (resolved || !comment.get('resolved'))) {
                                 this.leftMenu.markCoauthOptions('comments', true);
                                 break;
                             }
@@ -166,9 +177,13 @@ define([
                 }
             }
             /** coauthoring end **/
-            if (!this.mode.isEditMailMerge && !this.mode.isEditDiagram)
+            if (!this.mode.isEditMailMerge && !this.mode.isEditDiagram && !this.mode.isEditOle)
                 this.api.asc_registerCallback('asc_onEditCell', _.bind(this.onApiEditCell, this));
             this.leftMenu.getMenu('file').setApi(api);
+            if (this.mode.canUseHistory)
+                this.getApplication().getController('Common.Controllers.History').setApi(this.api).setMode(this.mode);
+            this.getApplication().getController('Search').setApi(this.api).setMode(this.mode);
+            this.leftMenu.setOptionsPanel('advancedsearch', this.getApplication().getController('Search').getView('Common.Views.SearchPanel'));
             return this;
         },
 
@@ -176,16 +191,31 @@ define([
             this.mode = mode;
             this.leftMenu.setMode(mode);
             this.leftMenu.getMenu('file').setMode(mode);
-
-            if (!mode.isEdit)  // TODO: unlock 'save as', 'open file menu' for 'view' mode
-                Common.util.Shortcuts.removeShortcuts({
-                    shortcuts: {
-                        'command+shift+s,ctrl+shift+s': _.bind(this.onShortcut, this, 'save'),
-                        'alt+f': _.bind(this.onShortcut, this, 'file')
-                    }
-                });
-
             return this;
+        },
+
+        SetDisabled: function(disable, options) {
+            if (this.leftMenu._state.disabled !== disable) {
+                this.leftMenu._state.disabled = disable;
+                if (disable) {
+                    this.previsEdit = this.mode.isEdit;
+                    this.prevcanEdit = this.mode.canEdit;
+                    this.mode.isEdit = this.mode.canEdit = !disable;
+                } else {
+                    this.mode.isEdit = this.previsEdit;
+                    this.mode.canEdit = this.prevcanEdit;
+                }
+            }
+
+            if (disable) this.leftMenu.close();
+
+            if (!options || options.comments && options.comments.disable)
+                this.leftMenu.btnComments.setDisabled(disable);
+            if (!options || options.chat)
+                this.leftMenu.btnChat.setDisabled(disable);
+
+            this.leftMenu.btnSpellcheck.setDisabled(disable);
+            this.leftMenu.setDisabledPluginButtons(disable);
         },
 
         createDelayedElements: function() {
@@ -203,26 +233,25 @@ define([
                 this.leftMenu.btnComments.hide();
             }
 
-            if (this.mode.isEdit) {
-                this.leftMenu.btnSpellcheck.show();
+            if (this.mode.isEdit && Common.UI.FeaturesManager.canChange('spellcheck')) {
+                Common.UI.LayoutManager.isElementVisible('leftMenu-spellcheck') && this.leftMenu.btnSpellcheck.show();
                 this.leftMenu.setOptionsPanel('spellcheck', this.getApplication().getController('Spellcheck').getView('Spellcheck'));
             }
+            if (this.mode.canUseHistory)
+                this.leftMenu.setOptionsPanel('history', this.getApplication().getController('Common.Controllers.History').getView('Common.Views.History'));
 
-            this.mode.trialMode && this.leftMenu.setDeveloperMode(this.mode.trialMode);
+            (this.mode.trialMode || this.mode.isBeta) && this.leftMenu.setDeveloperMode(this.mode.trialMode, this.mode.isBeta, this.mode.buildVersion);
             /** coauthoring end **/
             Common.util.Shortcuts.resumeEvents();
-            if (!this.mode.isEditMailMerge && !this.mode.isEditDiagram)
+            if (!this.mode.isEditMailMerge && !this.mode.isEditDiagram && !this.mode.isEditOle)
                 Common.NotificationCenter.on('cells:range',   _.bind(this.onCellsRange, this));
+            this.leftMenu.setButtons();
+            this.leftMenu.setMoreButton();
             return this;
         },
 
         enablePlugins: function() {
-            if (this.mode.canPlugins) {
-                // this.leftMenu.btnPlugins.show();
-                this.leftMenu.setOptionsPanel('plugins', this.getApplication().getController('Common.Controllers.Plugins').getView('Common.Views.Plugins'));
-            } else
-                this.leftMenu.btnPlugins.hide();
-            this.mode.trialMode && this.leftMenu.setDeveloperMode(this.mode.trialMode);
+            (this.mode.trialMode || this.mode.isBeta) && this.leftMenu.setDeveloperMode(this.mode.trialMode, this.mode.isBeta, this.mode.buildVersion);
         },
 
         clickMenuFileItem: function(menu, action, isopts) {
@@ -231,10 +260,13 @@ define([
             case 'back': break;
             case 'save': this.api.asc_Save(); break;
             case 'save-desktop': this.api.asc_DownloadAs(); break;
+            case 'export-pdf':
+                Common.NotificationCenter.trigger('export:to', this.leftMenu, Asc.c_oAscFileType.PDF);
+                break;
             case 'print': Common.NotificationCenter.trigger('print', this.leftMenu); break;
             case 'exit': Common.NotificationCenter.trigger('goback'); break;
             case 'edit':
-//                this.getApplication().getController('Statusbar').setStatusCaption(this.requestEditRightsText);
+                this.getApplication().getController('Statusbar').setStatusCaption(this.requestEditRightsText);
                 Common.Gateway.requestEditRights();
                 break;
             case 'new':
@@ -246,35 +278,85 @@ define([
                     documentCaption = me.api.asc_getDocumentName();
                 (new Common.Views.RenameDialog({
                     filename: documentCaption,
+                    maxLength: this.mode.wopi ? this.mode.wopi.FileNameMaxLength : undefined,
                     handler: function(result, value) {
                         if (result == 'ok' && !_.isEmpty(value.trim()) && documentCaption !== value.trim()) {
-                            Common.Gateway.requestRename(value);
+                            me.mode.wopi ? me.api.asc_wopi_renameFile(value) : Common.Gateway.requestRename(value);
                         }
                         Common.NotificationCenter.trigger('edit:complete', me);
                     }
                 })).show();
                 break;
+            case 'history':
+                if (!this.leftMenu.panelHistory.isVisible()) {
+                    if (this.api.asc_isDocumentModified()) {
+                        var me = this;
+                        this.api.asc_stopSaving();
+                        Common.UI.warning({
+                            closable: false,
+                            width: 500,
+                            title: this.notcriticalErrorTitle,
+                            msg: this.leavePageText,
+                            buttons: ['ok', 'cancel'],
+                            primary: 'ok',
+                            callback: function(btn) {
+                                if (btn == 'ok') {
+                                    me.api.asc_undoAllChanges();
+                                    me.api.asc_continueSaving();
+                                    me.showHistory();
+                                } else
+                                    me.api.asc_continueSaving();
+                            }
+                        });
+                    } else
+                        this.showHistory();
+                }
+                break;
+            case 'external-help': close_menu = true; break;
+            case 'close-editor': Common.NotificationCenter.trigger('close'); break;
             default: close_menu = false;
             }
 
-            if (close_menu) {
+            if (close_menu && menu) {
                 menu.hide();
             }
         },
 
+        showLostDataWarning: function(callback) {
+            Common.UI.warning({
+                title: this.textWarning,
+                msg: this.warnDownloadAs,
+                buttons: ['ok', 'cancel'],
+                callback: _.bind(function (btn) {
+                    if (btn == 'ok') {
+                        callback.call();
+                    }
+                }, this)
+            });
+        },
+
         clickSaveAsFormat: function(menu, format) {
             if (format == Asc.c_oAscFileType.CSV) {
-                Common.UI.warning({
-                    title: this.textWarning,
-                    msg: this.warnDownloadAs,
-                    buttons: ['ok', 'cancel'],
-                    callback: _.bind(function(btn){
-                        if (btn == 'ok') {
-                            Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, this.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format));
-                            menu.hide();
-                        }
-                    }, this)
-                });
+                var me = this;
+                if (this.api.asc_getWorksheetsCount()>1) {
+                    Common.UI.warning({
+                        title: this.textWarning,
+                        msg: this.warnDownloadCsvSheets,
+                        buttons: [{value: 'ok', caption: this.textSave}, 'cancel'],
+                        callback: _.bind(function (btn) {
+                            if (btn == 'ok') {
+                                me.showLostDataWarning(function () {
+                                    Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, me.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format));
+                                    menu.hide();
+                                });
+                            }
+                        }, this)
+                    });
+                } else
+                    this.showLostDataWarning(function () {
+                        Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, me.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format));
+                        menu.hide();
+                    });
             } else if (format == Asc.c_oAscFileType.PDF || format == Asc.c_oAscFileType.PDFA) {
                 menu.hide();
                 Common.NotificationCenter.trigger('download:settings', this.leftMenu, format);
@@ -286,30 +368,46 @@ define([
 
         clickSaveCopyAsFormat: function(menu, format, ext) {
             if (format == Asc.c_oAscFileType.CSV) {
-                Common.UI.warning({
-                    title: this.textWarning,
-                    msg: this.warnDownloadAs,
-                    buttons: ['ok', 'cancel'],
-                    callback: _.bind(function(btn){
-                        if (btn == 'ok') {
-                            this.isFromFileDownloadAs = ext;
-                            Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, this.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format, true));
-                            menu.hide();
-                        }
-                    }, this)
-                });
+                var me = this;
+                if (this.api.asc_getWorksheetsCount()>1) {
+                    Common.UI.warning({
+                        title: this.textWarning,
+                        msg: this.warnDownloadCsvSheets,
+                        buttons: [{value: 'ok', caption: this.textSave}, 'cancel'],
+                        callback: _.bind(function (btn) {
+                            if (btn == 'ok') {
+                                me.showLostDataWarning(function () {
+                                    me.isFromFileDownloadAs = ext;
+                                    var options = new Asc.asc_CDownloadOptions(format, true);
+                                    options.asc_setIsSaveAs(true);
+                                    Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, me.api.asc_getAdvancedOptions(), 2, options);
+                                    menu.hide();
+                                });
+                            }
+                        }, this)
+                    });
+                } else
+                    me.showLostDataWarning(function () {
+                        me.isFromFileDownloadAs = ext;
+                        var options = new Asc.asc_CDownloadOptions(format, true);
+                        options.asc_setIsSaveAs(true);
+                        Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.CSV, me.api.asc_getAdvancedOptions(), 2, options);
+                        menu.hide();
+                    });
             } else if (format == Asc.c_oAscFileType.PDF || format == Asc.c_oAscFileType.PDFA) {
                 this.isFromFileDownloadAs = ext;
                 menu.hide();
                 Common.NotificationCenter.trigger('download:settings', this.leftMenu, format, true);
             } else {
                 this.isFromFileDownloadAs = ext;
-                this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format, true));
+                var options = new Asc.asc_CDownloadOptions(format, true);
+                options.asc_setIsSaveAs(true);
+                this.api.asc_DownloadAs(options);
                 menu.hide();
             }
         },
 
-        onDownloadUrl: function(url) {
+        onDownloadUrl: function(url, fileType) {
             if (this.isFromFileDownloadAs) {
                 var me = this,
                     defFileName = this.getApplication().getController('Viewport').getView('Common.Views.Header').getDocumentCaption();
@@ -322,7 +420,7 @@ define([
                 }
 
                 if (me.mode.canRequestSaveAs) {
-                    Common.Gateway.requestSaveAs(url, defFileName);
+                    Common.Gateway.requestSaveAs(url, defFileName, fileType);
                 } else {
                     me._saveCopyDlg = new Common.Views.SaveAsDlg({
                         saveFolderUrl: me.mode.saveAsUrl,
@@ -355,7 +453,11 @@ define([
         },
 
         applySettings: function(menu) {
-            var value = Common.localStorage.getItem("sse-settings-fontrender");
+            var value = Common.localStorage.getBool("sse-settings-cachemode", true);
+            Common.Utils.InternalSettings.set("sse-settings-cachemode", value);
+            this.api.asc_setDefaultBlitMode(value);
+
+            value = Common.localStorage.getItem("sse-settings-fontrender");
             Common.Utils.InternalSettings.set("sse-settings-fontrender", value);
             this.api.asc_setFontRenderingMode(parseInt(value));
 
@@ -365,39 +467,87 @@ define([
             var resolved = Common.localStorage.getBool("sse-settings-resolvedcomment");
             Common.Utils.InternalSettings.set("sse-settings-resolvedcomment", resolved);
 
-            if (this.mode.canViewComments && this.leftMenu.panelComments.isVisible())
+            if (this.mode.canViewComments && this.leftMenu.panelComments && this.leftMenu.panelComments.isVisible())
                 value = resolved = true;
             (value) ? this.api.asc_showComments(resolved) : this.api.asc_hideComments();
+            this.getApplication().getController('Common.Controllers.ReviewChanges').commentsShowHide(value ? 'show' : 'hide');
 
             value = Common.localStorage.getBool("sse-settings-r1c1");
             Common.Utils.InternalSettings.set("sse-settings-r1c1", value);
             this.api.asc_setR1C1Mode(value);
 
+            var fast_coauth = Common.Utils.InternalSettings.get("sse-settings-coauthmode");
             if (this.mode.isEdit && !this.mode.isOffline && this.mode.canCoAuthoring) {
-                value = Common.localStorage.getBool("sse-settings-coauthmode", true);
-                Common.Utils.InternalSettings.set("sse-settings-coauthmode", value);
-                this.api.asc_SetFastCollaborative(value);
+                if (this.mode.canChangeCoAuthoring) {
+                    fast_coauth = Common.localStorage.getBool("sse-settings-coauthmode", true);
+                    Common.Utils.InternalSettings.set("sse-settings-coauthmode", fast_coauth);
+                    this.api.asc_SetFastCollaborative(fast_coauth);
+                }
+            } else if (this.mode.canLiveView && !this.mode.isOffline && this.mode.canChangeCoAuthoring) { // viewer
+                fast_coauth = Common.localStorage.getBool("sse-settings-view-coauthmode", false);
+                Common.Utils.InternalSettings.set("sse-settings-coauthmode", fast_coauth);
+                this.api.asc_SetFastCollaborative(fast_coauth);
             }
             /** coauthoring end **/
 
             if (this.mode.isEdit) {
-                value = parseInt(Common.localStorage.getItem("sse-settings-autosave"));
-                Common.Utils.InternalSettings.set("sse-settings-autosave", value);
-                this.api.asc_setAutoSaveGap(value);
+                if (this.mode.canChangeCoAuthoring || !fast_coauth) {// can change co-auth. mode or for strict mode
+                    value = parseInt(Common.localStorage.getItem("sse-settings-autosave"));
+                    Common.Utils.InternalSettings.set("sse-settings-autosave", value);
+                    this.api.asc_setAutoSaveGap(value);
+                }
+
+                value = parseInt(Common.localStorage.getItem("sse-settings-paste-button"));
+                Common.Utils.InternalSettings.set("sse-settings-paste-button", value);
+                this.api.asc_setVisiblePasteButton(!!value);
             }
 
-            value = Common.localStorage.getItem("sse-settings-reg-settings");
-            if (value!==null) this.api.asc_setLocale(parseInt(value));
+            var reg = Common.localStorage.getItem("sse-settings-reg-settings"),
+                baseRegSettings = Common.Utils.InternalSettings.get("sse-settings-use-base-separator");
+            if (reg === null) {
+                reg = this.api.asc_getLocale();
+            }
+            if (baseRegSettings) {
+                this.api.asc_setLocale(parseInt(reg), undefined, undefined);
+            }
+            else {
+                this.api.asc_setLocale(parseInt(reg), Common.localStorage.getItem("sse-settings-decimal-separator"), Common.localStorage.getItem("sse-settings-group-separator"));
+            }
+
+            value = Common.localStorage.getBool("app-settings-screen-reader");
+            Common.Utils.InternalSettings.set("app-settings-screen-reader", value);
+            this.api.setSpeechEnabled(value);
 
             menu.hide();
 
             this.leftMenu.fireEvent('settings:apply');
         },
 
+        applySpellcheckSettings: function(menu) {
+            if (this.mode.isEdit && this.api && Common.UI.FeaturesManager.canChange('spellcheck')) {
+                var value = Common.localStorage.getBool("sse-spellcheck-ignore-uppercase-words");
+                this.api.asc_ignoreUppercase(value);
+                value = Common.localStorage.getBool("sse-spellcheck-ignore-numbers-words");
+                this.api.asc_ignoreNumbers(value);
+                value = Common.localStorage.getItem("sse-spellcheck-locale");
+                if (value) {
+                    this.api.asc_setDefaultLanguage(parseInt(value));
+                }
+            }
+
+            menu.hide();
+
+            this.leftMenu.fireEvent('spellcheck:update');
+        },
+
         onCreateNew: function(menu, type) {
             if ( !Common.Controllers.Desktop.process('create:new') ) {
-                var newDocumentPage = window.open(type == 'blank' ? this.mode.createUrl : type, "_blank");
-                if (newDocumentPage) newDocumentPage.focus();
+                if (type == 'blank' && this.mode.canRequestCreateNew)
+                    Common.Gateway.requestCreateNew();
+                else {
+                    var newDocumentPage = window.open(type == 'blank' ? this.mode.createUrl : type, "_blank");
+                    if (newDocumentPage) newDocumentPage.focus();
+                }
             }
             if (menu) {
                 menu.hide();
@@ -426,221 +576,62 @@ define([
                 this.leftMenu.menuFile.hide();
         },
 
+        clickToolbarPrint: function () {
+            this.leftMenu.showMenu('file:printpreview');
+        },
+
         changeToolbarSaveState: function (state) {
             var btnSave = this.leftMenu.menuFile.getButton('save');
             btnSave && btnSave.setDisabled(state);
         },
 
         /** coauthoring begin **/
-        clickStatusbarUsers: function() {
-            this.leftMenu.menuFile.panels['rights'].changeAccessRights();
-        },
-
         onHideChat: function() {
             $(this.leftMenu.btnChat.el).blur();
             Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
         },
+        /** coauthoring end **/
 
         onHidePlugins: function() {
             Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
         },
-        /** coauthoring end **/
 
-        onQuerySearch: function(d, w, opts) {
-            if (opts.textsearch && opts.textsearch.length) {
-                var options = this.dlgSearch.findOptions;
-                options.asc_setFindWhat(opts.textsearch);
-                options.asc_setScanForward(d != 'back');
-                options.asc_setIsMatchCase(opts.matchcase);
-                options.asc_setIsWholeCell(opts.matchword);
-                options.asc_setScanOnOnlySheet(this.dlgSearch.menuWithin.menu.items[0].checked);
-                options.asc_setScanByRows(this.dlgSearch.menuSearch.menu.items[0].checked);
-                options.asc_setLookIn(this.dlgSearch.menuLookin.menu.items[0].checked?Asc.c_oAscFindLookIn.Formulas:Asc.c_oAscFindLookIn.Value);
-
-                if (!this.api.asc_findText(options)) {
-                    var me = this;
-                    Common.UI.info({
-                        msg: this.textNoTextFound,
-                        callback: function() {
-                            me.dlgSearch.focus();
-                        }
-                    });
-                }
-            }
+        addNewPlugin: function (button, $button, $panel) {
+            this.leftMenu.insertButton(button, $button);
+            this.leftMenu.insertPanel($panel);
         },
 
-        onQueryReplace: function(w, opts) {
-            if (!_.isEmpty(opts.textsearch)) {
-                this.api.isReplaceAll = false;
-
-                var options = this.dlgSearch.findOptions;
-                options.asc_setFindWhat(opts.textsearch);
-                options.asc_setReplaceWith(opts.textreplace);
-                options.asc_setIsMatchCase(opts.matchcase);
-                options.asc_setIsWholeCell(opts.matchword);
-                options.asc_setScanOnOnlySheet(this.dlgSearch.menuWithin.menu.items[0].checked);
-                options.asc_setScanByRows(this.dlgSearch.menuSearch.menu.items[0].checked);
-                options.asc_setLookIn(this.dlgSearch.menuLookin.menu.items[0].checked?Asc.c_oAscFindLookIn.Formulas:Asc.c_oAscFindLookIn.Value);
-                options.asc_setIsReplaceAll(false);
-
-                this.api.asc_replaceText(options);
-            }
-        },
-
-        onQueryReplaceAll: function(w, opts) {
-            if (!_.isEmpty(opts.textsearch)) {
-                this.api.isReplaceAll = true;
-
-                var options = this.dlgSearch.findOptions;
-                options.asc_setFindWhat(opts.textsearch);
-                options.asc_setReplaceWith(opts.textreplace);
-                options.asc_setIsMatchCase(opts.matchcase);
-                options.asc_setIsWholeCell(opts.matchword);
-                options.asc_setScanOnOnlySheet(this.dlgSearch.menuWithin.menu.items[0].checked);
-                options.asc_setScanByRows(this.dlgSearch.menuSearch.menu.items[0].checked);
-                options.asc_setLookIn(this.dlgSearch.menuLookin.menu.items[0].checked?Asc.c_oAscFindLookIn.Formulas:Asc.c_oAscFindLookIn.Value);
-                options.asc_setIsReplaceAll(true);
-
-                this.api.asc_replaceText(options);
-            }
-        },
-
-        onSearchHighlight: function(w, highlight) {
-            this.api.asc_selectSearchingResults(highlight);
-        },
-
-        showSearchDlg: function(show,action) {
-            if ( !this.dlgSearch ) {
-                var menuWithin = new Common.UI.MenuItem({
-                    caption     : this.textWithin,
-                    menu        : new Common.UI.Menu({
-                        menuAlign   : 'tl-tr',
-                        items       : [{
-                                caption     : this.textSheet,
-                                toggleGroup : 'searchWithih',
-                                checkable   : true,
-                                checked     : true
-                            },{
-                                caption     : this.textWorkbook,
-                                toggleGroup : 'searchWithih',
-                                checkable   : true,
-                                checked     : false
-                        }]
-                    })
-                });
-
-                var menuSearch = new Common.UI.MenuItem({
-                    caption     : this.textSearch,
-                    menu        : new Common.UI.Menu({
-                        menuAlign   : 'tl-tr',
-                        items       : [{
-                                caption     : this.textByRows,
-                                toggleGroup : 'searchByrows',
-                                checkable   : true,
-                                checked     : true
-                            },{
-                                caption     : this.textByColumns,
-                                toggleGroup : 'searchByrows',
-                                checkable   : true,
-                                checked     : false
-                        }]
-                    })
-                });
-
-                var menuLookin = new Common.UI.MenuItem({
-                    caption     : this.textLookin,
-                    menu        : new Common.UI.Menu({
-                        menuAlign   : 'tl-tr',
-                        items       : [{
-                                caption     : this.textFormulas,
-                                toggleGroup : 'searchLookin',
-                                checkable   : true,
-                                checked     : true
-                            },{
-                                caption     : this.textValues,
-                                toggleGroup : 'searchLookin',
-                                checkable   : true,
-                                checked     : false
-                        }]
-                    })
-                });
-
-                this.dlgSearch = (new Common.UI.SearchDialog({
-                    matchcase: true,
-                    matchword: true,
-                    matchwordstr: this.textItemEntireCell,
-                    markresult: {applied: true},
-                    extraoptions : [menuWithin,menuSearch,menuLookin]
-                }));
-
-                this.dlgSearch.menuWithin = menuWithin;
-                this.dlgSearch.menuSearch = menuSearch;
-                this.dlgSearch.menuLookin = menuLookin;
-                this.dlgSearch.findOptions = new Asc.asc_CFindOptions();
-            }
-
-            if (show) {
-                var mode = this.mode.isEdit && !this.viewmode ? (action || undefined) : 'no-replace';
-
-                if (this.dlgSearch.isVisible()) {
-                    this.dlgSearch.setMode(mode);
-                    this.dlgSearch.focus();
+        onBtnCategoryClick: function (btn) {
+            if (btn.options.type === 'plugin' && !btn.isDisabled()) {
+                if (btn.pressed) {
+                    this.tryToShowLeftMenu();
+                    this.leftMenu.fireEvent('plugins:showpanel', [btn.options.value]); // show plugin panel
                 } else {
-                    this.dlgSearch.show(mode);
+                    this.leftMenu.fireEvent('plugins:hidepanel', [btn.options.value]);
                 }
-
-                this.api.asc_closeCellEditor();
-            } else this.dlgSearch['hide']();
-        },
-
-        onMenuSearch: function(obj, show) {
-            this.showSearchDlg(show);
-        },
-
-        onSearchDlgHide: function() {
-            this.leftMenu.btnSearch.toggle(false, true);
-            this.api.asc_selectSearchingResults(false);
-            $(this.leftMenu.btnSearch.el).blur();
-            this.api.asc_enableKeyEvents(true);
-        },
-
-        onRenameText: function(found, replaced) {
-            var me = this;
-            if (this.api.isReplaceAll) {
-                Common.UI.info({
-                    msg: (found) ? ((!found-replaced) ? Common.Utils.String.format(this.textReplaceSuccess,replaced) : Common.Utils.String.format(this.textReplaceSkipped,found-replaced)) : this.textNoTextFound,
-                    callback: function() {
-                        me.dlgSearch.focus();
-                    }
-                });
-            } else {
-                var sett = this.dlgSearch.getSettings();
-                var options = this.dlgSearch.findOptions;
-                options.asc_setFindWhat(sett.textsearch);
-                options.asc_setScanForward(true);
-                options.asc_setIsMatchCase(sett.matchcase);
-                options.asc_setIsWholeCell(sett.matchword);
-                options.asc_setScanOnOnlySheet(this.dlgSearch.menuWithin.menu.items[0].checked);
-                options.asc_setScanByRows(this.dlgSearch.menuSearch.menu.items[0].checked);
-                options.asc_setLookIn(this.dlgSearch.menuLookin.menu.items[0].checked?Asc.c_oAscFindLookIn.Formulas:Asc.c_oAscFindLookIn.Value);
-
-
-                if (!me.api.asc_findText(options)) {
-                    Common.UI.info({
-                        msg: this.textNoTextFound,
-                        callback: function() {
-                            me.dlgSearch.focus();
-                        }
-                    });
-                }
+                this.leftMenu.onBtnMenuClick(btn);
             }
+        },
+
+        openPlugin: function (guid) {
+            this.leftMenu.openPlugin(guid);
+        },
+
+        closePlugin: function (guid) {
+            this.leftMenu.closePlugin(guid);
+            Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
+        },
+
+        updatePluginButtonsIcons: function (icons) {
+            this.leftMenu.updatePluginButtonsIcons(icons);
         },
 
         setPreviewMode: function(mode) {
             if (this.viewmode === mode) return;
             this.viewmode = mode;
 
-            this.dlgSearch && this.dlgSearch.setMode(this.viewmode ? 'no-replace' : 'search');
+            this.leftMenu.panelSearch && this.leftMenu.panelSearch.setSearchMode(this.viewmode ? 'no-replace' : 'search');
+            this.leftMenu.setDisabledPluginButtons(this.viewmode);
         },
 
         onApiServerDisconnect: function(enableDownload) {
@@ -651,14 +642,10 @@ define([
             this.leftMenu.btnComments.setDisabled(true);
             this.leftMenu.btnChat.setDisabled(true);
             /** coauthoring end **/
-            this.leftMenu.btnPlugins.setDisabled(true);
             this.leftMenu.btnSpellcheck.setDisabled(true);
+            this.leftMenu.setDisabledPluginButtons(true);
 
             this.leftMenu.getMenu('file').setMode({isDisconnected: true, enableDownload: !!enableDownload});
-            if ( this.dlgSearch ) {
-                this.leftMenu.btnSearch.toggle(false, true);
-                this.dlgSearch['hide']();
-            }
         },
 
         /** coauthoring begin **/
@@ -668,14 +655,14 @@ define([
 
         onApiAddComment: function(id, data) {
             var resolved = Common.Utils.InternalSettings.get("sse-settings-resolvedcomment");
-            if (data && data.asc_getUserId() !== this.mode.user.id && (resolved || !data.asc_getSolved()))
+            if (data && data.asc_getUserId() !== this.mode.user.id && (resolved || !data.asc_getSolved()) && AscCommon.UserInfoParser.canViewComment(data.asc_getUserName()))
                 this.leftMenu.markCoauthOptions('comments');
         },
 
         onApiAddComments: function(data) {
             var resolved = Common.Utils.InternalSettings.get("sse-settings-resolvedcomment");
             for (var i = 0; i < data.length; ++i) {
-                if (data[i].asc_getUserId() !== this.mode.user.id && (resolved || !data[i].asc_getSolved())) {
+                if (data[i].asc_getUserId() !== this.mode.user.id && (resolved || !data[i].asc_getSolved()) && AscCommon.UserInfoParser.canViewComment(data[i].asc_getUserName())) {
                     this.leftMenu.markCoauthOptions('comments');
                     break;
                 }
@@ -741,7 +728,7 @@ define([
         menuFilesShowHide: function(state) {
             if (this.api) {
                 this.api.asc_closeCellEditor();
-                this.api.asc_enableKeyEvents(!(state == 'show'));
+                (state == 'show') ? this.api.asc_enableKeyEvents(false) : Common.NotificationCenter.trigger('menu:hide');
             }
 
             if ( this.dlgSearch ) {
@@ -759,17 +746,45 @@ define([
 
             if (this.mode.isEditDiagram && s!='escape') return false;
             if (this.mode.isEditMailMerge && s!='escape' && s!='search') return false;
+            if (this.mode.isEditOle && s!='escape' && s!='search') return false;
 
             switch (s) {
                 case 'replace':
                 case 'search':
-                    if (!this.leftMenu.btnSearch.isDisabled()) {
+                    if (this.mode.isEditMailMerge || this.mode.isEditOle) {
+                        this.leftMenu.fireEvent('search:show');
+                        return false;
+                    }
+                    if (!this.leftMenu.btnSearchBar.isDisabled()) {
                         Common.UI.Menu.Manager.hideAll();
-                        this.showSearchDlg(true,s);
-                        this.leftMenu.btnSearch.toggle(true,true);
                         this.leftMenu.btnAbout.toggle(false);
+                        if ( this.leftMenu.menuFile.isVisible() )
+                            this.leftMenu.menuFile.hide();
 
-                        this.leftMenu.menuFile.hide();
+                        var selectedText = this.api.asc_GetSelectedText();
+                        if (this.isSearchPanelVisible()) {
+                            selectedText && this.leftMenu.panelSearch.setFindText(selectedText);
+                            this.leftMenu.panelSearch.focus(selectedText !== '' ? s : 'search');
+                            this.leftMenu.fireEvent('search:aftershow', [selectedText ? selectedText : undefined]);
+                            return false;
+                        } else if (this.getApplication().getController('Viewport').isSearchBarVisible()) {
+                            var viewport = this.getApplication().getController('Viewport');
+                            if (s === 'replace') {
+                                viewport.header.btnSearch.toggle(false);
+                                this.onShowHideSearch(true, viewport.searchBar.inputSearch.val());
+                            } else {
+                                selectedText && viewport.searchBar.setText(selectedText);
+                                viewport.searchBar.focus();
+                                return false;
+                            }
+                        } else if (s === 'search') {
+                            Common.NotificationCenter.trigger('search:show');
+                            return false;
+                        } else {
+                            this.onShowHideSearch(true, selectedText ? selectedText : undefined);
+                        }
+                        this.leftMenu.btnSearchBar.toggle(true,true);
+                        this.leftMenu.panelSearch.focus(selectedText ? s : 'search');
                     }
                     return false;
                 case 'save':
@@ -783,7 +798,7 @@ define([
                     }
                     return false;
                 case 'help':
-                    if ( this.mode.isEdit && this.mode.canHelp ) {                   // TODO: unlock 'help' panel for 'view' mode
+                    if ( this.mode.canHelp ) {                   // TODO: unlock 'help' panel for 'view' mode
                         Common.UI.Menu.Manager.hideAll();
                         this.api.asc_closeCellEditor();
                         this.leftMenu.showMenu('file:help');
@@ -796,8 +811,12 @@ define([
 
                     return false;
                 case 'escape':
+                    var btnSearch = this.getApplication().getController('Viewport').header.btnSearch;
+                    btnSearch.pressed && btnSearch.toggle(false);
+
                     if ( this.leftMenu.menuFile.isVisible() ) {
-                        this.leftMenu.menuFile.hide();
+                        if (Common.UI.HintManager.needCloseFileMenu())
+                            this.leftMenu.menuFile.hide();
                         return false;
                     }
 
@@ -814,18 +833,23 @@ define([
                             return false;
                         }
                     }
-                    if ( this.leftMenu.btnAbout.pressed ||
-                        ($(e.target).parents('#left-menu').length || this.leftMenu.btnPlugins.pressed || this.leftMenu.btnComments.pressed) && this.api.isCellEdited!==true) {
-                        this.leftMenu.close();
-                        Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
+                    if ( this.leftMenu.btnAbout.pressed) {
+                        if (!Common.UI.HintManager.isHintVisible()) {
+                            this.leftMenu.close();
+                            Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
+                        }
                         return false;
                     }
-                    if (this.mode.isEditDiagram || this.mode.isEditMailMerge) {
+                    if (this.mode.isEditDiagram || this.mode.isEditMailMerge || this.mode.isEditOle) {
+                        var searchBarBtn = (this.mode.isEditMailMerge || this.mode.isEditOle) && this.getApplication().getController('Toolbar').toolbar.btnSearch,
+                            isSearchOpen = searchBarBtn && searchBarBtn.pressed;
                         menu_opened = $(document.body).find('.open > .dropdown-menu');
-                        if (!this.api.isCellEdited && !menu_opened.length) {
+                        if (!this.api.isCellEdited && !menu_opened.length && !isSearchOpen) {
+                            this.mode.isEditOle && Common.NotificationCenter.trigger('oleedit:close');
                             Common.Gateway.internalMessage('shortcut', {key:'escape'});
                             return false;
                         }
+                        isSearchOpen && searchBarBtn.toggle(false);
                     }
                     break;
                 /** coauthoring begin **/
@@ -850,11 +874,11 @@ define([
             var isRangeSelection = (status != Asc.c_oAscSelectionDialogType.None);
 
             this.leftMenu.btnAbout.setDisabled(isRangeSelection);
-            this.leftMenu.btnSearch.setDisabled(isRangeSelection);
+            this.leftMenu.btnSearchBar.setDisabled(isRangeSelection);
             this.leftMenu.btnSpellcheck.setDisabled(isRangeSelection);
             if (this.mode.canPlugins && this.leftMenu.panelPlugins) {
+                Common.Utils.lockControls(Common.enumLock.selRangeEdit, isRangeSelection, {array: this.leftMenu.panelPlugins.lockedControls});
                 this.leftMenu.panelPlugins.setLocked(isRangeSelection);
-                this.leftMenu.panelPlugins.disableControls(isRangeSelection);
             }
         },
 
@@ -862,25 +886,11 @@ define([
             var isEditFormula = (state == Asc.c_oAscCellEditorState.editFormula);
 
             this.leftMenu.btnAbout.setDisabled(isEditFormula);
-            this.leftMenu.btnSearch.setDisabled(isEditFormula);
+            this.leftMenu.btnSearchBar.setDisabled(isEditFormula);
             this.leftMenu.btnSpellcheck.setDisabled(isEditFormula);
             if (this.mode.canPlugins && this.leftMenu.panelPlugins) {
+                Common.Utils.lockControls(Common.enumLock.editFormula, isEditFormula, {array: this.leftMenu.panelPlugins.lockedControls});
                 this.leftMenu.panelPlugins.setLocked(isEditFormula);
-                this.leftMenu.panelPlugins.disableControls(isEditFormula);
-            }
-        },
-
-        onPluginOpen: function(panel, type, action) {
-            if (type == 'onboard') {
-                if (action == 'open') {
-                    this.leftMenu.close();
-                    this.leftMenu.panelPlugins.show();
-                    this.leftMenu.onBtnMenuClick({pressed: true, options: {action: 'plugins'}});
-                    this.leftMenu._state.pluginIsRunning = true;
-                } else {
-                    this.leftMenu._state.pluginIsRunning = false;
-                    this.leftMenu.close();
-                }
             }
         },
 
@@ -888,6 +898,7 @@ define([
             if (this.mode.canCoAuthoring && this.mode.canChat && !this.mode.isLightVersion) {
                 if (state) {
                     Common.UI.Menu.Manager.hideAll();
+                    this.tryToShowLeftMenu();
                     this.leftMenu.showMenu('chat');
                 } else {
                     this.leftMenu.btnChat.toggle(false, true);
@@ -896,12 +907,88 @@ define([
             }
         },
 
+        onShowHideSearch: function (state, findText) {
+            if (state) {
+                Common.UI.Menu.Manager.hideAll();
+                this.tryToShowLeftMenu();
+                this.leftMenu.showMenu('advancedsearch');
+                this.leftMenu.fireEvent('search:aftershow', [findText]);
+            } else {
+                this.leftMenu.btnSearchBar.toggle(false, true);
+                this.leftMenu.onBtnMenuClick(this.leftMenu.btnSearchBar);
+            }
+        },
+
+        onMenuSearchBar: function(obj, show) {
+            if (show) {
+                var mode = this.mode.isEdit && !this.viewmode ? undefined : 'no-replace';
+                this.leftMenu.panelSearch.setSearchMode(mode);
+            }
+        },
+
+        isSearchPanelVisible: function () {
+            return this.leftMenu && this.leftMenu.panelSearch && this.leftMenu.panelSearch.isVisible();
+        },
+
+        onMenuChange: function (value) {
+            if ('hide' === value) {
+                if (this.leftMenu.btnComments.isActive() && this.api) {
+                    this.leftMenu.btnComments.toggle(false);
+                    this.leftMenu.onBtnMenuClick(this.leftMenu.btnComments);
+
+                    // focus to sdk
+                    this.api.asc_enableKeyEvents(true);
+                } else if (this.leftMenu.btnSearchBar.isActive() && this.api) {
+                    this.leftMenu.btnSearchBar.toggle(false);
+                    this.leftMenu.onBtnMenuClick(this.leftMenu.btnSearchBar);
+                } else if (this.leftMenu.btnSpellcheck.isActive() && this.api) {
+                    this.leftMenu.btnSpellcheck.toggle(false);
+                    this.leftMenu.onBtnMenuClick(this.leftMenu.btnSpellcheck);
+                }
+                else if (this.leftMenu.btnChat.isActive()) {
+                    this.leftMenu.btnChat.toggle(false);
+                    this.leftMenu.onBtnMenuClick(this.leftMenu.btnChat);
+                }
+            }
+        },
+
+        showHistory: function() {
+            if (!this.mode.wopi) {
+                var maincontroller = this.getApplication().getController('Main');
+                if (!maincontroller.loadMask)
+                    maincontroller.loadMask = new Common.UI.LoadMask({owner: $('#viewport')});
+                maincontroller.loadMask.setTitle(this.textLoadHistory);
+                maincontroller.loadMask.show();
+            }
+            Common.Gateway.requestHistory();
+        },
+
+        isCommentsVisible: function() {
+            return this.leftMenu && this.leftMenu.panelComments && this.leftMenu.panelComments.isVisible();
+        },
+
+        onLeftMenuHide: function (view, status) {
+            if (this.leftMenu) {
+                !status && this.leftMenu.close();
+                status ? this.leftMenu.show() : this.leftMenu.hide();
+                Common.localStorage.setBool('sse-hidden-leftmenu', !status);
+
+                !view && this.leftMenu.fireEvent('view:hide', [this, !status]);
+            }
+
+            Common.NotificationCenter.trigger('layout:changed', 'main');
+            Common.NotificationCenter.trigger('edit:complete', this.leftMenu);
+        },
+
+        tryToShowLeftMenu: function() {
+            if ((!this.mode.canBrandingExt || !this.mode.customization || this.mode.customization.leftMenu !== false) && Common.UI.LayoutManager.isElementVisible('leftMenu'))
+                this.onLeftMenuHide(null, true);
+        },
+
         textNoTextFound        : 'Text not found',
         newDocumentTitle        : 'Unnamed document',
         textItemEntireCell      : 'Entire cell contents',
         requestEditRightsText   : 'Requesting editing rights...',
-        textReplaceSuccess      : 'Search has been done. {0} occurrences have been replaced',
-        textReplaceSkipped      : 'The replacement has been made. {0} occurrences were skipped.',
         warnDownloadAs          : 'If you continue saving in this format all features except the text will be lost.<br>Are you sure you want to continue?' ,
         textWarning: 'Warning',
         textSheet: 'Sheet',
@@ -913,6 +1000,10 @@ define([
         textWithin: 'Within',
         textSearch: 'Search',
         textLookin: 'Look in',
-        txtUntitled: 'Untitled'
+        txtUntitled: 'Untitled',
+        textLoadHistory         : 'Loading version history...',
+        leavePageText: 'All unsaved changes in this document will be lost.<br> Click \'Cancel\' then \'Save\' to save them. Click \'OK\' to discard all the unsaved changes.',
+        warnDownloadCsvSheets: 'The CSV format does not support saving a multi-sheet file.<br>To keep the selected format and save only the current sheet, press Save.<br>To save the current spreadsheet, click Cancel and save it in a different format.',
+        textSave: 'Save'
     }, SSE.Controllers.LeftMenu || {}));
 });

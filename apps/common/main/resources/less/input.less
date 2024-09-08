@@ -1,25 +1,45 @@
 .form-control {
     .border-radius(@border-radius-small);
     .box-shadow(none);
-    color: @gray-deep;
+    color: @text-normal-ie;
+    color: @text-normal;
     .user-select(text);
+    .font-size-normal();
 
+    border: @scaled-one-px-value-ie solid @border-regular-control-ie;
+    border: @scaled-one-px-value solid @border-regular-control;
+    background-color: @background-normal-ie;
+    background-color: @background-normal;
+    &:-ms-input-placeholder {
+        color: @text-tertiary-ie;
+    }
     &:focus {
-        border-color: @input-border;
+        border-color: @border-control-focus-ie;
+        border-color: @border-control-focus;
         outline: 0;
         .box-shadow(none);
+        &.disabled {
+            border-color: @border-regular-control-ie;
+            border-color: @border-regular-control;
+        }
     }
 }
 
 .form-control[readonly] {
     cursor: pointer;
-    background-color: @input-bg;
+    background-color: @background-normal-ie;
+    background-color: @background-normal;
 }
 
 .form-control[disabled] {
     cursor: default;
-    background-color: @input-bg;
-   .user-select(none);
+    background-color: @background-normal-ie;
+    background-color: @background-normal;
+    .user-select(none);
+    &:-ms-input-placeholder {
+        color: @text-normal-ie;
+    }
+    .placeholder(@text-normal);
 }
 
 .input-row {
@@ -33,27 +53,56 @@
         content: '';
         position: absolute;
         right: 3px;
-        top: 4px;
+        top: 3px;
         width: 16px;
         height: 16px;
         background-position: @input-error-offset-x @input-error-offset-y;
+        filter: none;
+
+        .rtl & {
+            right: unset;
+            left: 3px;
+        }
     }
 }
 
 .input-field {
     input,
     .input-error {
-        float: left;
+        .float-left();
         position: relative;
     }
 
+    input {
+        .rtl & {
+            direction: rtl;
+        }
+    }
+
+    &.form-control:focus,
+    .form-control:focus {
+        //border-color: @border-control-focus;
+    }
+
     &.error {
-        input {
+        input:not([disabled]) {
             border-color: @brand-danger;
         }
 
-        .input-error {
+        input:not([disabled]) + .input-error {
             display: block;
+        }
+    }
+
+    &.warning {
+        input:not([disabled]) + .input-error {
+            display: block;
+        }
+
+        .input-error {
+            &:before {
+                background-position: @input-warning-offset-x @input-warning-offset-y;
+            }
         }
     }
 }
@@ -69,7 +118,8 @@ input.error {
 }
 
 .disabled .form-control {
-    opacity: 0.65;
+    opacity: @component-disabled-opacity-ie;
+    opacity: @component-disabled-opacity;
     cursor: default !important;
 }
 
@@ -79,9 +129,94 @@ input.error {
 
 input[type="password"] {
     font-size: 16px;
+    &::-ms-reveal {
+        display: none;
+    }
 }
 
 input[type="text"]::selection, textarea::selection {
-    background: #3494fb;
-    color: white;
+    background: @highlight-text-select-ie;
+    background: @highlight-text-select;
+    color: @text-inverse-ie;
+    color: @text-inverse;
+}
+
+textarea.form-control:focus {
+    //border-color: @border-control-focus;
+}
+
+.input-field-btn {
+    position: relative;
+
+    .select-button {
+        position: absolute;
+        right: @scaled-one-px-value-ie;
+        right: @scaled-one-px-value;
+        top: @scaled-one-px-value-ie;
+        top: @scaled-one-px-value;
+
+        .btn-group > .btn-toolbar,
+        & > .btn-toolbar {
+            height: 20px;
+            height: calc(22px - @scaled-one-px-value * 2);
+        }
+
+        .rtl & {
+            right: unset;
+            left: @scaled-one-px-value-ie;
+            left: @scaled-one-px-value;
+        }
+    }
+
+    .input-error {
+        &:before {
+            right: 22px;
+
+            .rtl & {
+                right: unset;
+                left: 22px;
+            }
+        }
+    }
+    input {
+        .padding-x(3px, 20px);
+    }
+}
+
+.input-field-fixed {
+    position: relative;
+
+    input:not(.fixed-text) {
+        .text-align-right();
+        padding-right: 50%;
+        padding-right: calc(50% + 4px);
+        .rtl & {
+            padding-left: 50%;
+            padding-right: 0;
+        }
+    }
+
+    .fixed-text {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 50%;
+        width: calc(50% + 4px);
+        border-color: transparent;
+        background: transparent;
+        .text-align-left();
+        .font-size-normal();
+        padding-left: 2px;
+        padding-right: 2px;
+        cursor: default;
+
+        .rtl & {
+            right: unset;
+            left: 0;
+        }
+    }
+    &.disabled .fixed-text {
+        opacity: @component-disabled-opacity-ie;
+        opacity: @component-disabled-opacity;
+    }
 }

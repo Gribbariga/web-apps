@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  PivotTable.js
  *
  *  View
  *
- *  Created by Julia.Radzhabova on 06.27.17
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 06.27.17
  *
  */
 
@@ -52,26 +50,35 @@ define([
     SSE.Views.PivotTable = Common.UI.BaseView.extend(_.extend((function(){
         var template =
             '<section id="pivot-table-panel" class="panel" data-tab="pivot">' +
-                // '<div class="group">' +
-                //     '<span id="slot-btn-add-pivot" class="btn-slot text x-huge"></span>' +
-                // '</div>' +
-                // '<div class="separator long"/>' +
-                // '<div class="group">' +
-                //     '<span id="slot-btn-pivot-report-layout" class="btn-slot text x-huge"></span>' +
-                //     '<span id="slot-btn-pivot-blank-rows" class="btn-slot text x-huge"></span>' +
-                //     '<span id="slot-btn-pivot-subtotals" class="btn-slot text x-huge"></span>' +
-                //     '<span id="slot-btn-pivot-grand-totals" class="btn-slot text x-huge"></span>' +
-                // '</div>' +
-                // '<div class="separator long"/>' +
-                // '<div class="group">' +
-                //     '<span id="slot-btn-refresh-pivot" class="btn-slot text x-huge"></span>' +
-                // '</div>' +
-                // '<div class="separator long"/>' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge slot-add-pivot"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group">' +
+                    '<span id="slot-btn-pivot-report-layout" class="btn-slot text x-huge"></span>' +
+                    '<span id="slot-btn-pivot-blank-rows" class="btn-slot text x-huge"></span>' +
+                    '<span id="slot-btn-pivot-subtotals" class="btn-slot text x-huge"></span>' +
+                    '<span id="slot-btn-pivot-grand-totals" class="btn-slot text x-huge"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group">' +
+                    '<span id="slot-btn-refresh-pivot" class="btn-slot text x-huge"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
                 '<div class="group">' +
                     '<span id="slot-btn-select-pivot" class="btn-slot text x-huge"></span>' +
                 '</div>' +
-                '<div class="separator long"/>' +
-                '<div class="group">' +
+                '<div class="separator long"></div>' +
+                '<div class="group small">' +
+                    '<div class="elset">' +
+                        '<span class="btn-slot text" id="slot-btn-expand-field"></span>' +
+                    '</div>' +
+                    '<div class="elset">' +
+                        '<span class="btn-slot text" id="slot-btn-collapse-field"></span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group small">' +
                     '<div class="elset">' +
                         '<span class="btn-slot text" id="slot-chk-header-row"></span>' +
                     '</div>' +
@@ -79,7 +86,8 @@ define([
                         '<span class="btn-slot text" id="slot-chk-header-column"></span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="group">' +
+                '<div class="separator long invisible"></div>' +
+                '<div class="group small">' +
                     '<div class="elset">' +
                         '<span class="btn-slot text" id="slot-chk-banded-row"></span>' +
                     '</div>' +
@@ -87,15 +95,18 @@ define([
                         '<span class="btn-slot text" id="slot-chk-banded-column"></span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="group" id="slot-field-pivot-styles" style="width: 347px;">' +
+                '<div class="separator long invisible"></div>' +
+                '<div class="group flex small" id="slot-field-pivot-styles" style="width: 100%; min-width: 105px;" data-group-width="100%">' +
                 '</div>' +
             '</section>';
 
         function setEvents() {
             var me = this;
 
-            this.btnAddPivot.on('click', function (e) {
-                me.fireEvent('pivottable:create');
+            this.btnsAddPivot.forEach(function(button) {
+                button.on('click', function (b, e) {
+                    me.fireEvent('pivottable:create');
+                });
             });
 
             this.btnPivotLayout.menu.on('item:click', function (menu, item, e) {
@@ -115,11 +126,23 @@ define([
             });
 
             this.btnRefreshPivot.on('click', function (e) {
-                me.fireEvent('pivottable:refresh');
+                me.fireEvent('pivottable:refresh', ['current']);
+            });
+
+            this.btnRefreshPivot.menu.on('item:click', function (menu, item, e) {
+                me.fireEvent('pivottable:refresh', [item.value]);
             });
 
             this.btnSelectPivot.on('click', function (e) {
                 me.fireEvent('pivottable:select');
+            });
+
+            this.btnExpandField.on('click', function (e) {
+                me.fireEvent('pivottable:expand');
+            });
+
+            this.btnCollapseField.on('click', function (e) {
+                me.fireEvent('pivottable:collapse');
             });
 
             this.chRowHeader.on('change', function (field, value) {
@@ -149,122 +172,191 @@ define([
             initialize: function (options) {
                 Common.UI.BaseView.prototype.initialize.call(this, options);
 
-                this.appConfig = options.mode;
+                this.toolbar = options.toolbar;
                 this.lockedControls = [];
 
+                var _set = Common.enumLock;
+
+                this.btnsAddPivot = Common.Utils.injectButtons(this.toolbar.$el.find('.btn-slot.slot-add-pivot'), '', 'toolbar__icon btn-big-pivot-sum', this.txtPivotTable,
+                    [_set.lostConnect, _set.coAuth, _set.editPivot, _set.selRangeEdit, _set.selChart, _set.selChartText, _set.selShape, _set.selShapeText, _set.selImage, _set.selSlicer, _set.editCell, _set.wsLock], undefined, undefined, undefined, '1', 'bottom', 'small');
+
                 this.chRowHeader = new Common.UI.CheckBox({
-                    labelText: this.textRowHeader
+                    labelText: this.textRowHeader,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'left',
+                    dataHintOffset: 'small'
                 });
                 this.lockedControls.push(this.chRowHeader);
 
                 this.chColHeader = new Common.UI.CheckBox({
-                    labelText: this.textColHeader
+                    labelText: this.textColHeader,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'left',
+                    dataHintOffset: 'small'
                 });
                 this.lockedControls.push(this.chColHeader);
 
                 this.chRowBanded = new Common.UI.CheckBox({
-                    labelText: this.textRowBanded
+                    labelText: this.textRowBanded,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'left',
+                    dataHintOffset: 'small'
                 });
                 this.lockedControls.push(this.chRowBanded);
 
                 this.chColBanded = new Common.UI.CheckBox({
-                    labelText: this.textColBanded
+                    labelText: this.textColBanded,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'left',
+                    dataHintOffset: 'small'
                 });
                 this.lockedControls.push(this.chColBanded);
 
-                this.btnAddPivot = new Common.UI.Button({
-                    cls: 'btn-toolbar x-huge icon-top',
-                    iconCls: 'btn-add-pivot',
-                    caption: this.txtCreate,
-                    disabled    : true
-                });
-                // this.lockedControls.push(this.btnAddPivot);
-
                 this.btnPivotLayout = new Common.UI.Button({
                     cls         : 'btn-toolbar x-huge icon-top',
-                    iconCls     : 'btn-pivot-layout',
+                    iconCls     : 'toolbar__icon btn-pivot-layout',
                     caption     : this.capLayout,
                     disabled    : true,
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { caption: this.mniLayoutCompact,  value: 0 },
-                            { caption: this.mniLayoutOutline,  value: 1 },
-                            { caption: this.mniLayoutTabular,  value: 2 },
-                            { caption: '--' },
-                            { caption: this.mniLayoutRepeat,   value: 3 },
-                            { caption: this.mniLayoutNoRepeat, value: 4 }
-                        ]
-                    })
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.wsLock],
+                    menu        : true,
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
-                // this.lockedControls.push(this.btnPivotLayout); // remove commentings after enabled option
+                this.lockedControls.push(this.btnPivotLayout);
 
                 this.btnPivotBlankRows = new Common.UI.Button({
                     cls         : 'btn-toolbar x-huge icon-top',
-                    iconCls     : 'btn-blank-rows',
+                    iconCls     : 'toolbar__icon btn-blank-rows',
                     caption     : this.capBlankRows,
                     disabled    : true,
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { caption: this.mniInsertBlankLine,  value: 'insert' },
-                            { caption: this.mniRemoveBlankLine,  value: 'remove' }
-                        ]
-                    })
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.wsLock],
+                    menu        : true,
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
-                // this.lockedControls.push(this.btnPivotBlankRows); // remove commentings after enabled option
+                this.lockedControls.push(this.btnPivotBlankRows);
 
                 this.btnPivotSubtotals = new Common.UI.Button({
                     cls         : 'btn-toolbar x-huge icon-top',
-                    iconCls     : 'btn-subtotals',
+                    iconCls     : 'toolbar__icon btn-subtotals',
                     caption     : this.capSubtotals,
                     disabled    : true,
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { caption: this.mniNoSubtotals,       value: 0 },
-                            { caption: this.mniBottomSubtotals,   value: 1 },
-                            { caption: this.mniTopSubtotals,      value: 2 }
-                        ]
-                    })
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.wsLock],
+                    menu        : true,
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
-                // this.lockedControls.push(this.btnPivotSubtotals); // remove commentings after enabled option
+                this.lockedControls.push(this.btnPivotSubtotals);
 
                 this.btnPivotGrandTotals = new Common.UI.Button({
                     cls         : 'btn-toolbar x-huge icon-top',
-                    iconCls     : 'btn-grand-totals',
+                    iconCls     : 'toolbar__icon btn-grand-totals',
                     caption     : this.capGrandTotals,
                     disabled    : true,
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { caption: this.mniOffTotals,       value: 0 },
-                            { caption: this.mniOnTotals,        value: 1 },
-                            { caption: this.mniOnRowsTotals,    value: 2 },
-                            { caption: this.mniOnColumnsTotals, value: 3 }
-                        ]
-                    })
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.wsLock],
+                    menu        : true,
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
-                // this.lockedControls.push(this.btnPivotGrandTotals); // remove commentings after enabled option
+                this.lockedControls.push(this.btnPivotGrandTotals);
 
                 this.btnRefreshPivot = new Common.UI.Button({
                     cls: 'btn-toolbar x-huge icon-top',
-                    iconCls: 'btn-update-pivot',
+                    iconCls: 'toolbar__icon btn-update',
                     caption: this.txtRefresh,
-                    disabled    : true
+                    disabled    : true,
+                    split       : true,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.wsLock],
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
-                // this.lockedControls.push(this.btnRefreshPivot);
+                this.lockedControls.push(this.btnRefreshPivot);
 
                 this.btnSelectPivot = new Common.UI.Button({
                     cls: 'btn-toolbar x-huge icon-top',
-                    iconCls: 'btn-select-pivot',
-                    caption: this.txtSelect
+                    iconCls: 'toolbar__icon btn-select-pivot',
+                    caption: this.txtSelect,
+                    lock: [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set['PivotTables']],
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
                 });
                 this.lockedControls.push(this.btnSelectPivot);
 
+                this.btnExpandField = new Common.UI.Button({
+                    cls: 'btn-toolbar',
+                    iconCls: 'toolbar__icon btn-expand-field',
+                    caption: this.txtExpandEntire,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.pivotExpandLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
+                });
+                this.lockedControls.push(this.btnExpandField);
+
+                this.btnCollapseField = new Common.UI.Button({
+                    cls: 'btn-toolbar',
+                    iconCls: 'toolbar__icon btn-collapse-field',
+                    caption: this.txtCollapseEntire,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set.pivotExpandLock, _set['FormatCells'], _set['PivotTables']],
+                    dataHint    : '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'small'
+                });
+                this.lockedControls.push(this.btnCollapseField);
+
                 this.pivotStyles = new Common.UI.ComboDataView({
                     cls             : 'combo-pivot-template',
+                    style           : 'min-width: 103px; max-width: 517px;',
                     enableKeyEvents : true,
                     itemWidth       : 61,
                     itemHeight      : 49,
-                    menuMaxHeight   : 300
-                    // lock            : [_set.editCell, _set.selChart, _set.selChartText, _set.selShape, _set.selShapeText, _set.selImage, _set.lostConnect, _set.coAuth]
+                    menuMaxHeight   : 300,
+                    groups          : new Common.UI.DataViewGroupStore(),
+                    autoWidth       : true,
+                    lock        : [_set.lostConnect, _set.coAuth, _set.noPivot, _set.selRangeEdit, _set.pivotLock, _set['FormatCells'], _set['PivotTables']],
+                    beforeOpenHandler: function(e) {
+                        var cmp = this,
+                            menu = cmp.openButton.menu,
+                            columnCount = 7;
+
+                        if (menu.cmpEl) {
+                            var itemEl = $(cmp.cmpEl.find('.dataview.inner .style').get(0)).parent();
+                            var itemMargin = 8;
+                            var itemWidth = itemEl.is(':visible') ? parseFloat(itemEl.css('width')) :
+                                (cmp.itemWidth + parseFloat(itemEl.css('padding-left')) + parseFloat(itemEl.css('padding-right')) +
+                                parseFloat(itemEl.css('border-left-width')) + parseFloat(itemEl.css('border-right-width')));
+
+                            menu.menuAlignEl = cmp.cmpEl;
+                            menu.menuAlign = 'tl-tl';
+                            var menuWidth = columnCount * (itemMargin + itemWidth) + 17, // for scroller
+                                buttonOffsetLeft = Common.Utils.getOffset(cmp.openButton.$el).left;
+                            if (menuWidth>Common.Utils.innerWidth())
+                                menuWidth = Math.max(Math.floor((Common.Utils.innerWidth()-17)/(itemMargin + itemWidth)), 2) * (itemMargin + itemWidth) + 17;
+                            var offset = cmp.cmpEl.width() - cmp.openButton.$el.width() - Math.min(menuWidth, buttonOffsetLeft) - 1;
+                            if (Common.UI.isRTL()) {
+                                offset = cmp.openButton.$el.width() + parseFloat($(cmp.$el.find('.combo-dataview').get(0)).css('padding-left'));
+                            }
+                            menu.setOffset(Common.UI.isRTL() ? offset : Math.min(offset, 0));
+
+                            menu.cmpEl.css({
+                                'width': menuWidth,
+                                'min-height': cmp.cmpEl.height()
+                            });
+                        }
+                    },
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: '-16, 0'
                 });
                 this.lockedControls.push(this.pivotStyles);
 
@@ -283,13 +375,56 @@ define([
                 (new Promise(function (accept, reject) {
                     accept();
                 })).then(function(){
-                    me.btnAddPivot.updateHint(me.tipCreatePivot);
-                    me.btnRefreshPivot.updateHint(me.tipRefresh);
+                    me.btnsAddPivot.forEach( function(btn) {
+                        btn.updateHint(me.tipCreatePivot);
+                    });
                     me.btnSelectPivot.updateHint(me.tipSelect);
                     me.btnPivotLayout.updateHint(me.capLayout);
+                    me.btnPivotLayout.setMenu(new Common.UI.Menu({
+                        items: [
+                            { caption: me.mniLayoutCompact,  value: 0 },
+                            { caption: me.mniLayoutOutline,  value: 1 },
+                            { caption: me.mniLayoutTabular,  value: 2 },
+                            { caption: '--' },
+                            { caption: me.mniLayoutRepeat,   value: 3 },
+                            { caption: me.mniLayoutNoRepeat, value: 4 }
+                        ]
+                    }));
+
                     me.btnPivotBlankRows.updateHint(me.capBlankRows);
+                    me.btnPivotBlankRows.setMenu( new Common.UI.Menu({
+                        items: [
+                            { caption: me.mniInsertBlankLine,  value: 'insert' },
+                            { caption: me.mniRemoveBlankLine,  value: 'remove' }
+                        ]
+                    }));
+
                     me.btnPivotSubtotals.updateHint(me.tipSubtotals);
+                    me.btnPivotSubtotals.setMenu(new Common.UI.Menu({
+                        items: [
+                            { caption: me.mniNoSubtotals,       value: 0 },
+                            { caption: me.mniBottomSubtotals,   value: 1 },
+                            { caption: me.mniTopSubtotals,      value: 2 }
+                        ]
+                    }));
+
                     me.btnPivotGrandTotals.updateHint(me.tipGrandTotals);
+                    me.btnPivotGrandTotals.setMenu(new Common.UI.Menu({
+                        items: [
+                            { caption: me.mniOffTotals,       value: 0 },
+                            { caption: me.mniOnTotals,        value: 1 },
+                            { caption: me.mniOnRowsTotals,    value: 2 },
+                            { caption: me.mniOnColumnsTotals, value: 3 }
+                        ]
+                    }));
+
+                    me.btnRefreshPivot.setMenu(new Common.UI.Menu({
+                        items: [
+                            { caption: me.txtRefresh,       value: 'current'},
+                            { caption: me.txtRefreshAll,    value: 'all'}
+                        ]
+                    }));
+                    me.btnRefreshPivot.updateHint([me.tipRefreshCurrent, me.tipRefresh]);
 
                     setEvents.call(me);
                 });
@@ -298,14 +433,19 @@ define([
             getPanel: function () {
                 this.$el = $(_.template(template)( {} ));
 
+                var _set = Common.enumLock;
+                this.btnsAddPivot = this.btnsAddPivot.concat(Common.Utils.injectButtons(this.$el.find('.btn-slot.slot-add-pivot'), '', 'toolbar__icon btn-big-pivot-sum', this.txtCreate,
+                    [_set.lostConnect, _set.coAuth, _set.editPivot, _set.selRangeEdit, _set.selChart, _set.selChartText, _set.selShape, _set.selShapeText, _set.selImage, _set.selSlicer, _set.editCell, _set.wsLock], undefined, undefined, undefined, '1', 'bottom', 'small'));
+
                 this.chRowHeader.render(this.$el.find('#slot-chk-header-row'));
                 this.chColHeader.render(this.$el.find('#slot-chk-header-column'));
                 this.chRowBanded.render(this.$el.find('#slot-chk-banded-row'));
                 this.chColBanded.render(this.$el.find('#slot-chk-banded-column'));
 
-                this.btnAddPivot.render(this.$el.find('#slot-btn-add-pivot'));
                 this.btnRefreshPivot.render(this.$el.find('#slot-btn-refresh-pivot'));
                 this.btnSelectPivot.render(this.$el.find('#slot-btn-select-pivot'));
+                this.btnExpandField.render(this.$el.find('#slot-btn-expand-field'));
+                this.btnCollapseField.render(this.$el.find('#slot-btn-collapse-field'));
                 this.btnPivotLayout.render(this.$el.find('#slot-btn-pivot-report-layout'));
                 this.btnPivotBlankRows.render(this.$el.find('#slot-btn-pivot-blank-rows'));
                 this.btnPivotSubtotals.render(this.$el.find('#slot-btn-pivot-subtotals'));
@@ -320,11 +460,12 @@ define([
                 this.fireEvent('show', this);
             },
 
-            getButton: function(type, parent) {
+            getButtons: function(type) {
+                return this.btnsAddPivot.concat(this.lockedControls);
             },
 
             SetDisabled: function (state) {
-                this.lockedControls && this.lockedControls.forEach(function(button) {
+                this.btnsAddPivot.concat(this.lockedControls).forEach(function(button) {
                     if ( button ) {
                         button.setDisabled(state);
                     }
@@ -356,11 +497,23 @@ define([
             mniBottomSubtotals: 'Show all Subtotals at Bottom of Group',
             mniTopSubtotals: 'Show all Subtotals at Top of Group',
             txtRefresh: 'Refresh',
+            txtRefreshAll: 'Refresh All',
+            tipRefreshCurrent: 'Update the information from data source for the current table',
             tipRefresh: 'Update the information from data source',
             tipGrandTotals: 'Show or hide grand totals',
             tipSubtotals: 'Show or hide subtotals',
             txtSelect: 'Select',
-            tipSelect: 'Select entire pivot table'
+            txtExpandEntire: 'Expand Entire Field',
+            txtCollapseEntire: 'Collapse Entire Field',
+            tipSelect: 'Select entire pivot table',
+            txtPivotTable: 'Pivot Table',
+            txtTable_PivotStyleMedium: 'Pivot Table Style Medium',
+            txtTable_PivotStyleDark: 'Pivot Table Style Dark',
+            txtTable_PivotStyleLight: 'Pivot Table Style Light',
+            txtGroupPivot_Custom: 'Custom',
+            txtGroupPivot_Light: 'Light',
+            txtGroupPivot_Medium: 'Medium',
+            txtGroupPivot_Dark: 'Dark'
         }
     }()), SSE.Views.PivotTable || {}));
 });

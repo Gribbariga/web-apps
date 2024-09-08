@@ -8,11 +8,14 @@
 li {
   .icon.spellcheck-lang {
     margin: -3px 4px 0 -24px;
+    .rtl & {
+      margin: -3px -24px 0 4px;
+    }
   }
 
   &.selected, a.checked {
     .icon.spellcheck-lang {
-      background-position-x: -20px; --bgX: -20px;
+        background-position-x: @button-small-active-icon-offset-x;
     }
   }
 }
@@ -23,10 +26,12 @@ li {
       &:before {
         display: none;
       }
-      background-color: @primary;
+      background-color: @highlight-button-pressed-ie;
+      background-color: @highlight-button-pressed;
 
       &, &:hover, &:focus {
-        color: @dropdown-link-active-color;
+        color: @text-normal-pressed-ie;
+        color: @text-normal-pressed;
       }
     }
   }
@@ -37,6 +42,9 @@ li {
     li .icon.lang-flag {
       margin-top: 1px;
     }
+    li a {
+      .padding-x(28px, 20px);
+    }
   }
 
   .input-icon {
@@ -44,10 +52,18 @@ li {
     &.spellcheck-lang { // spell check indicator
       left: 2px;
       top: 1px;
+      .rtl & {
+        left: auto;
+        right: 2px;
+      }
     }
     &.lang-flag { // language flags
       left: 5px;
       top: 5px;
+      .rtl & {
+        left: auto;
+        right: 5px;
+      }
     }
   }
 }
@@ -77,14 +93,14 @@ li {
   &.lv, &.lv-LV                     {background-position: -32px      -72px;}
   &.lt, &.lt-LT                     {background-position: 0          -84px;}
   &.vi, &.vi-VN                     {background-position: -16px      -84px;}
-  &.de-CH                           {background-position: -32px      -84px;}
+  &.de-CH, &.fr-CH , &.it-CH        {background-position: -32px      -84px;}
   &.pt-PT                           {background-position: -16px      -96px;}
   &.de-AT                           {background-position: -32px      -96px;}
   &.es, &.es-ES                     {background-position: 0          -108px;}
   &.en-GB                           {background-position: -32px      -108px;}
   &.en-AU                           {background-position: 0          -120px;}
   &.az-Latn-AZ                      {background-position: -16px      -120px;}
-  &.id, &.id-ID                     {background-position: -32px      -120px;}
+  &.id, &.id-ID, &.en-ID            {background-position: -32px      -120px;}
 
   &.bg, &.bg-BG                     {background-position: 0          -132px;}
   &.ca-ES-valencia                  {background-position: -16px      -132px;}
@@ -103,4 +119,5 @@ li {
   &.zh, &.zh-CN                     {background-position: -32px      -180px;}
   &.ja, &.ja-JP                     {background-position: 0          -192px;}
   &.es-MX                           {background-position: -16px      -192px;}
+  &.zh-TW                           {background-position: -32px      -192px;}
 }

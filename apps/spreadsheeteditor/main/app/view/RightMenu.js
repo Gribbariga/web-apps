@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  RightMenu.js
  *
- *  Created by Julia Radzhabova on 3/27/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 3/27/14
  *
  */
 
@@ -46,6 +44,7 @@ define([
     'jquery',
     'underscore',
     'backbone',
+    'common/main/lib/component/SideMenu',
     'common/main/lib/component/Button',
     'common/main/lib/component/MetricSpinner',
     'common/main/lib/component/CheckBox',
@@ -58,11 +57,12 @@ define([
     'spreadsheeteditor/main/app/view/PivotSettings',
     'spreadsheeteditor/main/app/view/SignatureSettings',
     'spreadsheeteditor/main/app/view/CellSettings',
+    'spreadsheeteditor/main/app/view/SlicerSettings',
     'common/main/lib/component/Scroller'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
 
-    SSE.Views.RightMenu = Backbone.View.extend(_.extend({
+    SSE.Views.RightMenu = Common.UI.SideMenu.extend(_.extend({
         el: '#right-menu',
 
         // Compile our stats template
@@ -80,6 +80,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Paragraph,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-paragraph',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -88,6 +89,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Image,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-image',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -96,6 +98,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Chart,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-chart',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -104,6 +107,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Shape,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-shape',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -113,6 +117,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.TextArt,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-textart',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -122,6 +127,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Table,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-table',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -131,6 +137,8 @@ define([
                 asctype: Common.Utils.documentSettingsType.Pivot,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-pivot-sum',
+                visible: false,
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -139,6 +147,16 @@ define([
                 asctype: Common.Utils.documentSettingsType.Cell,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-cell',
+                toggleGroup: 'tabpanelbtnsGroup',
+                allowMouseEventsOnDisabled: true
+            });
+            this.btnSlicer = new Common.UI.Button({
+                hint: this.txtSlicerSettings,
+                asctype: Common.Utils.documentSettingsType.Slicer,
+                enableToggle: true,
+                disabled: true,
+                iconCls: 'btn-slicer',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -152,6 +170,7 @@ define([
             this._settings[Common.Utils.documentSettingsType.Table]       = {panel: "id-table-settings",      btn: this.btnTable};
             this._settings[Common.Utils.documentSettingsType.Pivot]       = {panel: "id-pivot-settings",      btn: this.btnPivot};
             this._settings[Common.Utils.documentSettingsType.Cell]        = {panel: "id-cell-settings",       btn: this.btnCell};
+            this._settings[Common.Utils.documentSettingsType.Slicer]      = {panel: "id-slicer-settings",     btn: this.btnSlicer};
 
             return this;
         },
@@ -161,13 +180,18 @@ define([
 
             this.trigger('render:before', this);
 
-            this.defaultHideRightMenu = mode.customization && !!mode.customization.hideRightMenu;
+            this.defaultHideRightMenu = !(mode.customization && (mode.customization.hideRightMenu===false));
             var open = !Common.localStorage.getBool("sse-hide-right-settings", this.defaultHideRightMenu);
+            Common.Utils.InternalSettings.set("sse-hide-right-settings", !open);
             el.css('width', ((open) ? MENU_SCALE_PART : SCALE_MIN) + 'px');
             el.css('z-index', 101);
             el.show();
 
             el.html(this.template({}));
+
+            this.btnMoreContainer = $('#slot-right-menu-more');
+            Common.UI.SideMenu.prototype.render.call(this);
+            this.btnMore.menu.menuAlign = 'tr-tl';
 
             this.btnText.setElement($('#id-right-menu-text'), false);           this.btnText.render();
             this.btnImage.setElement($('#id-right-menu-image'), false);         this.btnImage.render();
@@ -177,6 +201,7 @@ define([
             this.btnTable.setElement($('#id-right-menu-table'), false);         this.btnTable.render();
             this.btnPivot.setElement($('#id-right-menu-pivot'), false);         this.btnPivot.render();
             this.btnCell.setElement($('#id-right-menu-cell'), false);           this.btnCell.render();
+            this.btnSlicer.setElement($('#id-right-menu-slicer'), false);       this.btnSlicer.render();
 
             this.btnText.on('click',            _.bind(this.onBtnMenuClick, this));
             this.btnImage.on('click',           _.bind(this.onBtnMenuClick, this));
@@ -186,6 +211,7 @@ define([
             this.btnTable.on('click',           _.bind(this.onBtnMenuClick, this));
             this.btnPivot.on('click',           _.bind(this.onBtnMenuClick, this));
             this.btnCell.on('click',           _.bind(this.onBtnMenuClick, this));
+            this.btnSlicer.on('click',         _.bind(this.onBtnMenuClick, this));
 
             this.paragraphSettings = new SSE.Views.ParagraphSettings();
             this.imageSettings = new SSE.Views.ImageSettings();
@@ -195,6 +221,7 @@ define([
             this.tableSettings = new SSE.Views.TableSettings();
             this.pivotSettings = new SSE.Views.PivotSettings();
             this.cellSettings = new SSE.Views.CellSettings();
+            this.slicerSettings = new SSE.Views.SlicerSettings();
 
             if (mode && mode.isSignatureSupport) {
                 this.btnSignature = new Common.UI.Button({
@@ -202,15 +229,19 @@ define([
                     asctype: Common.Utils.documentSettingsType.Signature,
                     enableToggle: true,
                     disabled: true,
+                    iconCls: 'btn-menu-signature',
                     toggleGroup: 'tabpanelbtnsGroup',
                     allowMouseEventsOnDisabled: true
                 });
                 this._settings[Common.Utils.documentSettingsType.Signature]   = {panel: "id-signature-settings",      btn: this.btnSignature};
 
-                this.btnSignature.el    = $('#id-right-menu-signature'); this.btnSignature.render().setVisible(true);
+                this.btnSignature.setElement($('#id-right-menu-signature'), false); this.btnSignature.render().setVisible(true);
                 this.btnSignature.on('click', _.bind(this.onBtnMenuClick, this));
                 this.signatureSettings = new SSE.Views.SignatureSettings();
             }
+
+            if (mode && mode.canFeaturePivot)
+                this.btnPivot.setVisible(true);
 
             if (_.isUndefined(this.scroller)) {
                 this.scroller = new Common.UI.Scroller({
@@ -231,37 +262,49 @@ define([
         },
 
         setApi: function(api) {
+            var me = this;
             this.api = api;
+            var _isEyedropperStart = function (isStart) {this._isEyedropperStart = isStart;};
+            var _updateScroller = function () {me.updateScroller();};
             this.paragraphSettings.setApi(api);
             this.imageSettings.setApi(api);
-            this.chartSettings.setApi(api);
-            this.shapeSettings.setApi(api);
-            this.textartSettings.setApi(api);
+            this.chartSettings.setApi(api).on('updatescroller', _updateScroller);
+            this.shapeSettings.setApi(api).on('eyedropper', _.bind(_isEyedropperStart, this)).on('updatescroller', _updateScroller);
+            this.textartSettings.setApi(api).on('eyedropper', _.bind(_isEyedropperStart, this)).on('updatescroller', _updateScroller);
             this.tableSettings.setApi(api);
             this.pivotSettings.setApi(api);
-            this.cellSettings.setApi(api);
+            this.cellSettings.setApi(api).on('eyedropper', _.bind(_isEyedropperStart, this));
+            this.slicerSettings.setApi(api);
             if (this.signatureSettings) this.signatureSettings.setApi(api);
             return this;
         },
 
         setMode: function(mode) {
             this.mode = mode;
+            this.imageSettings && this.imageSettings.setMode(mode);
+            this.shapeSettings && this.shapeSettings.setMode(mode);
+            this.tableSettings && this.tableSettings.setMode(mode);
             return this;
         },
 
         onBtnMenuClick: function(btn, e) {
-            var target_pane = $("#" + this._settings[btn.options.asctype].panel);
-            var target_pane_parent = target_pane.parent();
+            var isPlugin = btn && btn.options.type === 'plugin',
+                target_pane_parent = $(this.el).find('.right-panel'),
+                target_pane;
+            if (btn && !isPlugin) {
+                target_pane = $("#" + this._settings[btn.options.asctype].panel);
+            }
 
-            if (btn.pressed) {
+            if (btn && btn.pressed) {
                 if ( this.minimizedMode ) {
                     $(this.el).width(MENU_SCALE_PART);
                     target_pane_parent.css("display", "inline-block" );
                     this.minimizedMode = false;
                     Common.localStorage.setItem("sse-hide-right-settings", 0);
+                    Common.Utils.InternalSettings.set("sse-hide-right-settings", false);
                 }
                 target_pane_parent.find('> .active').removeClass('active');
-                target_pane.addClass("active");
+                target_pane && target_pane.addClass("active");
 
                 if (this.scroller) {
                     this.scroller.scrollTop(0);
@@ -271,9 +314,10 @@ define([
                 $(this.el).width(SCALE_MIN);
                 this.minimizedMode = true;
                 Common.localStorage.setItem("sse-hide-right-settings", 1);
+                Common.Utils.InternalSettings.set("sse-hide-right-settings", true);
             }
 
-            this.fireEvent('rightmenuclick', [this, btn.options.asctype, this.minimizedMode]);
+            btn && !isPlugin && this.fireEvent('rightmenuclick', [this, btn.options.asctype, this.minimizedMode, e]);
         },
 
         SetActivePane: function(type, open) {
@@ -298,7 +342,8 @@ define([
         },
 
         GetActivePane: function() {
-            return (this.minimizedMode) ? null : this.$el.find(".settings-panel.active")[0].id;
+            var active = this.$el.find(".settings-panel.active");
+            return (this.minimizedMode || active.length === 0) ? null : active[0].id;
         },
 
         clearSelection: function() {
@@ -314,6 +359,18 @@ define([
             Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
         },
 
+        updateScroller: function() {
+            if (this.scroller) {
+                this.scroller.update();
+                this.scroller.scrollTop(0);
+            }
+        },
+
+        setButtons: function () {
+            var allButtons = [this.btnCell, this.btnTable, this.btnShape, this.btnImage, this.btnChart, this.btnText, this.btnTextArt, this.btnPivot, this.btnSlicer, this.btnSignature];
+            Common.UI.SideMenu.prototype.setButtons.apply(this, [allButtons]);
+        },
+
         txtParagraphSettings:       'Paragraph Settings',
         txtImageSettings:           'Image Settings',
         txtShapeSettings:           'Shape Settings',
@@ -323,6 +380,7 @@ define([
         txtTableSettings:           'Table Settings',
         txtPivotSettings:           'Pivot Table Settings',
         txtSignatureSettings:       'Signature Settings',
-        txtCellSettings:            'Cell Settings'
+        txtCellSettings:            'Cell Settings',
+        txtSlicerSettings:          'Slicer Settings'
     }, SSE.Views.RightMenu || {}));
 });

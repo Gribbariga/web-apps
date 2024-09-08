@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    LocalStorage.js
  *
- *    Created by Maxim Kadushkin on 31 July 2015
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 31 July 2015
  *
  */
 
@@ -52,13 +50,13 @@ define(['gateway'], function () {
         Common.Gateway.on('internalcommand', ongetstore);
 
         var _refresh = function() {
-            if (!_lsAllowed)
-                Common.Gateway.internalMessage('localstorage', {cmd:'get', keys:_filter});
+            // if (!_lsAllowed)
+            //     Common.Gateway.internalMessage('localstorage', {cmd:'get', keys:_filter});
         };
 
         var _save = function() {
-            if (!_lsAllowed)
-                Common.Gateway.internalMessage('localstorage', {cmd:'set', keys:_store});
+            // if (!_lsAllowed)
+            //     Common.Gateway.internalMessage('localstorage', {cmd:'set', keys:_store});
         };
 
         var _setItem = function(name, value, just) {
@@ -72,14 +70,15 @@ define(['gateway'], function () {
             } else {
                 _store[name] = value;
 
-                if (just===true) {
-                    Common.Gateway.internalMessage('localstorage', {
-                        cmd:'set',
-                        keys: {
-                            name: value
-                        }
-                    });
-                }
+                // if (just===true) {
+                    // TDDO: remove after ver 7.2. using external local storage is depricated
+                    // Common.Gateway.internalMessage('localstorage', {
+                    //     cmd:'set',
+                    //     keys: {
+                    //         name: value
+                    //     }
+                    // });
+                // }
             }
         };
 
@@ -98,12 +97,19 @@ define(['gateway'], function () {
             var value = _getItem(name);
             defValue = defValue || false;
             return (value!==null) ? (parseInt(value) != 0) : defValue;
-        }
+        };
 
         var _getItemExists = function (name) {
             var value = _getItem(name);
             return value !== null;
-        }
+        };
+
+        var _removeItem = function(name) {
+            if (_lsAllowed)
+                localStorage.removeItem(name);
+            else
+                delete _store[name];
+        };
 
         try {
             var _lsAllowed = !!window.localStorage;
@@ -122,6 +128,7 @@ define(['gateway'], function () {
             getBool: _getItemAsBool,
             setBool: _setItemAsBool,
             setItem: _setItem,
+            removeItem: _removeItem,
             setKeysFilter: function(value) {
                 _filter = value;
             },

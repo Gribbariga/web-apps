@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    SearchDialog.js
  *
- *    Created by Maxim Kadushkin on 03 March 2014
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 03 March 2014
  *
  */
 
@@ -87,21 +85,21 @@
                 '<div class="box">',
                     '<div class="input-row">',
                         '<span class="btn-placeholder" id="search-placeholder-btn-options"></span>',
-                        '<input type="text" id="sd-text-search" class="form-control" maxlength="255" placeholder="'+this.textSearchStart+'">',
+                        '<input type="text" id="sd-text-search" class="input-field form-control" maxlength="255" placeholder="'+this.textSearchStart+'" autocomplete="off">',
                     '</div>',
                     '<div class="input-row">',
-                        '<input type="text" id="sd-text-replace" class="form-control" maxlength="255" placeholder="'+this.textReplaceDef+'">',
+                        '<input type="text" id="sd-text-replace" class="input-field form-control" maxlength="255" placeholder="'+this.textReplaceDef+'" autocomplete="off">',
                     '</div>',
                     '<div class="input-row">',
                         '<label class="link" id="search-label-replace" result="replaceshow">'+this.txtBtnReplace+'</label>',
                     '</div>',
                 '</div>',
-                '<div class="separator horizontal"/>',
+                '<div class="separator horizontal"></div>',
                 '<div class="footer right">',
-                    '<button class="btn normal dlg-btn" result="replace" style="margin-right: 6px;">'+this.txtBtnReplace+'</button>',
-                    '<button class="btn normal dlg-btn" result="replaceall" style="margin-right: 10px;">'+this.txtBtnReplaceAll+'</button>',
-                    '<button class="btn normal dlg-btn iconic" result="back" style="margin-right: 6px;"><span class="icon img-commonctrl back" /></button>',
-                    '<button class="btn normal dlg-btn iconic" result="next"><span class="icon img-commonctrl next" /></button>',
+                    '<button class="btn normal dlg-btn" result="replace">'+this.txtBtnReplace+'</button>',
+                    '<button class="btn normal dlg-btn margin-left-6" result="replaceall" style="width: auto;min-width: 100px;">'+this.txtBtnReplaceAll+'</button>',
+                    '<button class="btn normal dlg-btn iconic" result="back"><span class="icon img-commonctrl back"></span></button>',
+                    '<button class="btn normal dlg-btn iconic margin-left-6" result="next"><span class="icon img-commonctrl next"></span></button>',
                 '</div>'
             ].join('');
 
@@ -131,7 +129,7 @@
             this.btnOptions = new Common.UI.Button({
                 id          : 'search-btn-options',
                 cls         : 'btn-toolbar',
-                iconCls     : 'btn-settings',
+                iconCls     : 'toolbar__icon btn-settings',
 //                hint        : me.tipMerge,
                 menu        : new Common.UI.Menu({
                     items   : [
@@ -171,7 +169,7 @@
             this.txtSearch.on('keydown', null, 'search', _.bind(this.onKeyPress, this));
             this.txtReplace.on('keydown', null, 'replace', _.bind(this.onKeyPress, this));
 
-            this.on('animate:before', _.bind(this.focus, this));
+            this.on('animate:before', _.bind(this.onAnimateBefore, this));
 
             return this;
         },
@@ -191,12 +189,16 @@
             this.focus();
         },
 
-        focus: function() {
-            var me  = this;
+        focus: function(type) {
+            var field = (type==='replace') ? this.txtReplace : this.txtSearch;
             setTimeout(function(){
-                me.txtSearch.focus();
-                me.txtSearch.select();
+                field.focus();
+                field.select();
             }, 10);
+        },
+
+        onAnimateBefore: function() {
+            this.focus();
         },
 
         onKeyPress: function(event) {

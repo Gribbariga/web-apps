@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,10 +28,9 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
- *  Created by Julia.Radzhabova on 9/27/18
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 9/27/18
  */
 
 define([
@@ -46,7 +44,6 @@ define([
             _.extend(_options,  {
                 title: this.textTitle,
                 width: 420,
-                height: 681,
                 header: true
             }, options);
 
@@ -122,6 +119,8 @@ define([
             if (msg && msg.Referer == "onlyoffice") {
                 if ( !_.isEmpty(msg.error) ) {
                     this.trigger('saveaserror', this, msg.error);
+                } else if (!_.isEmpty(msg.message)) {
+                    Common.NotificationCenter.trigger('showmessage', {msg: msg.message});
                 }
 //                if ( !_.isEmpty(msg.folder) ) {
 //                    this.trigger('saveasfolder', this, msg.folder); // save last folder url

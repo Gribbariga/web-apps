@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ShapeSettings.js
  *
- *  Created by Julia Radzhabova on 2/12/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/12/14
  *
  */
 
@@ -52,6 +50,7 @@ define([
     'common/main/lib/component/Slider',
     'common/main/lib/component/MultiSliderGradient',
     'common/main/lib/view/ImageFromUrlDialog',
+    'common/main/lib/view/ShapeShadowDialog',
     'documenteditor/main/app/view/ImageSettingsAdvanced'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
@@ -78,6 +77,8 @@ define([
             this.imgprops = null;
             this._sendUndoPoint = true;
             this._sliderChanged = false;
+            this._sliderChangedLine = false;
+            this._texturearray = null;
 
             this.txtPt = Common.Utils.Metric.getMetricName(Common.Utils.Metric.c_MetricUnits.pt);
 
@@ -93,6 +94,8 @@ define([
                 FGColor: '000000',
                 BGColor: 'ffffff',
                 GradColor: '000000',
+                ShadowColor: 'transparent',
+                ShadowPreset: null,
                 GradFillType: Asc.c_oAscFillGradType.GRAD_LINEAR,
                 WrappingStyle: Asc.c_oAscWrapStyle2.Inline,
                 CanBeFlow: true,
@@ -100,7 +103,11 @@ define([
                 DisabledFillPanels: false,
                 DisabledControls: false,
                 HideShapeOnlySettings: false,
-                HideChangeTypeSettings: false
+                HideChangeTypeSettings: false,
+                HideRotationSettings: false,
+                isFromImage: false,
+                isFromSmartArtInternal: false,
+                isFixedForm: false
             };
             this.lockedControls = [];
             this._locked = false;
@@ -120,27 +127,37 @@ define([
             this.BorderSize = 0;
             this.BorderType = Asc.c_oDashType.solid;
 
+            this.ShadowColor = {Value: 1, Color: 'transparent'};  // value=1 - цвет определен - прозрачный или другой, value=0 - цвет не определен, рисуем прозрачным
+
             this.textureNames = [this.txtCanvas, this.txtCarton, this.txtDarkFabric, this.txtGrain, this.txtGranite, this.txtGreyPaper,
                 this.txtKnit, this.txtLeather, this.txtBrownPaper, this.txtPapyrus, this.txtWood];
 
             this.fillControls = [];
+            this.gradientColorsStr="#000, #fff";
+            this.typeGradient = 90 ;
+            this.shapeRestoreHeight = 615;
 
             this.render();
+        },
+
+        render: function () {
+            var el = this.$el || $(this.el);
+            el.html(this.template({
+                scope: this
+            }));
 
             this.FillColorContainer = $('#shape-panel-color-fill');
             this.FillImageContainer = $('#shape-panel-image-fill');
             this.FillPatternContainer = $('#shape-panel-pattern-fill');
             this.FillGradientContainer = $('#shape-panel-gradient-fill');
             this.TransparencyContainer = $('#shape-panel-transparent-fill');
+            this.EditShapeContainer = $('#shape-button-edit-shape-container');
+            this.EditChangeShapeContainer = $('#shape-button-change-shape-container');
             this.ShapeOnlySettings = $('.shape-only');
             this.CanChangeType = $('.change-type');
-        },
-
-        render: function () {
-            var el = $(this.el);
-            el.html(this.template({
-                scope: this
-            }));
+            this.RotationSettings = $('.shape-rotation');
+            this.NoFormSettings = $('.no-form');
+            this.ShapeOnlySeparator = $('.shape-only-separator');
         },
 
         setApi: function(api) {
@@ -150,7 +167,12 @@ define([
                 this.api.asc_setInterfaceDrawImagePlaceShape('shape-texture-img');
                 this.api.asc_registerCallback('asc_onInitStandartTextures', _.bind(this.onInitStandartTextures, this));
             }
+            Common.NotificationCenter.on('storage:image-insert', _.bind(this.insertImageFromStorage, this));
             return this;
+        },
+
+        setMode: function(mode) {
+            this.mode = mode;
         },
 
         onFillSrcSelect: function(combo, record) {
@@ -203,7 +225,18 @@ define([
                     }
                     break;
                 case Asc.c_oAscFill.FILL_TYPE_BLIP:
-                    this._state.FillType = Asc.c_oAscFill.FILL_TYPE_BLIP;
+                    if (this._state.FillType !== Asc.c_oAscFill.FILL_TYPE_BLIP && !this._noApply && this._texturearray && this._texturearray.length>0) {
+                        this._state.FillType = Asc.c_oAscFill.FILL_TYPE_BLIP
+                        var props = new Asc.asc_CShapeProperty();
+                        var fill = new Asc.asc_CShapeFill();
+                        fill.put_type(Asc.c_oAscFill.FILL_TYPE_BLIP);
+                        fill.put_fill( new Asc.asc_CFillBlip());
+                        fill.get_fill().put_type(Asc.c_oAscFillBlipType.TILE);
+                        fill.get_fill().put_texture_id(this._texturearray[0].type);
+                        props.put_fill(fill);
+                        this.imgprops.put_ShapeProperties(props);
+                        this.api.ImgApply(this.imgprops);
+                    }
                     break;
                 case Asc.c_oAscFill.FILL_TYPE_PATT:
                     this._state.FillType = Asc.c_oAscFill.FILL_TYPE_PATT;
@@ -246,8 +279,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsBackSelect: function(picker, color) {
-            this.btnBackColor.setColor(color);
+        onColorsBackSelect: function(btn, color) {
             this.ShapeColor = {Value: 1, Color: color};
 
             if (this.api && !this._noApply) {
@@ -270,10 +302,6 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        addNewColor: function(picker, btn) {
-            picker.addNewColor((typeof(btn.color) == 'object') ? btn.color.color : btn.color);
-        },
-
         onPatternSelect: function(combo, record){
             if (this.api && !this._noApply) {
                 this.PatternFillType = record.get('type');
@@ -293,8 +321,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsFGSelect: function(picker, color) {
-            this.btnFGColor.setColor(color);
+        onColorsFGSelect: function(btn, color) {
             this.FGColor = {Value: 1, Color: color};
             if (this.api && !this._noApply) {
                 var props = new Asc.asc_CShapeProperty();
@@ -313,8 +340,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsBGSelect: function(picker, color) {
-            this.btnBGColor.setColor(color);
+        onColorsBGSelect: function(btn, color) {
             this.BGColor = {Value: 1, Color: color};
             if (this.api && !this._noApply) {
                 var props = new Asc.asc_CShapeProperty();
@@ -362,7 +388,6 @@ define([
                 this.imgprops.put_ShapeProperties(props);
                 this.api.ImgApply(this.imgprops);
             }
-            this.fireEvent('editcomplete', this);
         },
 
         onTransparencyChange: function(field, newValue, oldValue){
@@ -407,19 +432,24 @@ define([
                 this.mnuDirectionPicker.restoreHeight = 174;
                 var record = this.mnuDirectionPicker.store.findWhere({type: this.GradLinearDirectionType});
                 this.mnuDirectionPicker.selectRecord(record, true);
-                if (record)
-                    this.btnDirection.setIconCls('item-gradient ' + record.get('iconcls'));
+                if(record)
+                    this.typeGradient = this.GradLinearDirectionType +90;
                 else
-                    this.btnDirection.setIconCls('');
+                    this.typeGradient= -1;
+                this.numGradientAngle.setValue(this.GradLinearDirectionType, true);
+                this.numGradientAngle.setDisabled(this._locked);
             } else if (this.GradFillType == Asc.c_oAscFillGradType.GRAD_PATH) {
                 this.mnuDirectionPicker.store.reset(this._viewDataRadial);
                 this.mnuDirectionPicker.cmpEl.width(60);
                 this.mnuDirectionPicker.restoreHeight = 58;
                 this.mnuDirectionPicker.selectByIndex(this.GradRadialDirectionIdx, true);
                 if (this.GradRadialDirectionIdx>=0)
-                    this.btnDirection.setIconCls('item-gradient ' + this._viewDataRadial[this.GradRadialDirectionIdx].iconcls);
+                    this.typeGradient = this._viewDataRadial[this.GradRadialDirectionIdx].type;
                 else
-                    this.btnDirection.setIconCls('');
+                    this.typeGradient= -1;
+
+                this.numGradientAngle.setValue(0, true);
+                this.numGradientAngle.setDisabled(true);
             }
 
             if (this.api && !this._noApply) {
@@ -457,10 +487,17 @@ define([
                 rawData = record;
             }
 
-            this.btnDirection.setIconCls('item-gradient ' + rawData.iconcls);
-            (this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR) ? this.GradLinearDirectionType = rawData.type : this.GradRadialDirectionIdx = 0;
+            if (this.GradFillType === Asc.c_oAscFillGradType.GRAD_LINEAR) {
+                this.GradLinearDirectionType = rawData.type;
+                this.typeGradient = rawData.type + 90;
+            } else {
+                this.GradRadialDirectionIdx = 0;
+                this.typeGradient = rawData.type;
+            }
             if (this.api) {
                 if (this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR) {
+                    this.numGradientAngle.setValue(rawData.type, true);
+
                     var props = new Asc.asc_CShapeProperty();
                     var fill = new Asc.asc_CShapeFill();
                     fill.put_type(Asc.c_oAscFill.FILL_TYPE_GRAD);
@@ -478,8 +515,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsGradientSelect: function(picker, color) {
-            this.btnGradColor.setColor(color);
+        onColorsGradientSelect: function(btn, color) {
             this.GradColor.colors[this.GradColor.currentIdx] = color;
             this.sldrGradient.setColorValue(Common.Utils.String.format('#{0}', (typeof(color) == 'object') ? color.color : color));
 
@@ -515,6 +551,8 @@ define([
 
         onGradientChange: function(slider, newValue, oldValue){
             this.GradColor.values = slider.getValues();
+            var curValue = this.GradColor.values[this.GradColor.currentIdx];
+            this.spnGradPosition.setValue(Common.UI.isRTL() ? this.sldrGradient.maxValue - curValue : curValue, true);
             this._sliderChanged = true;
             if (this.api && !this._noApply) {
                 if (this._sendUndoPoint)  {
@@ -548,17 +586,16 @@ define([
                 });
                 fill.get_fill().put_positions(arr);
 
-                if (this.OriginalFillType !== Asc.c_oAscFill.FILL_TYPE_GRAD) {
-                    if (this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR) {
-                        fill.get_fill().put_linear_angle(this.GradLinearDirectionType * 60000);
-                        fill.get_fill().put_linear_scale(true);
-                    }
-                    arr = [];
-                    this.GradColor.colors.forEach(function(item){
-                        arr.push(Common.Utils.ThemeColor.getRgbColor(item));
-                    });
-                    fill.get_fill().put_colors(arr);
+                if (this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR) {
+                    fill.get_fill().put_linear_angle(this.GradLinearDirectionType * 60000);
+                    fill.get_fill().put_linear_scale(true);
                 }
+                arr = [];
+                this.GradColor.colors.forEach(function(item){
+                    arr.push(Common.Utils.ThemeColor.getRgbColor(item));
+                });
+                fill.get_fill().put_colors(arr);
+
                 props.put_fill(fill);
                 this.imgprops.put_ShapeProperties(props);
                 this.api.ImgApply(this.imgprops);
@@ -567,7 +604,7 @@ define([
         },
 
         applyBorderSize: function(value) {
-            value = parseFloat(value);
+            value = Common.Utils.String.parseFloat(value);
             value = isNaN(value) ? 0 : Math.max(0, Math.min(1584, value));
 
             this.BorderSize = value;
@@ -585,6 +622,7 @@ define([
                         stroke.put_color(Common.Utils.ThemeColor.getRgbColor(Common.Utils.ThemeColor.colorValue2EffectId(this.BorderColor.Color)));
                     stroke.asc_putPrstDash(this.BorderType);
                     stroke.put_width(this._pt2mm(this.BorderSize));
+                    stroke.put_transparent(this._state.LineTransparency);
                 }
                 props.put_stroke(stroke);
                 this.imgprops.put_ShapeProperties(props);
@@ -604,14 +642,16 @@ define([
                     expr = new RegExp('^\\s*(\\d*(\\.|,)?\\d+)\\s*(' + me.txtPt + ')?\\s*$');
                 if (!(expr.exec(record.value)) || value<0 || value>1584) {
                     this._state.StrokeType = this._state.StrokeWidth = -1;
-                    Common.UI.error({
-                        msg: this.textBorderSizeErr,
-                        callback: function() {
-                            _.defer(function(btn) {
-                                me.fireEvent('editcomplete', me);
-                            })
-                        }
-                    });
+                    setTimeout( function() {
+                        Common.UI.error({
+                            msg: me.textBorderSizeErr,
+                            callback: function() {
+                                _.defer(function(btn) {
+                                    me.fireEvent('editcomplete', me);
+                                })
+                            }
+                        });
+                    }, 10);
                 }
             } else
                 this.applyBorderSize(record.value);
@@ -633,6 +673,7 @@ define([
                     stroke.put_color(Common.Utils.ThemeColor.getRgbColor(this.BorderColor.Color));
                     stroke.put_width(this._pt2mm(this.BorderSize));
                     stroke.asc_putPrstDash(this.BorderType);
+                    stroke.put_transparent(this._state.LineTransparency);
                 }
                 props.put_stroke(stroke);
                 this.imgprops.put_ShapeProperties(props);
@@ -641,8 +682,7 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onColorsBorderSelect: function(picker, color) {
-            this.btnBorderColor.setColor(color);
+        onColorsBorderSelect: function(btn, color) {
             this.BorderColor = {Value: 1, Color: color};
             if (this.api && this.BorderSize>0 && !this._noApply) {
                 var props = new Asc.asc_CShapeProperty();
@@ -654,12 +694,59 @@ define([
                     stroke.put_color(Common.Utils.ThemeColor.getRgbColor(this.BorderColor.Color));
                     stroke.put_width(this._pt2mm(this.BorderSize));
                     stroke.asc_putPrstDash(this.BorderType);
+                    stroke.put_transparent(this._state.LineTransparency);
                 }
                 props.put_stroke(stroke);
                 this.imgprops.put_ShapeProperties(props);
                 this.api.ImgApply(this.imgprops);
             }
             this.fireEvent('editcomplete', this);
+        },
+
+        onNumLineTransparencyChange: function(field, newValue, oldValue, eOpts){
+            this.sldrLineTransparency.setValue(field.getNumberValue(), true);
+            this._state.LineTransparency = field.getNumberValue() * 2.55;
+            if (this.api && this.BorderSize>0 && !this._noApply) {
+                var props = new Asc.asc_CShapeProperty();
+                var stroke = new Asc.asc_CStroke();
+                stroke.put_transparent(this._state.LineTransparency);
+                props.put_stroke(stroke);
+                this.imgprops.put_ShapeProperties(props);
+                this.api.ImgApply(this.imgprops);
+            }
+        },
+
+        onLineTransparencyChange: function(field, newValue, oldValue){
+            this.numLineTransparency.setValue(newValue, true);
+            this._sliderChangedLine = newValue;
+            if (this._sendUndoPoint) {
+                this.api.setStartPointHistory();
+                this._sendUndoPoint = false;
+                this.updatesliderline = setInterval(_.bind(this._transparencyLineApplyFunc, this), 100);
+            }
+        },
+
+        onLineTransparencyChangeComplete: function(field, newValue, oldValue){
+            clearInterval(this.updatesliderline);
+            this._sliderChangedLine = newValue;
+            if (!this._sendUndoPoint) { // start point was added
+                this.api.setEndPointHistory();
+                this._transparencyLineApplyFunc();
+            }
+            this._sendUndoPoint = true;
+        },
+
+        _transparencyLineApplyFunc: function() {
+            if (this._sliderChangedLine!==undefined) {
+                this._state.LineTransparency = this._sliderChangedLine * 2.55;
+                var props = new Asc.asc_CShapeProperty();
+                var stroke = new Asc.asc_CStroke();
+                stroke.put_transparent(this._state.LineTransparency);
+                props.put_stroke(stroke);
+                this.imgprops.put_ShapeProperties(props);
+                this.api.ImgApply(this.imgprops);
+                this._sliderChangedLine = undefined;
+            }
         },
 
         _ImgWrapStyleChanged: function(style) {
@@ -699,32 +786,49 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        insertFromUrl: function() {
-            var me = this;
-            (new Common.Views.ImageFromUrlDialog({
-                handler: function(result, value) {
-                    if (result == 'ok') {
-                        if (me.api) {
-                            var checkUrl = value.replace(/ /g, '');
-                            if (!_.isEmpty(checkUrl)) {
-                                if (me.BlipFillType !== null) {
-                                    var props = new Asc.asc_CShapeProperty();
-                                    var fill = new Asc.asc_CShapeFill();
-                                    fill.put_type(Asc.c_oAscFill.FILL_TYPE_BLIP);
-                                    fill.put_fill( new Asc.asc_CFillBlip());
-                                    fill.get_fill().put_type(me.BlipFillType);
-                                    fill.get_fill().put_url(checkUrl);
+        setImageUrl: function(url, token) {
+            if (this.BlipFillType !== null) {
+                var props = new Asc.asc_CShapeProperty();
+                var fill = new Asc.asc_CShapeFill();
+                fill.put_type(Asc.c_oAscFill.FILL_TYPE_BLIP);
+                fill.put_fill( new Asc.asc_CFillBlip());
+                fill.get_fill().put_type(this.BlipFillType);
+                fill.get_fill().put_url(url, token);
 
-                                    props.put_fill(fill);
-                                    me.imgprops.put_ShapeProperties(props);
-                                    me.api.ImgApply(me.imgprops);
+                props.put_fill(fill);
+                this.imgprops.put_ShapeProperties(props);
+                this.api.ImgApply(this.imgprops);
+            }
+        },
+
+        insertImageFromStorage: function(data) {
+            if (data && data._urls && data.c=='fill') {
+                this.setImageUrl(data._urls[0], data.token);
+            }
+        },
+
+        onImageSelect: function(menu, item) {
+            if (item.value==1) {
+                var me = this;
+                (new Common.Views.ImageFromUrlDialog({
+                    handler: function(result, value) {
+                        if (result == 'ok') {
+                            if (me.api) {
+                                var checkUrl = value.replace(/ /g, '');
+                                if (!_.isEmpty(checkUrl)) {
+                                    me.setImageUrl(checkUrl);
                                 }
                             }
                         }
+                        me.fireEvent('editcomplete', me);
                     }
-                    me.fireEvent('editcomplete', me);
-                }
-            })).show();
+                })).show();
+            } else if (item.value==2) {
+                Common.NotificationCenter.trigger('storage:image-load', 'fill');
+            } else {
+                if (this.api) this.api.ChangeShapeImageFromFile(this.BlipFillType);
+                this.fireEvent('editcomplete', this);
+            }
         },
 
         openAdvancedSettings: function(e) {
@@ -743,6 +847,7 @@ define([
                             (new DE.Views.ImageSettingsAdvanced(
                                 {
                                     imageProps: elValue,
+                                    api: me.api,
                                     sectionProps: me.api.asc_GetSectionProps(),
                                     handler: function(result, value) {
                                         if (result == 'ok') {
@@ -769,6 +874,17 @@ define([
             if (this._initSettings)
                 this.createDelayedElements();
 
+            var control_props = this.api.asc_IsContentControl() ? this.api.asc_GetContentControlProperties() : null;
+            if (control_props) {
+                var spectype = control_props.get_SpecificType();
+                control_props = (spectype==Asc.c_oAscContentControlSpecificType.CheckBox || spectype==Asc.c_oAscContentControlSpecificType.ComboBox ||
+                                 spectype==Asc.c_oAscContentControlSpecificType.DropDownList || spectype==Asc.c_oAscContentControlSpecificType.None ||
+                                spectype==Asc.c_oAscContentControlSpecificType.Picture || spectype==Asc.c_oAscContentControlSpecificType.Complex ||
+                                spectype==Asc.c_oAscContentControlSpecificType.DateTime) &&
+                                control_props.get_FormPr() && control_props.get_FormPr().get_Fixed();
+            } else
+                control_props = false;
+
             if (props && props.get_ShapeProperties())
             {
                 var shapeprops = props.get_ShapeProperties(),
@@ -776,18 +892,22 @@ define([
                 this._originalProps = new Asc.asc_CImgProperty(props);
 
                 this._noApply = true;
+                this._state.isFromImage = !!shapeprops.get_FromImage();
+                this._state.isFromSmartArtInternal = !!shapeprops.get_FromSmartArtInternal();
 
                 this.disableControls(this._locked, !shapeprops.get_CanFill());
-                this.hideShapeOnlySettings(shapeprops.get_FromChart() || shapeprops.get_FromImage());
+                this.hideShapeOnlySettings(shapeprops.get_FromChart() || !!shapeprops.get_FromImage());
+                this.hideRotationSettings(shapeprops.get_FromChart() || !!shapeprops.get_FromImage() || shapeprops.get_FromSmartArt());
 
-                var hidechangetype = shapeprops.get_FromChart() || shapetype=='line' || shapetype=='bentConnector2' || shapetype=='bentConnector3'
+                this.canEditPoint = this.api && this.api.asc_canEditGeometry();
+                this.toggleBtnEditShape();
+                var hidechangetype = shapeprops.get_FromChart() || shapeprops.get_FromSmartArt() || shapetype=='line' || shapetype=='bentConnector2' || shapetype=='bentConnector3'
                     || shapetype=='bentConnector4' || shapetype=='bentConnector5' || shapetype=='curvedConnector2'
                     || shapetype=='curvedConnector3' || shapetype=='curvedConnector4' || shapetype=='curvedConnector5'
                     || shapetype=='straightConnector1';
-                this.hideChangeTypeSettings(hidechangetype);
-                if (!hidechangetype) {
-                    this.btnChangeShape.menu.items[0].setVisible(shapeprops.get_FromImage());
-                    this.btnChangeShape.menu.items[1].setVisible(!shapeprops.get_FromImage());
+                this.hideChangeTypeSettings(hidechangetype || control_props);
+                if (!hidechangetype && this.btnChangeShape.menu.items.length) {
+                    this.btnChangeShape.shapePicker.hideTextRect(shapeprops.get_FromImage() || this._state.isFromSmartArtInternal);
                 }
 
                 var value = props.get_WrappingStyle();
@@ -803,11 +923,9 @@ define([
 
                 value = props.get_CanBeFlow() && !this._locked;
                 var fromgroup = props.get_FromGroup() || this._locked;
-                if (this._state.CanBeFlow!==value || this._state.FromGroup!==fromgroup) {
-                    this.cmbWrapType.setDisabled(!value || fromgroup);
-                    this._state.CanBeFlow=value;
-                    this._state.FromGroup=fromgroup;
-                }
+                this.cmbWrapType.setDisabled(!value || fromgroup);
+                this._state.CanBeFlow=value;
+                this._state.FromGroup=fromgroup;
 
                 // background colors
                 var rec = null;
@@ -910,7 +1028,6 @@ define([
                         }
                         this._state.GradFillType = this.GradFillType;
                     }
-
                     if (this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR ) {
                         var value = Math.floor(fill.get_linear_angle()/60000);
                         if (Math.abs(this.GradLinearDirectionType-value)>0.001) {
@@ -918,16 +1035,19 @@ define([
                             var record = this.mnuDirectionPicker.store.findWhere({type: value});
                             this.mnuDirectionPicker.selectRecord(record, true);
                             if (record)
-                                this.btnDirection.setIconCls('item-gradient ' + record.get('iconcls'));
+                                this.typeGradient = value + 90;
                             else
-                                this.btnDirection.setIconCls('');
+                                this.typeGradient= -1;
+
+                            this.numGradientAngle.setValue(value, true);
                         }
-                    }
+                    } else
+                        this.numGradientAngle.setValue(0, true);
 
                     var me = this;
                     var colors = fill.get_colors(),
                         positions = fill.get_positions(),
-                        length = colors.length;
+                        length = colors ? colors.length : this.GradColor.colors.length;
                     this.sldrGradient.setThumbs(length);
                     if (this.GradColor.colors.length>length) {
                         this.GradColor.colors.splice(length, this.GradColor.colors.length - length);
@@ -951,10 +1071,21 @@ define([
                             me.GradColor.values[index] = position;
                         }
                     });
+                    var arrGrCollors=[];
+                    var scale=(this.GradFillType == Asc.c_oAscFillGradType.GRAD_LINEAR)?1:0.7;
                     for (var index=0; index<length; index++) {
                         me.sldrGradient.setColorValue(Common.Utils.String.format('#{0}', (typeof(me.GradColor.colors[index]) == 'object') ? me.GradColor.colors[index].color : me.GradColor.colors[index]), index);
                         me.sldrGradient.setValue(index, me.GradColor.values[index]);
+                        arrGrCollors.push(me.sldrGradient.getColorValue(index)+ ' '+ me.sldrGradient.getValue(index)*scale +'%');
                     }
+                    this.btnDirectionRedraw(me.sldrGradient, arrGrCollors.join(', '));
+
+                    if (_.isUndefined(me.GradColor.currentIdx) || me.GradColor.currentIdx >= this.GradColor.colors.length) {
+                        me.GradColor.currentIdx = 0;
+                    }
+                    me.sldrGradient.setActiveThumb(me.GradColor.currentIdx);
+                    var curValue = this.GradColor.values[this.GradColor.currentIdx];
+                    this.spnGradPosition.setValue(Common.UI.isRTL() ? this.sldrGradient.maxValue - curValue : curValue);
                     this.OriginalFillType = Asc.c_oAscFill.FILL_TYPE_GRAD;
                     this.FGColor = {Value: 1, Color: this.GradColor.colors[0]};
                     this.BGColor = {Value: 1, Color: 'ffffff'};
@@ -998,8 +1129,18 @@ define([
                     strokeType = stroke.get_type(),
                     borderType,
                     update = (this._state.StrokeColor == 'transparent' && this.BorderColor.Color !== 'transparent'); // border color was changed for shape without line and then shape was reselected (or apply other settings)
-
                 if (stroke) {
+                    transparency = stroke.get_transparent();
+                    if ( Math.abs(this._state.LineTransparency-transparency)>0.001 || Math.abs(this.numLineTransparency.getNumberValue()-transparency)>0.001 ||
+                        (this._state.LineTransparency===null || transparency===null)&&(this._state.LineTransparency!==transparency || this.numLineTransparency.getNumberValue()!==transparency)) {
+
+                        if (transparency !== undefined) {
+                            this.sldrLineTransparency.setValue((transparency===null) ? 100 : transparency/255*100, true);
+                            this.numLineTransparency.setValue(this.sldrLineTransparency.getValue(), true);
+                        }
+                        this._state.LineTransparency=transparency;
+                    }
+
                     if ( strokeType == Asc.c_oAscStrokeType.STROKE_COLOR ) {
                         color = stroke.get_color();
                         if (color) {
@@ -1054,7 +1195,7 @@ define([
 
                             if (w!==null) w = this._mm2pt(w);
                             var _selectedItem = (w===null) ? w : _.find(this.cmbBorderSize.store.models, function(item) {
-                                if ( w<item.attributes.value+0.00001 && w>item.attributes.value-0.00001) {
+                                if ( w<item.attributes.value+0.0001 && w>item.attributes.value-0.0001) {
                                     return true;
                                 }
                             });
@@ -1156,10 +1297,82 @@ define([
                     this._state.GradColor = color;
                 }
 
-                this.chShadow.setValue(!!shapeprops.asc_getShadow(), true);
 
+                var shadow = shapeprops.asc_getShadow(),
+                shadowPresetRecord = null;
+                if(shadow) {
+                    var shadowPreset = shadow.getPreset();
+                    if(shadowPreset) {
+                        shadowPresetRecord = this.viewShadowShapePresets.store.findWhere({value: shadowPreset});
+                    } 
+
+                    color = shadow.getColor();
+                    if (color.get_type() == Asc.c_oAscColor.COLOR_TYPE_SCHEME) {
+                        this.ShadowColor = {Value: 1, Color: {color: Common.Utils.ThemeColor.getHexColor(color.get_r(), color.get_g(), color.get_b()), effectValue: color.get_value() }};
+                    } else {
+                        this.ShadowColor = {Value: 1, Color: Common.Utils.ThemeColor.getHexColor(color.get_r(), color.get_g(), color.get_b())};
+                    }
+                    
+                    color = this.ShadowColor.Color;
+                    type1 = typeof(this.ShadowColor);
+                    type2 = typeof(this._state.ShadowColor);
+
+                    if ( (type1 !== type2) || (type1=='object' &&
+                        (color.effectValue!==this._state.ShadowColor.effectValue || this._state.ShadowColor.color.indexOf(color.color)<0)) ||
+                        (type1!='object' && this._state.ShadowColor.indexOf(color)<0 )) {
+
+                        if ( typeof(color) == 'object' ) {
+                            var isselected = false;
+                            for (var i=0; i<10; i++) {
+                                if ( Common.Utils.ThemeColor.ThemeValues[i] == color.effectValue ) {
+                                    this.mnuShadowShapeColorPicker.select(color,true);
+                                    isselected = true;
+                                    break;
+                                }
+                            }
+                            if (!isselected) this.mnuShadowShapeColorPicker.clearSelection();
+                        } else
+                            this.mnuShadowShapeColorPicker.select(color,true);
+
+                        this._state.ShadowColor = color;
+                    }
+                } 
+
+                if(shadowPresetRecord) {
+                    this._state.ShadowPreset = shadowPresetRecord;
+                    this.viewShadowShapePresets.selectRecord(shadowPresetRecord);
+                } else {
+                    this._state.ShadowPreset = null;
+                    this.viewShadowShapePresets.deselectAll();
+                }
+
+                this.btnShadowShape.menu.items[1].setChecked(!shadow, true)
+
+                
                 this._noApply = false;
             }
+            this.hideNoFormSettings(control_props);
+            this.ShapeOnlySeparator.toggleClass('hidden', (control_props || this._state.HideShapeOnlySettings || this._state.HideRotationSettings)===true);
+        },
+
+        btnDirectionRedraw: function(slider, gradientColorsStr) {
+            this.gradientColorsStr = gradientColorsStr;
+            _.each(this._viewDataLinear, function(item){
+                item.gradientColorsStr = gradientColorsStr;
+            });
+            this._viewDataRadial.gradientColorsStr = this.gradientColorsStr;
+            this.mnuDirectionPicker.store.each(function(item){
+                item.set('gradientColorsStr', gradientColorsStr);
+            }, this);
+
+            if (this.typeGradient == -1)
+                this.btnDirection.$icon.css({'background': 'none'});
+            else if (this.typeGradient == 2)
+                this.btnDirection.$icon.css({'background': ('radial-gradient(' + gradientColorsStr + ')')});
+            else
+                this.btnDirection.$icon.css({
+                    'background': ('linear-gradient(' + this.typeGradient + 'deg, ' + gradientColorsStr + ')')
+                });
         },
 
         createDelayedControls: function() {
@@ -1179,26 +1392,35 @@ define([
                 style: 'width: 100%;',
                 menuStyle: 'min-width: 100%;',
                 editable: false,
-                data: this._arrFillSrc
+                data: this._arrFillSrc,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbFillSrc.setValue(this._arrFillSrc[0].value);
             this.cmbFillSrc.on('selected', _.bind(this.onFillSrcSelect, this));
             this.fillControls.push(this.cmbFillSrc);
 
+            var itemWidth = 28,
+                itemHeight = 28;
             this.cmbPattern = new Common.UI.ComboDataView({
-                itemWidth: 28,
-                itemHeight: 28,
+                itemWidth: itemWidth,
+                itemHeight: itemHeight,
                 menuMaxHeight: 300,
                 enableKeyEvents: true,
-                cls: 'combo-pattern'
-            });
-            this.cmbPattern.menuPicker.itemTemplate = this.cmbPattern.fieldPicker.itemTemplate = _.template([
+                cls: 'combo-pattern',
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big',
+                fillOnChangeVisibility: true,
+                itemTemplate: _.template([
                     '<div class="style" id="<%= id %>">',
                         '<img src="data:image/gif;base64,R0lGODlhAQABAID/AMDAwAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" class="combo-pattern-item" ',
-                        'width="' + this.cmbPattern.itemWidth + '" height="' + this.cmbPattern.itemHeight + '" ',
+                        'width="' + itemWidth + '" height="' + itemHeight + '" ',
                         'style="background-position: -<%= offsetx %>px -<%= offsety %>px;"/>',
                     '</div>'
-                ].join(''));
+                ].join(''))
+            });
             this.cmbPattern.render($('#shape-combo-pattern'));
             this.cmbPattern.openButton.menu.cmpEl.css({
                 'min-width': 178,
@@ -1210,21 +1432,27 @@ define([
             });
             this.fillControls.push(this.cmbPattern);
 
-            this.btnInsertFromFile = new Common.UI.Button({
-                el: $('#shape-button-from-file')
+            this.btnSelectImage = new Common.UI.Button({
+                parentEl: $('#shape-button-replace'),
+                cls: 'btn-text-menu-default',
+                caption: this.textSelectImage,
+                style: "width:100%;",
+                menu: new Common.UI.Menu({
+                    style: 'min-width: 194px;',
+                    maxHeight: 200,
+                    items: [
+                        {caption: this.textFromFile, value: 0},
+                        {caption: this.textFromUrl, value: 1},
+                        {caption: this.textFromStorage, value: 2}
+                    ]
+                }),
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
-            this.fillControls.push(this.btnInsertFromFile);
-
-            this.btnInsertFromUrl = new Common.UI.Button({
-                el: $('#shape-button-from-url')
-            });
-            this.fillControls.push(this.btnInsertFromUrl);
-
-            this.btnInsertFromFile.on('click', _.bind(function(btn){
-                if (this.api) this.api.ChangeShapeImageFromFile(this.BlipFillType);
-                this.fireEvent('editcomplete', this);
-            }, this));
-            this.btnInsertFromUrl.on('click', _.bind(this.insertFromUrl, this));
+            this.fillControls.push(this.btnSelectImage);
+            this.btnSelectImage.menu.on('item:click', _.bind(this.onImageSelect, this));
+            this.btnSelectImage.menu.items[2].setVisible(this.mode.canRequestInsertImage || this.mode.fileChoiceUrl && this.mode.fileChoiceUrl.indexOf("{documentType}")>-1);
 
             this._arrFillType = [
                 {displayValue: this.textStretch, value: Asc.c_oAscFillBlipType.STRETCH},
@@ -1236,7 +1464,10 @@ define([
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 90px;',
                 editable: false,
-                data: this._arrFillType
+                data: this._arrFillType,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbFillType.setValue(this._arrFillType[0].value);
             this.cmbFillType.on('selected', _.bind(this.onFillTypeSelect, this));
@@ -1249,9 +1480,13 @@ define([
                 value: '100 %',
                 defaultUnit : "%",
                 maxValue: 100,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.numTransparency.on('change', _.bind(this.onNumTransparencyChange, this));
+            this.numTransparency.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
             this.fillControls.push(this.numTransparency);
 
             this.sldrTransparency = new Common.UI.SingleSlider({
@@ -1276,39 +1511,49 @@ define([
             this.cmbGradType = new Common.UI.ComboBox({
                 el: $('#shape-combo-grad-type'),
                 cls: 'input-group-nr',
-                menuStyle: 'min-width: 90px;',
+                menuStyle: 'min-width: 100%;',
                 editable: false,
-                data: this._arrGradType
+                data: this._arrGradType,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbGradType.setValue(this._arrGradType[0].value);
             this.cmbGradType.on('selected', _.bind(this.onGradTypeSelect, this));
             this.fillControls.push(this.cmbGradType);
 
             this._viewDataLinear = [
-                { offsetx: 0,   offsety: 0,   type:45,  subtype:-1, iconcls:'gradient-left-top' },
-                { offsetx: 50,  offsety: 0,   type:90,  subtype:4,  iconcls:'gradient-top'},
-                { offsetx: 100, offsety: 0,   type:135, subtype:5,  iconcls:'gradient-right-top'},
-                { offsetx: 0,   offsety: 50,  type:0,   subtype:6,  iconcls:'gradient-left', cls: 'item-gradient-separator', selected: true},
-                { offsetx: 100, offsety: 50,  type:180, subtype:1,  iconcls:'gradient-right'},
-                { offsetx: 0,   offsety: 100, type:315, subtype:2,  iconcls:'gradient-left-bottom'},
-                { offsetx: 50,  offsety: 100, type:270, subtype:3,  iconcls:'gradient-bottom'},
-                { offsetx: 100, offsety: 100, type:225, subtype:7,  iconcls:'gradient-right-bottom'}
+                { type:45,  subtype:-1},
+                { type:90,  subtype:4},
+                { type:135, subtype:5},
+                { type:0,   subtype:6, cls: 'item-gradient-separator', selected: true},
+                { type:180, subtype:1},
+                { type:315, subtype:2},
+                { type:270, subtype:3},
+                { type:225, subtype:7}
             ];
+            _.each(this._viewDataLinear, function(item){
+                item.gradientColorsStr = me.gradientColorsStr;
+            });
 
             this._viewDataRadial = [
-                { offsetx: 100, offsety: 150, type:2, subtype:5, iconcls:'gradient-radial-center'}
+                { type:2, subtype:5, gradientColorsStr: this.gradientColorsStr}
             ];
 
             this.btnDirection = new Common.UI.Button({
                 cls         : 'btn-large-dataview',
-                iconCls     : 'item-gradient gradient-left',
+                scaling     : false,
+                iconCls     : 'item-gradient',
                 menu        : new Common.UI.Menu({
                     style: 'min-width: 60px;',
                     menuAlign: 'tr-br',
                     items: [
                         { template: _.template('<div id="id-shape-menu-direction" style="width: 175px; margin: 0 5px;"></div>') }
                     ]
-                })
+                }),
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.btnDirection.on('render:after', function(btn) {
                 me.mnuDirectionPicker = new Common.UI.DataView({
@@ -1317,7 +1562,9 @@ define([
                     restoreHeight: 174,
                     allowScrollbar: false,
                     store: new Common.UI.DataViewStore(me._viewDataLinear),
-                    itemTemplate: _.template('<div id="<%= id %>" class="item-gradient" style="background-position: -<%= offsetx %>px -<%= offsety %>px;"></div>')
+                    itemTemplate: _.template('<div id="<%= id %>" class="item-gradient" style="background: '
+                        +'<% if(type!=2) {%>linear-gradient(<%= type + 90 %>deg,<%= gradientColorsStr %>)'
+                        +' <%} else {%> radial-gradient(<%= gradientColorsStr %>) <%}%>;"></div>')
                 });
             });
             this.btnDirection.render($('#shape-button-direction'));
@@ -1326,7 +1573,7 @@ define([
 
             this.sldrGradient = new Common.UI.MultiSliderGradient({
                 el: $('#shape-slider-gradient'),
-                width: 125,
+                width: 192,
                 minValue: 0,
                 maxValue: 100,
                 values: [0, 100]
@@ -1338,6 +1585,8 @@ define([
                 var color = me.GradColor.colors[me.GradColor.currentIdx];
                 me.btnGradColor.setColor(color);
                 me.colorsGrad.select(color,false);
+                var pos = me.GradColor.values[me.GradColor.currentIdx];
+                me.spnGradPosition.setValue(Common.UI.isRTL() ? me.sldrGradient.maxValue - pos : pos, true);
             });
             this.sldrGradient.on('thumbdblclick', function(cmp){
                 me.btnGradColor.cmpEl.find('button').dropdown('toggle');
@@ -1354,12 +1603,92 @@ define([
                 me.GradColor.colors = colors;
                 me.GradColor.currentIdx = currentIdx;
             });
+            this.sldrGradient.on('addthumb', function(cmp, index, pos){
+                me.GradColor.colors[index] = me.GradColor.colors[me.GradColor.currentIdx];
+                me.GradColor.currentIdx = index;
+                var color = me.sldrGradient.addNewThumb(index, pos);
+                me.GradColor.colors[me.GradColor.currentIdx] = color;
+            });
+            this.sldrGradient.on('removethumb', function(cmp, index){
+                me.sldrGradient.removeThumb(index);
+                me.GradColor.values.splice(index, 1);
+                me.sldrGradient.changeGradientStyle();
+                if (_.isUndefined(me.GradColor.currentIdx) || me.GradColor.currentIdx >= me.GradColor.colors.length) {
+                    var newIndex = index > 0 ? index - 1 : index;
+                    newIndex = (newIndex === 0 && me.GradColor.values.length > 2) ? me.GradColor.values.length - 2 : newIndex;
+                    me.GradColor.currentIdx = newIndex;
+                }
+                me.sldrGradient.setActiveThumb(me.GradColor.currentIdx);
+            });
             this.fillControls.push(this.sldrGradient);
+
+            this.spnGradPosition = new Common.UI.MetricSpinner({
+                el: $('#shape-gradient-position'),
+                step: 1,
+                width: 60,
+                defaultUnit : "%",
+                value: '50 %',
+                allowDecimal: false,
+                maxValue: 100,
+                minValue: 0,
+                disabled: this._locked,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.fillControls.push(this.spnGradPosition);
+            this.spnGradPosition.on('change', _.bind(this.onPositionChange, this));
+            this.spnGradPosition.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
+
+            this.btnAddGradientStep = new Common.UI.Button({
+                parentEl: $('#shape-gradient-add-step'),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-add-breakpoint',
+                disabled: this._locked,
+                hint: this.tipAddGradientPoint,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
+            });
+            this.btnAddGradientStep.on('click', _.bind(this.onAddGradientStep, this));
+            this.fillControls.push(this.btnAddGradientStep);
+
+            this.btnRemoveGradientStep = new Common.UI.Button({
+                parentEl: $('#shape-gradient-remove-step'),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-remove-breakpoint',
+                disabled: this._locked,
+                hint: this.tipRemoveGradientPoint,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
+            });
+            this.btnRemoveGradientStep.on('click', _.bind(this.onRemoveGradientStep, this));
+            this.fillControls.push(this.btnRemoveGradientStep);
+
+            this.numGradientAngle = new Common.UI.MetricSpinner({
+                el: $('#shape-spin-gradient-angle'),
+                step: 10,
+                width: 60,
+                defaultUnit : "°",
+                value: '0 °',
+                allowDecimal: true,
+                maxValue: 359.9,
+                minValue: 0,
+                disabled: this._locked,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.fillControls.push(this.numGradientAngle);
+            this.numGradientAngle.on('change', _.bind(this.onGradientAngleChange, this));
+            this.numGradientAngle.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
 
             this.cmbBorderSize = new Common.UI.ComboBorderSizeEditable({
                 el: $('#shape-combo-border-size'),
                 style: "width: 93px;",
-                txtNoBorders: this.txtNoBorders
+                txtNoBorders: this.txtNoBorders,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             })
             .on('selected', _.bind(this.onBorderSizeSelect, this))
             .on('changed:before',_.bind(this.onBorderSizeChanged, this, true))
@@ -1372,61 +1701,102 @@ define([
             this.cmbBorderType = new Common.UI.ComboBorderType({
                 el: $('#shape-combo-border-type'),
                 style: "width: 93px;",
-                menuStyle: 'min-width: 93px;'
+                menuStyle: 'min-width: 93px;',
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             }).on('selected', _.bind(this.onBorderTypeSelect, this))
             .on('combo:blur',    _.bind(this.onComboBlur, this, false));
             this.BorderType = Asc.c_oDashType.solid;
             this.cmbBorderType.setValue(this.BorderType);
             this.lockedControls.push(this.cmbBorderType);
 
-            this.btnRotate270 = new Common.UI.Button({
-                cls: 'btn-toolbar',
-                iconCls: 'rotate-270',
-                value: 0,
-                hint: this.textHint270
+            this.sldrLineTransparency = new Common.UI.SingleSlider({
+                el: $('#shape-line-slider-transparency'),
+                width: 75,
+                minValue: 0,
+                maxValue: 100,
+                value: 100
             });
-            this.btnRotate270.render( $('#shape-button-270', me.$el));
+            this.sldrLineTransparency.on('change', _.bind(this.onLineTransparencyChange, this));
+            this.sldrLineTransparency.on('changecomplete', _.bind(this.onLineTransparencyChangeComplete, this));/**/
+            this.lockedControls.push(this.sldrLineTransparency);
+
+            this.lblLineTransparencyStart = $(this.el).find('#shape-line-lbl-transparency-start');
+            this.lblLineTransparencyEnd = $(this.el).find('#shape-line-lbl-transparency-end');
+
+            this.numLineTransparency = new Common.UI.MetricSpinner({
+                el: $('#shape-line-spin-transparency'),
+                step: 1,
+                width: 62,
+                value: '100 %',
+                defaultUnit : "%",
+                maxValue: 100,
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.numLineTransparency.on('change', _.bind(this.onNumLineTransparencyChange, this));
+            this.numLineTransparency.on('inputleave', function(){ me.fireEvent('editcomplete', me);});
+            this.lockedControls.push(this.numLineTransparency);
+
+            this.btnRotate270 = new Common.UI.Button({
+                parentEl: $('#shape-button-270', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-270',
+                value: 0,
+                hint: this.textHint270,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
+            });
             this.btnRotate270.on('click', _.bind(this.onBtnRotateClick, this));
             this.lockedControls.push(this.btnRotate270);
 
             this.btnRotate90 = new Common.UI.Button({
+                parentEl: $('#shape-button-90', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'rotate-90',
+                iconCls: 'toolbar__icon btn-rotate-90',
                 value: 1,
-                hint: this.textHint90
+                hint: this.textHint90,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnRotate90.render( $('#shape-button-90', me.$el));
             this.btnRotate90.on('click', _.bind(this.onBtnRotateClick, this));
             this.lockedControls.push(this.btnRotate90);
 
             this.btnFlipV = new Common.UI.Button({
+                parentEl: $('#shape-button-flipv', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'flip-vert',
+                iconCls: 'toolbar__icon btn-flip-vert',
                 value: 0,
-                hint: this.textHintFlipV
+                hint: this.textHintFlipV,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnFlipV.render( $('#shape-button-flipv', me.$el));
             this.btnFlipV.on('click', _.bind(this.onBtnFlipClick, this));
             this.lockedControls.push(this.btnFlipV);
 
             this.btnFlipH = new Common.UI.Button({
+                parentEl: $('#shape-button-fliph', me.$el),
                 cls: 'btn-toolbar',
-                iconCls: 'flip-hor',
+                iconCls: 'toolbar__icon btn-flip-hor',
                 value: 1,
-                hint: this.textHintFlipH
+                hint: this.textHintFlipH,
+                dataHint: '1',
+                dataHintDirection: 'bottom'
             });
-            this.btnFlipH.render( $('#shape-button-fliph', me.$el));
             this.btnFlipH.on('click', _.bind(this.onBtnFlipClick, this));
             this.lockedControls.push(this.btnFlipH);
 
             var viewData = [
-                { offsetx: 0, data: Asc.c_oAscWrapStyle2.Inline,    tip: this.txtInline, selected: true },
-                { offsetx: 50, data: Asc.c_oAscWrapStyle2.Square,   tip: this.txtSquare },
-                { offsetx: 100, data: Asc.c_oAscWrapStyle2.Tight,   tip: this.txtTight },
-                { offsetx: 150, data: Asc.c_oAscWrapStyle2.Through, tip: this.txtThrough },
-                { offsetx: 200, data: Asc.c_oAscWrapStyle2.TopAndBottom, tip: this.txtTopAndBottom },
-                { offsetx: 250, data: Asc.c_oAscWrapStyle2.InFront, tip: this.txtInFront },
-                { offsetx: 300, data: Asc.c_oAscWrapStyle2.Behind,  tip: this.txtBehind }
+                { icon: 'btn-wrap-inline',      data: Asc.c_oAscWrapStyle2.Inline,      tip: this.txtInline, selected: true },
+                { icon: 'btn-wrap-square',      data: Asc.c_oAscWrapStyle2.Square,      tip: this.txtSquare },
+                { icon: 'btn-wrap-tight',       data: Asc.c_oAscWrapStyle2.Tight,       tip: this.txtTight },
+                { icon: 'btn-wrap-through',     data: Asc.c_oAscWrapStyle2.Through,     tip: this.txtThrough },
+                { icon: 'btn-wrap-topbottom',   data: Asc.c_oAscWrapStyle2.TopAndBottom, tip: this.txtTopAndBottom },
+                { icon: 'btn-wrap-infront',     data: Asc.c_oAscWrapStyle2.InFront,     tip: this.txtInFront },
+                { icon: 'btn-wrap-behind',      data: Asc.c_oAscWrapStyle2.Behind,      tip: this.txtBehind }
             ];
 
 
@@ -1436,15 +1806,19 @@ define([
                 menuMaxHeight: 300,
                 enableKeyEvents: true,
                 store: new Common.UI.DataViewStore(viewData),
-                cls: 'combo-chart-style'
+                cls: 'combo-chart-style',
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big',
+                delayRenderTips: true,
+                fillOnChangeVisibility: true,
+                itemTemplate: _.template([
+                    '<div class="item-icon-box" id="<%= id %>">',
+                        '<img src="data:image/gif;base64,R0lGODlhAQABAID/AMDAwAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" ' +
+                            'class="combo-wrap-item options__icon options__icon-huge <%= icon %>"',
+                    '</div>'
+                ].join(''))
             });
-            this.cmbWrapType.menuPicker.itemTemplate = this.cmbWrapType.fieldPicker.itemTemplate = _.template([
-                '<div class="style" id="<%= id %>">',
-                '<img src="data:image/gif;base64,R0lGODlhAQABAID/AMDAwAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" class="combo-wrap-item" ',
-                'width="' + this.cmbWrapType.itemWidth + '" height="' + this.cmbWrapType.itemHeight + '" ',
-                'style="background-position: -<%= offsetx %>px 0;"/>',
-                '</div>'
-            ].join(''));
             this.cmbWrapType.render($('#shape-combo-wrap'));
             this.cmbWrapType.openButton.menu.cmpEl.css({
                 'min-width': 178,
@@ -1456,30 +1830,171 @@ define([
             });
             this.lockedControls.push(this.cmbWrapType);
 
-            this.btnChangeShape = new Common.UI.Button({
-                cls: 'btn-icon-default',
-                iconCls: 'btn-change-shape',
-                menu        : new Common.UI.Menu({
-                    menuAlign: 'tr-br',
-                    cls: 'menu-shapes',
-                    items: []
-                })
+            this.btnEditShape = new Common.UI.Button({
+                parentEl: $('#shape-button-edit-shape'),
+                cls: 'btn-toolbar align-left',
+                caption: this.textEditShape,
+                iconCls: 'toolbar__icon btn-menu-shape',
+                style: "width:100%;",
+                menu: new Common.UI.Menu({
+                    style: 'min-width: 194px;',
+                    // maxHeight: 200,
+                    cls: 'shifted-right',
+                    items: [
+                        {caption: this.textEditPoints, value: 0, iconCls: 'toolbar__icon btn-edit-points'},
+                        {
+                            caption: this.strChange,
+                            menu        : new Common.UI.Menu({
+                                menuAlign: 'tl-tl',
+                                cls: 'menu-shapes menu-change-shape',
+                                items: [],
+                                restoreHeightAndTop: true,
+                                additionalAlign: function(menuRoot, left, top) {
+                                    menuRoot.css({left: left, top: Math.max(Common.Utils.getOffset($(me.el).parent()).top, Common.Utils.innerHeight() - 10 - me.shapeRestoreHeight) - parseInt(menuRoot.css('margin-top'))});
+                                }
+                            })}
+                    ]
+                }),
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
-            this.btnChangeShape.render( $('#shape-btn-change')) ;
-            this.lockedControls.push(this.btnChangeShape);
+            this.lockedControls.push(this.btnEditShape);
+            this.btnChangeShape = this.btnEditShape.menu.items[1];
+            this.btnEditShape.menu.items[0].on('click', _.bind(this.onShapeEditPoints, this));
 
-            this.chShadow = new Common.UI.CheckBox({
-                el: $('#shape-checkbox-shadow'),
-                labelText: this.strShadow
+            this.btnEditChangeShape = new Common.UI.Button({
+                parentEl: $('#shape-button-change-shape'),
+                cls: 'btn-toolbar align-left',
+                caption: this.textEditShape,
+                iconCls: 'toolbar__icon btn-menu-shape',
+                style: "width:100%;",
+                menu: new Common.UI.Menu({
+                    menuAlign: 'tr-br',
+                    cls: 'menu-shapes menu-change-shape',
+                    items: []
+                }),
+                scaling: false,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
-            this.chShadow.on('change', _.bind(this.onCheckShadow, this));
-            this.lockedControls.push(this.chShadow);
+            this.lockedControls.push(this.btnEditChangeShape);
+
+            this.btnShadowShape = new Common.UI.Button({
+                parentEl: $('#shape-button-shadow-shape'),
+                cls: 'btn-toolbar align-left',
+                caption: this.textShadow,
+                iconCls: 'toolbar__icon btn-shadow',
+                style: "width:100%;",
+                menu: true,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.btnShadowShape);
+
+            this.btnShadowShape.setMenu(
+                new Common.UI.Menu({
+                    cls: 'shifted-right',
+                    style: 'min-width: 168px',
+                    items: [
+                        {template: _.template('<div id="shape-button-shadow-shape-menu" class="menu-markers" style="width: 168px; margin: 0 4px 4px 4px;"></div>')},
+                        {
+                            caption: this.textNoShadow,
+                            checkable: true,
+                            value: 1,
+                        },
+                        { caption: '--'},
+                        this.mnuShadowShapeColor = new Common.UI.MenuItem({
+                            caption: this.strColor,
+                            menu        : new Common.UI.Menu({
+                                cls: 'color-menu shifted-right',
+                                menuAlign: 'tl-tr',
+                                items: [
+                                    { template: _.template('<div id="shape-button-shadow-shape-menu-picker" style="width: 164px;display: inline-block;"></div>'), stopPropagation: true },
+                                    { caption: '--'},
+                                    {
+                                        caption: this.textEyedropper,
+                                        iconCls: 'menu__icon btn-eyedropper',
+                                        value: 1
+                                    },
+                                    {
+                                        caption: this.textMoreColors,
+                                        value: 2
+                                    },
+                                ]
+                            }),
+                            value: 2,
+                        }),
+                        {
+                            caption: this.textAdjustShadow,
+                            value: 3,
+                        },
+                    ]
+                })
+            );
+            this.btnShadowShape.menu.on('item:click', _.bind(this.onSelectShadowMenu, this));
+            this.mnuShadowShapeColor.menu.on('item:click', _.bind(this.onSelectShadowColorMenu, this));
+            this.btnShadowShape.menu.on('show:before', function() {
+                if(me._state.ShadowPreset) {
+                    me.viewShadowShapePresets.selectRecord(me._state.ShadowPreset);
+                } else {
+                    me.viewShadowShapePresets.deselectAll();
+                }
+            });            
+            this.mnuShadowShapeColor.menu.on('show:before', function() {
+                if(me._state.ShadowColor) {
+                    me.mnuShadowShapeColorPicker.select(me._state.ShadowColor,true);
+                }
+            });
+
+            this.viewShadowShapePresets = new Common.UI.DataView({
+                el: $('#shape-button-shadow-shape-menu'),
+                parentMenu: this.btnShadowShape.menu,
+                outerMenu:  {menu: this.btnShadowShape.menu, index: 0},
+                allowScrollbar: false,
+                delayRenderTips: true,
+                store: new Common.UI.DataViewStore([
+                    {value:"tl", offsetX: 6,     offsetY: 6,     spread: 0},
+                    {value:"t",  offsetX: 0,     offsetY: 6,     spread: 0},
+                    {value:"tr", offsetX: -6,    offsetY: 6,     spread: 0},
+
+                    {value:"l",  offsetX: 6,     offsetY: 0,     spread: 0},
+                    {value:"ctr",offsetX: 0,     offsetY: 0,     spread: 3},
+                    {value:"r",  offsetX: -6,    offsetY: 0,     spread: 0},
+
+                    {value:"bl", offsetX: 6,     offsetY: -6,    spread: 0},
+                    {value:"b",  offsetX: 0,     offsetY: -6,    spread: 0},
+                    {value:"br", offsetX: -6,    offsetY: -6,    spread: 0},
+                ]),
+                itemTemplate: _.template(
+                    '<div class="item-shadow">' +
+                        '<div ' +
+                            'style="margin-bottom:<%= offsetY %>px;' +
+                            'margin-right:<%= offsetX %>px;' +
+                            'box-shadow: <% if(Common.Utils.isIE) {%>rgba(0,0,0,0.4)<%} else {%>var(--text-tertiary)<%}%> <%= offsetX %>px <%= offsetY %>px 0px <%= spread %>px ;"' +
+                        '>' +
+                        '</div>' + 
+                    '</div>')
+            });
+            this.viewShadowShapePresets.on('item:click', _.bind(this.onSelectShadowPreset, this));
+            this.btnShadowShape.menu.setInnerMenu([{menu: this.viewShadowShapePresets, index: 0}]);
+
+            this.mnuShadowShapeColorPicker = new Common.UI.ThemeColorPalette({
+                el: $('#shape-button-shadow-shape-menu-picker'),
+                outerMenu: {menu: this.mnuShadowShapeColor.menu, index: 0}
+            });            
+            this.mnuShadowShapeColor.menu.setInnerMenu([{menu: this.mnuShadowShapeColorPicker, index: 0}]);
+            this.mnuShadowShapeColorPicker.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors())
+            this.mnuShadowShapeColorPicker.on('select', _.bind(this.onSelectShadowColor, this));
 
             this.linkAdvanced = $('#shape-advanced-link');
             $(this.el).on('click', '#shape-advanced-link', _.bind(this.openAdvancedSettings, this));
         },
 
         createDelayedElements: function() {
+            this._initSettings = false;
             this.createDelayedControls();
             
             var global_hatch_menu_map = [
@@ -1513,53 +2028,64 @@ define([
                 this.PatternFillType = this.patternViewData[0].type;
             }
 
-            this.fillAutoShapes();
+            this.onInitStandartTextures();
+            this.onApiAutoShapes(this.btnEditShape.menu.items[1]);
+            this.onApiAutoShapes(this.btnEditChangeShape);
             this.UpdateThemeColors();
-            this._initSettings = false;
         },
 
         onInitStandartTextures: function(texture) {
             var me = this;
             if (texture && texture.length>0){
-                if (!this.btnTexture) {
-                    this.btnTexture = new Common.UI.ComboBox({
-                        el: $('#shape-combo-fill-texture'),
-                        template: _.template([
-                            '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle" tabindex="0" data-toggle="dropdown">',
-                                '<div class="form-control text" style="width: 90px;">' + this.textSelectTexture + '</div>',
-                                '<div style="display: table-cell;"></div>',
-                                '<button type="button" class="btn btn-default"><span class="caret img-commonctrl"></span></button>',
-                            '</div>'
-                        ].join(''))
-                    });
-                    this.textureMenu = new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="id-shape-menu-texture" style="width: 233px; margin: 0 5px;"></div>') }
-                        ]
-                    });
-                    this.textureMenu.render($('#shape-combo-fill-texture'));
-                    this.fillControls.push(this.btnTexture);
-                }
-
-                var texturearray = [];
+                me._texturearray = [];
                 _.each(texture, function(item){
-                    texturearray.push({
+                    me._texturearray.push({
                         imageUrl: item.get_image(),
                         name   : me.textureNames[item.get_id()],
+                        tip    : me.textureNames[item.get_id()],
                         type    : item.get_id(),
 //                        allowSelected : false,
                         selected: false
                     });
                 });
-                var mnuTexturePicker = new Common.UI.DataView({
-                    el: $('#id-shape-menu-texture'),
-                    restoreHeight: 174,
-                    parentMenu: me.textureMenu,
-                    showLast: false,
-                    store: new Common.UI.DataViewStore(texturearray),
-                    itemTemplate: _.template('<div class="item-texture"><img src="<%= imageUrl %>" id="<%= id %>"></div>')
+            }
+
+            if (!me._texturearray || me._texturearray.length<1) return;
+            if (!this._initSettings && !this.btnTexture) {
+                this.btnTexture = new Common.UI.ComboBox({
+                    el: $('#shape-combo-fill-texture'),
+                    template: _.template([
+                        '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle" tabindex="0" data-toggle="dropdown">',
+                        '<div class="form-control text" style="width: 90px;" data-hint="1" data-hint-direction="bottom" data-hint-offset="big">' + this.textSelectTexture + '</div>',
+                        '<div style="display: table-cell;"></div>',
+                        '<button type="button" class="btn btn-default">',
+                            '<span class="caret"></span>',
+                        '</button>',
+                        '</div>'
+                    ].join(''))
                 });
-                mnuTexturePicker.on('item:click', _.bind(this.onSelectTexture, this));
+                this.textureMenu = new Common.UI.Menu({
+                    items: [
+                        { template: _.template('<div id="id-shape-menu-texture" style="width: 233px; margin: 0 5px;"></div>') }
+                    ]
+                });
+                this.textureMenu.render($('#shape-combo-fill-texture'));
+                this.fillControls.push(this.btnTexture);
+
+                var onShowBefore = function(menu) {
+                    var mnuTexturePicker = new Common.UI.DataView({
+                        el: $('#id-shape-menu-texture'),
+                        restoreHeight: 174,
+                        parentMenu: menu,
+                        showLast: false,
+                        delayRenderTips: true,
+                        store: new Common.UI.DataViewStore(me._texturearray || []),
+                        itemTemplate: _.template('<div class="item-texture"><img src="<%= imageUrl %>" id="<%= id %>"></div>')
+                    });
+                    mnuTexturePicker.on('item:click', _.bind(me.onSelectTexture, me));
+                    menu.off('show:before', onShowBefore);
+                };
+                this.textureMenu.on('show:before', onShowBefore);
             }
         },
 
@@ -1583,6 +2109,87 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
+        onSelectShadowPreset: function(picker, itemView, record) {
+            if (this.api)   {
+                var shapeProps = new Asc.asc_CShapeProperty(),
+                    shadowProps = new Asc.asc_CShadowProperty();
+
+                shadowProps.putPreset(record.get('value'));
+                shapeProps.asc_putShadow(shadowProps);
+                this.imgprops.put_ShapeProperties(shapeProps);
+                this.api.ImgApply(this.imgprops);
+            }
+            this.fireEvent('editcomplete', this);
+        },
+
+        onSelectShadowMenu: function(menu, item) {
+            //Checkbox on/off shadow
+            if(item.value == 1) {
+                if (this.api)   {
+                    var shapeProps = new Asc.asc_CShapeProperty();
+                        
+                    if(item.checked) {
+                        shapeProps.asc_putShadow(null);
+                    } else {
+                        var shadowProps = new Asc.asc_CShadowProperty();
+                        shadowProps.putPreset('t');
+                        shapeProps.asc_putShadow(shadowProps);
+                    }
+                    this.imgprops.put_ShapeProperties(shapeProps);
+                    this.api.ImgApply(this.imgprops);
+                }
+                this.fireEvent('editcomplete', this);
+            } 
+            //Adjust shadow
+            else if(item.value == 3) {
+                var me = this;
+                (new Common.Views.ShapeShadowDialog({
+                    api             : this.api,
+                    shadowProps     : this._originalProps.get_ShapeProperties().asc_getShadow(),
+                    methodApplySettings: function(shapeProps) {
+                        me.imgprops.put_ShapeProperties(shapeProps);
+                        me.api.ImgApply(me.imgprops);
+                    },
+                    handler: function(result) {
+                        me.fireEvent('editcomplete', this);
+                    },
+                })).show();
+            }
+        },
+
+        onSelectShadowColorMenu: function(menu, item) {
+            var me = this;
+            //Eyedroppper
+            if(item.value == 1) {
+                this.api.asc_startEyedropper(function(r, g, b) {
+                    if (r === undefined) return;
+                    var color = Common.Utils.ThemeColor.getHexColor(r, g, b);
+                    me.mnuShadowShapeColorPicker.setCustomColor('#' + color);
+                    me.onSelectShadowColor(null, color);
+                });
+            } 
+            //More colors
+            else if(item.value == 2) {
+                this.mnuShadowShapeColorPicker.addNewColor();
+            }
+        },
+
+        onSelectShadowColor: function (picker, color) {
+            var shapeProps = new Asc.asc_CShapeProperty(),
+                shadowProps = this._originalProps.get_ShapeProperties().asc_getShadow();
+
+            if(!shadowProps) {
+                shadowProps = new Asc.asc_CShadowProperty();
+                shadowProps.putPreset('t');
+            }
+
+            shadowProps.putColor(Common.Utils.ThemeColor.getRgbColor(color));
+            shapeProps.asc_putShadow(shadowProps);
+            this.imgprops.put_ShapeProperties(shapeProps);
+            this.api.ImgApply(this.imgprops);
+            this.fireEvent('editcomplete', this);
+        },
+
         onBtnRotateClick: function(btn) {
             var properties = new Asc.asc_CImgProperty();
             properties.asc_putRotAdd((btn.options.value==1 ? 90 : 270) * 3.14159265358979 / 180);
@@ -1600,163 +2207,140 @@ define([
             this.fireEvent('editcomplete', this);
         },
 
-        onCheckShadow: function(field, newValue, oldValue, eOpts) {
-            if (this.api)   {
-                var props = new Asc.asc_CShapeProperty();
-                props.asc_putShadow((field.getValue()=='checked') ? new Asc.asc_CShadowProperty() : null);
-                this.imgprops.put_ShapeProperties(props);
-                this.api.ImgApply(this.imgprops);
-            }
-            this.fireEvent('editcomplete', this);
+        toggleBtnEditShape: function()
+        {
+            this.EditShapeContainer.toggleClass('settings-hidden', !this.canEditPoint);
+            this.EditChangeShapeContainer.toggleClass('settings-hidden', this.canEditPoint);
+            this.btnChangeShape = this.canEditPoint ? this.btnEditShape.menu.items[1] : this.btnEditChangeShape;
+        },
+
+        onShapeEditPoints: function (){
+            this.api && this.api.asc_editPointsGeometry();
+        },
+
+        onApiAutoShapes: function(btnChangeShape) {
+            var me = this;
+            var onShowBefore = function(menu) {
+                me.fillAutoShapes();
+                menu.off('show:before', onShowBefore);
+            };
+            btnChangeShape.menu.on('show:before', onShowBefore);
         },
 
         fillAutoShapes: function() {
             var me = this,
-                shapesStore = this.application.getCollection('ShapeGroups');
+                recents = Common.localStorage.getItem('de-recent-shapes'),
+                menuitemId = me.canEditPoint ? 'id-edit-shape-menu' : 'id-change-shape-menu';
+            var menuitem = new Common.UI.MenuItem({
+                template: _.template('<div id="' + menuitemId +'" class="menu-insertshape"></div>')
+            });
+            me.btnChangeShape.menu.addItem(menuitem);
 
-            var count = shapesStore.length;
-            for (var i=-1; i<count-1 && count>0; i++) {
-                var shapeGroup = shapesStore.at(i>-1 ? i : i+1);
-                var menuItem = new Common.UI.MenuItem({
-                    caption: shapeGroup.get('groupName'),
-                    menu: new Common.UI.Menu({
-                        menuAlign: 'tr-tl',
-                        items: [
-                            { template: _.template('<div id="id-shape-menu-shapegroup' + (i+1) + '" class="menu-shape" style="width: ' + (shapeGroup.get('groupWidth') - 8) + 'px; margin-left: 5px;"></div>') }
-                        ]
-                    })
-                });
-                me.btnChangeShape.menu.addItem(menuItem);
-
-                var store = shapeGroup.get('groupStore');
-                if (i<0) {
-                    store = store.clone();
-                    store.shift();
+            me.btnChangeShape.shapePicker = new Common.UI.DataViewShape({
+                el: $('#' + menuitemId),
+                itemTemplate: _.template('<div class="item-shape" id="<%= id %>"><svg width="20" height="20" class=\"icon uni-scale\"><use xlink:href=\"#svg-icon-<%= data.shapeType %>\"></use></svg></div>'),
+                groups: me.application.getCollection('ShapeGroups'),
+                parentMenu: me.btnChangeShape.menu,
+                restoreHeight: me.shapeRestoreHeight,
+                textRecentlyUsed: me.textRecentlyUsed,
+                recentShapes: recents ? JSON.parse(recents) : null,
+                hideTextRect: me._state.isFromImage || me._state.isFromSmartArtInternal,
+                hideLines: true
+            });
+            me.btnChangeShape.shapePicker.on('item:click', function(picker, item, record, e) {
+                if (me.api) {
+                    me.api.ChangeShapeType(record.get('data').shapeType);
+                    me.fireEvent('editcomplete', me);
                 }
-                var shapePicker = new Common.UI.DataView({
-                    el: $('#id-shape-menu-shapegroup' + (i+1)),
-                    store: store,
-                    parentMenu: menuItem.menu,
-                    showLast: false,
-                    itemTemplate: _.template('<div class="item-shape" id="<%= id %>"><svg width="20" height="20" class=\"icon\"><use xlink:href=\"#svg-icon-<%= data.shapeType %>\"></use></svg></div>')
-                });
-
-                shapePicker.on('item:click', function(picker, item, record, e) {
-                    if (me.api) {
-                        me.api.ChangeShapeType(record.get('data').shapeType);
-                        me.fireEvent('editcomplete', me);
-                    }
-                    if (e.type !== 'click')
-                        me.btnChangeShape.menu.hide();
-                });
-            }
+                if (e.type !== 'click') {
+                    var menu = me.canEditPoint ? me.btnEditShape.menu : me.btnEditChangeShape.menu;
+                    menu.hide();
+                }
+            });
         },
 
         UpdateThemeColors: function() {
+            if (this._initSettings) return;
+
             if (!this.btnBackColor) {
                 // create color buttons
                 this.btnBackColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="shape-back-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="shape-back-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#shape-back-color-btn'),
+                    transparent: true,
+                    color: 'transparent',
+                    eyeDropper: true,
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.btnBackColor.render( $('#shape-back-color-btn'));
-                this.btnBackColor.setColor('transparent');
                 this.fillControls.push(this.btnBackColor);
-                this.colorsBack = new Common.UI.ThemeColorPalette({
-                    el: $('#shape-back-color-menu'),
-                    value: 'transparent',
-                    transparent: true
-                });
-                this.colorsBack.on('select', _.bind(this.onColorsBackSelect, this));
-                this.btnBackColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsBack, this.btnBackColor));
+                this.colorsBack = this.btnBackColor.getPicker();
+                this.btnBackColor.on('color:select', _.bind(this.onColorsBackSelect, this));
+                this.btnBackColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                this.btnBackColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
 
                 this.btnFGColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="shape-foreground-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="shape-foreground-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#shape-foreground-color-btn'),
+                    color: '000000',
+                    eyeDropper: true,
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.btnFGColor.render( $('#shape-foreground-color-btn'));
-                this.btnFGColor.setColor('000000');
                 this.fillControls.push(this.btnFGColor);
-                this.colorsFG = new Common.UI.ThemeColorPalette({
-                    el: $('#shape-foreground-color-menu'),
-                    value: '000000'
-                });
-                this.colorsFG.on('select', _.bind(this.onColorsFGSelect, this));
-                this.btnFGColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsFG, this.btnFGColor));
+                this.colorsFG = this.btnFGColor.getPicker();
+                this.btnFGColor.on('color:select', _.bind(this.onColorsFGSelect, this));
+                this.btnFGColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                this.btnFGColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
 
                 this.btnBGColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="shape-background-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="shape-background-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#shape-background-color-btn'),
+                    color: 'ffffff',
+                    eyeDropper: true,
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.btnBGColor.render( $('#shape-background-color-btn'));
-                this.btnBGColor.setColor('ffffff');
                 this.fillControls.push(this.btnBGColor);
-                this.colorsBG = new Common.UI.ThemeColorPalette({
-                    el: $('#shape-background-color-menu'),
-                    value: 'ffffff'
-                });
-                this.colorsBG.on('select', _.bind(this.onColorsBGSelect, this));
-                this.btnBGColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsBG, this.btnBGColor));
+                this.colorsBG = this.btnBGColor.getPicker();
+                this.btnBGColor.on('color:select', _.bind(this.onColorsBGSelect, this));
+                this.btnBGColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                this.btnBGColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
 
                 this.btnGradColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="shape-gradient-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="shape-gradient-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#shape-gradient-color-btn'),
+                    color: '000000',
+                    eyeDropper: true,
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.btnGradColor.render( $('#shape-gradient-color-btn'));
-                this.btnGradColor.setColor('000000');
                 this.fillControls.push(this.btnGradColor);
-                this.colorsGrad = new Common.UI.ThemeColorPalette({
-                    el: $('#shape-gradient-color-menu'),
-                    value: '000000'
-                });
-                this.colorsGrad.on('select', _.bind(this.onColorsGradientSelect, this));
-                this.btnGradColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsGrad, this.btnGradColor));
+                this.colorsGrad = this.btnGradColor.getPicker();
+                this.btnGradColor.on('color:select', _.bind(this.onColorsGradientSelect, this));
+                this.btnGradColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                this.btnGradColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
 
                 this.btnBorderColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="shape-border-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="shape-border-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#shape-border-color-btn'),
+                    color: '000000',
+                    eyeDropper: true,
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big'
                 });
-                this.btnBorderColor.render( $('#shape-border-color-btn'));
-                this.btnBorderColor.setColor('000000');
                 this.lockedControls.push(this.btnBorderColor);
-                this.colorsBorder = new Common.UI.ThemeColorPalette({
-                    el: $('#shape-border-color-menu'),
-                    value: '000000'
-                });
-                this.colorsBorder.on('select', _.bind(this.onColorsBorderSelect, this));
-                this.btnBorderColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsBorder, this.btnBorderColor));
+                this.colorsBorder = this.btnBorderColor.getPicker();
+                this.btnBorderColor.on('color:select', _.bind(this.onColorsBorderSelect, this));
+                this.btnBorderColor.on('eyedropper:start', _.bind(this.onEyedropperStart, this));
+                this.btnBorderColor.on('eyedropper:end', _.bind(this.onEyedropperEnd, this));
             }
-            
             this.colorsBorder.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
             this.colorsBack.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
             this.colorsFG.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
             this.colorsBG.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
             this.colorsGrad.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
+            this.mnuShadowShapeColorPicker.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
         },
 
         _pt2mm: function(value) {
@@ -1775,6 +2359,7 @@ define([
                 });
                 this.lblTransparencyStart.toggleClass('disabled', disable);
                 this.lblTransparencyEnd.toggleClass('disabled', disable);
+                this.numGradientAngle.setDisabled(disable || this.GradFillType !== Asc.c_oAscFillGradType.GRAD_LINEAR);
             }
         },
 
@@ -1784,6 +2369,7 @@ define([
             this.FillPatternContainer.toggleClass('settings-hidden', value !== Asc.c_oAscFill.FILL_TYPE_PATT);
             this.FillGradientContainer.toggleClass('settings-hidden', value !== Asc.c_oAscFill.FILL_TYPE_GRAD);
             this.TransparencyContainer.toggleClass('settings-hidden', (value === Asc.c_oAscFill.FILL_TYPE_NOFILL || value === null));
+            this.fireEvent('updatescroller', this);
         },
 
         setLocked: function (locked) {
@@ -1800,7 +2386,11 @@ define([
                     item.setDisabled(disable);
                 });
                 this.linkAdvanced.toggleClass('disabled', disable);
+                this.lblLineTransparencyStart.toggleClass('disabled', disable);
+                this.lblLineTransparencyEnd.toggleClass('disabled', disable);
             }
+            this.btnFlipV.setDisabled(disable || this._state.isFromSmartArtInternal);
+            this.btnFlipH.setDisabled(disable || this._state.isFromSmartArtInternal);
         },
 
         hideShapeOnlySettings: function(value) {
@@ -1815,6 +2405,105 @@ define([
                 this._state.HideChangeTypeSettings = value;
                 this.CanChangeType.toggleClass('hidden', value==true);
             }
+        },
+
+        hideRotationSettings: function(value) {
+            if (this._state.HideRotationSettings !== value) {
+                this._state.HideRotationSettings = value;
+                this.RotationSettings.toggleClass('hidden', value==true);
+            }
+        },
+
+        hideNoFormSettings: function(value) {
+            if (this._state.isFixedForm !== value) {
+                this._state.isFixedForm = value;
+                this.NoFormSettings.toggleClass('hidden', value==true);
+            }
+        },
+
+        onPositionChange: function(btn) {
+            var pos = btn.getNumberValue();
+            if (Common.UI.isRTL()) {
+                pos = this.sldrGradient.maxValue - pos;
+            }
+            var minValue = (this.GradColor.currentIdx-1<0) ? 0 : this.GradColor.values[this.GradColor.currentIdx-1],
+                maxValue = (this.GradColor.currentIdx+1<this.GradColor.values.length) ? this.GradColor.values[this.GradColor.currentIdx+1] : 100,
+                needSort = pos < minValue || pos > maxValue;
+            if (this.api) {
+                this.GradColor.values[this.GradColor.currentIdx] = pos;
+                var props = new Asc.asc_CShapeProperty();
+                var fill = new Asc.asc_CShapeFill();
+                fill.asc_putType(Asc.c_oAscFill.FILL_TYPE_GRAD);
+                fill.asc_putFill( new Asc.asc_CFillGrad());
+                fill.asc_getFill().asc_putGradType(this.GradFillType);
+                var arr = [];
+                this.GradColor.values.forEach(function(item){
+                    arr.push(item*1000);
+                });
+                fill.asc_getFill().asc_putPositions(arr);
+                props.asc_putFill(fill);
+                this.imgprops.put_ShapeProperties(props);
+                this.api.ImgApply(this.imgprops);
+
+                if (needSort) {
+                    this.sldrGradient.sortThumbs();
+                    this.sldrGradient.trigger('change', this.sldrGradient);
+                    this.sldrGradient.trigger('changecomplete', this.sldrGradient);
+                }
+            }
+        },
+
+        onAddGradientStep: function() {
+            if (this.GradColor.colors.length > 9) return;
+            var curIndex = this.GradColor.currentIdx;
+            var pos = (this.GradColor.values[curIndex] + this.GradColor.values[curIndex < this.GradColor.colors.length - 1 ? curIndex + 1 : curIndex - 1]) / 2;
+
+            this.GradColor.colors[this.GradColor.colors.length] = this.GradColor.colors[curIndex];
+            this.GradColor.currentIdx = this.GradColor.colors.length - 1;
+            var color = this.sldrGradient.addNewThumb(undefined, pos, curIndex);
+            this.GradColor.colors[this.GradColor.currentIdx] = color;
+
+            this.sldrGradient.trigger('change', this.sldrGradient);
+            this.sldrGradient.trigger('changecomplete', this.sldrGradient);
+        },
+
+        onRemoveGradientStep: function() {
+            if (this.GradColor.values.length < 3) return;
+            var index = this.GradColor.currentIdx;
+            this.GradColor.values.splice(this.GradColor.currentIdx, 1);
+            this.sldrGradient.removeThumb(this.GradColor.currentIdx);
+            if (_.isUndefined(this.GradColor.currentIdx) || this.GradColor.currentIdx >= this.GradColor.colors.length) {
+                var newIndex = index > 0 ? index - 1 : index;
+                newIndex = (newIndex === 0 && this.GradColor.values.length > 2) ? this.GradColor.values.length - 2 : newIndex;
+                this.GradColor.currentIdx = newIndex;
+            }
+            this.sldrGradient.setActiveThumb(this.GradColor.currentIdx);
+            this.sldrGradient.trigger('change', this.sldrGradient);
+            this.sldrGradient.trigger('changecomplete', this.sldrGradient);
+        },
+
+        onGradientAngleChange: function(field, newValue, oldValue, eOpts) {
+            if (this.api && !this._noApply) {
+                var props = new Asc.asc_CShapeProperty();
+                var fill = new Asc.asc_CShapeFill();
+                fill.put_type(Asc.c_oAscFill.FILL_TYPE_GRAD);
+                fill.put_fill( new Asc.asc_CFillGrad());
+                fill.get_fill().put_grad_type(this.GradFillType);
+                fill.get_fill().put_linear_angle(field.getNumberValue() * 60000);
+                fill.get_fill().put_linear_scale(true);
+                props.put_fill(fill);
+                this.imgprops.put_ShapeProperties(props);
+                this.api.ImgApply(this.imgprops);
+            }
+        },
+
+        onEyedropperStart: function (btn) {
+            this.api.asc_startEyedropper(_.bind(btn.eyedropperEnd, btn));
+            this.fireEvent('eyedropper', true);
+        },
+
+        onEyedropperEnd: function () {
+            this.fireEvent('eyedropper', false);
         },
 
         txtNoBorders            : 'No Line',
@@ -1841,7 +2530,6 @@ define([
         txtBrownPaper           : 'Brown Paper',
         txtPapyrus              : 'Papyrus',
         txtWood                 : 'Wood',
-        textNewColor            : 'Add New Custom Color',
         textAdvanced            : 'Show advanced settings',
         strTransparency         : 'Opacity',
         textNoFill              : 'No Fill',
@@ -1856,7 +2544,7 @@ define([
         textRadial: 'Radial',
         textDirection: 'Direction',
         textStyle: 'Style',
-        textGradient: 'Gradient',
+        textGradient: 'Gradient Points',
         textWrap:  'Wraping Style',
         txtInline: 'Inline',
         txtSquare: 'Square',
@@ -1874,6 +2562,20 @@ define([
         textHint90: 'Rotate 90° Clockwise',
         textHintFlipV: 'Flip Vertically',
         textHintFlipH: 'Flip Horizontally',
-        strShadow: 'Show shadow'
+        strShadow: 'Show shadow',
+        textFromStorage: 'From Storage',
+        textSelectImage: 'Select Picture',
+        textPosition: 'Position',
+        tipAddGradientPoint: 'Add gradient point',
+        tipRemoveGradientPoint: 'Remove gradient point',
+        textAngle: 'Angle',
+        textRecentlyUsed: 'Recently Used',
+        textEditShape: 'Edit shape',
+        textShadow: 'Shadow',
+        textNoShadow: 'No Shadow',
+        textAdjustShadow: 'Adjust Shadow',
+        textMoreColors: 'More colors',
+        textEyedropper: 'Eyedropper',
+        textEditPoints: 'Edit points'
     }, DE.Views.ShapeSettings || {}));
 });

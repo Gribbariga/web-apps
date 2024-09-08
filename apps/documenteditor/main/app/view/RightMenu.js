@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  RightMenu.js
  *
- *  Created by Julia Radzhabova on 1/17/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 1/17/14
  *
  */
 
@@ -46,6 +44,7 @@ define([
     'jquery',
     'underscore',
     'backbone',
+    'common/main/lib/component/SideMenu',
     'common/main/lib/component/Button',
     'common/main/lib/component/MetricSpinner',
     'common/main/lib/component/CheckBox',
@@ -58,11 +57,12 @@ define([
     'documenteditor/main/app/view/MailMergeSettings',
     'documenteditor/main/app/view/TextArtSettings',
     'documenteditor/main/app/view/SignatureSettings',
+    'documenteditor/main/app/view/FormSettings',
     'common/main/lib/component/Scroller'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
 
-    DE.Views.RightMenu = Backbone.View.extend(_.extend({
+    DE.Views.RightMenu = Common.UI.SideMenu.extend(_.extend({
         el: '#right-menu',
 
         // Compile our stats template
@@ -74,12 +74,14 @@ define([
 
         initialize: function () {
             this.minimizedMode = true;
+            this.maximizedMode = false;
 
             this.btnText = new Common.UI.Button({
                 hint: this.txtParagraphSettings,
                 asctype: Common.Utils.documentSettingsType.Paragraph,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-paragraph',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -88,6 +90,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Table,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-table',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -96,6 +99,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Image,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-image',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -104,6 +108,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Header,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-header',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -112,6 +117,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Chart,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-chart',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -120,6 +126,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.Shape,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-shape',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -129,6 +136,7 @@ define([
                 asctype: Common.Utils.documentSettingsType.TextArt,
                 enableToggle: true,
                 disabled: true,
+                iconCls: 'btn-menu-textart',
                 toggleGroup: 'tabpanelbtnsGroup',
                 allowMouseEventsOnDisabled: true
             });
@@ -146,32 +154,36 @@ define([
         },
 
         render: function (mode) {
-            var el = $(this.el);
-
             this.trigger('render:before', this);
 
-            this.defaultHideRightMenu = mode.customization && !!mode.customization.hideRightMenu;
+            this.defaultHideRightMenu = !(mode.customization && (mode.customization.hideRightMenu===false));
             var open = !Common.localStorage.getBool("de-hide-right-settings", this.defaultHideRightMenu);
-            el.css('width', ((open) ? MENU_SCALE_PART : SCALE_MIN) + 'px');
-            el.show();
+            Common.Utils.InternalSettings.set("de-hide-right-settings", !open);
+            this.$el.css('width', ((open) ? MENU_SCALE_PART : SCALE_MIN) + 'px');
+            this.$el.show();
 
-            el.html(this.template({}));
+            var $markup = $(this.template({}));
+            this.$el.html($markup);
 
-            this.btnText.setElement($('#id-right-menu-text'), false);           this.btnText.render();
-            this.btnTable.setElement($('#id-right-menu-table'), false);         this.btnTable.render();
-            this.btnImage.setElement($('#id-right-menu-image'), false);         this.btnImage.render();
-            this.btnHeaderFooter.setElement($('#id-right-menu-header'), false); this.btnHeaderFooter.render();
-            this.btnChart.setElement($('#id-right-menu-chart'), false);         this.btnChart.render();
-            this.btnShape.setElement($('#id-right-menu-shape'), false);         this.btnShape.render();
-            this.btnTextArt.setElement($('#id-right-menu-textart'), false);     this.btnTextArt.render();
+            this.btnMoreContainer = $markup.find('#slot-right-menu-more');
+            Common.UI.SideMenu.prototype.render.call(this);
+            this.btnMore.menu.menuAlign = 'tr-tl';
 
-            this.btnText.on('click',            _.bind(this.onBtnMenuClick, this));
-            this.btnTable.on('click',           _.bind(this.onBtnMenuClick, this));
-            this.btnImage.on('click',           _.bind(this.onBtnMenuClick, this));
-            this.btnHeaderFooter.on('click',    _.bind(this.onBtnMenuClick, this));
-            this.btnChart.on('click',           _.bind(this.onBtnMenuClick, this));
-            this.btnShape.on('click',           _.bind(this.onBtnMenuClick, this));
-            this.btnTextArt.on('click',         _.bind(this.onBtnMenuClick, this));
+            this.btnText.setElement($markup.findById('#id-right-menu-text'), false);           this.btnText.render();
+            this.btnTable.setElement($markup.findById('#id-right-menu-table'), false);         this.btnTable.render();
+            this.btnImage.setElement($markup.findById('#id-right-menu-image'), false);         this.btnImage.render();
+            this.btnHeaderFooter.setElement($markup.findById('#id-right-menu-header'), false); this.btnHeaderFooter.render();
+            this.btnChart.setElement($markup.findById('#id-right-menu-chart'), false);         this.btnChart.render();
+            this.btnShape.setElement($markup.findById('#id-right-menu-shape'), false);         this.btnShape.render();
+            this.btnTextArt.setElement($markup.findById('#id-right-menu-textart'), false);     this.btnTextArt.render();
+
+            this.btnText.on('click',            this.onBtnMenuClick.bind(this));
+            this.btnTable.on('click',           this.onBtnMenuClick.bind(this));
+            this.btnImage.on('click',           this.onBtnMenuClick.bind(this));
+            this.btnHeaderFooter.on('click',    this.onBtnMenuClick.bind(this));
+            this.btnChart.on('click',           this.onBtnMenuClick.bind(this));
+            this.btnShape.on('click',           this.onBtnMenuClick.bind(this));
+            this.btnTextArt.on('click',         this.onBtnMenuClick.bind(this));
 
             this.paragraphSettings = new DE.Views.ParagraphSettings();
             this.headerSettings = new DE.Views.HeaderFooterSettings();
@@ -187,13 +199,13 @@ define([
                     asctype: Common.Utils.documentSettingsType.MailMerge,
                     enableToggle: true,
                     disabled: true,
+                    iconCls: 'btn-mailmerge',
                     toggleGroup: 'tabpanelbtnsGroup',
                     allowMouseEventsOnDisabled: true
                 });
-                this._settings[Common.Utils.documentSettingsType.MailMerge]   = {panel: "id-mail-merge-settings",      btn: this.btnMailMerge};
-
-                this.btnMailMerge.el    = $('#id-right-menu-mail-merge'); this.btnMailMerge.render().setVisible(true);
-                this.btnMailMerge.on('click',       _.bind(this.onBtnMenuClick, this));
+                this._settings[Common.Utils.documentSettingsType.MailMerge]   = {panel: "id-mail-merge-settings", btn: this.btnMailMerge};
+                this.btnMailMerge.setElement($markup.findById('#id-right-menu-mail-merge'), false); this.btnMailMerge.render().setVisible(true);
+                this.btnMailMerge.on('click', this.onBtnMenuClick.bind(this));
                 this.mergeSettings = new DE.Views.MailMergeSettings();
             }
 
@@ -203,15 +215,32 @@ define([
                     asctype: Common.Utils.documentSettingsType.Signature,
                     enableToggle: true,
                     disabled: true,
+                    iconCls: 'btn-menu-signature',
                     toggleGroup: 'tabpanelbtnsGroup',
                     allowMouseEventsOnDisabled: true
                 });
-                this._settings[Common.Utils.documentSettingsType.Signature]   = {panel: "id-signature-settings",      btn: this.btnSignature};
-
-                this.btnSignature.el    = $('#id-right-menu-signature'); this.btnSignature.render().setVisible(true);
-                this.btnSignature.on('click', _.bind(this.onBtnMenuClick, this));
+                this._settings[Common.Utils.documentSettingsType.Signature]   = {panel: "id-signature-settings", btn: this.btnSignature};
+                this.btnSignature.setElement($markup.findById('#id-right-menu-signature'), false); this.btnSignature.render().setVisible(true);
+                this.btnSignature.on('click', this.onBtnMenuClick.bind(this));
                 this.signatureSettings = new DE.Views.SignatureSettings();
             }
+
+            if (mode && mode.canFeatureContentControl && mode.canEditContentControl && mode.isFormCreator) {
+                this.btnForm = new Common.UI.Button({
+                    hint: this.txtFormSettings,
+                    asctype: Common.Utils.documentSettingsType.Form,
+                    enableToggle: true,
+                    disabled: true,
+                    iconCls: 'btn-field',
+                    toggleGroup: 'tabpanelbtnsGroup',
+                    allowMouseEventsOnDisabled: true
+                });
+                this._settings[Common.Utils.documentSettingsType.Form]   = {panel: "id-form-settings", btn: this.btnForm};
+                this.btnForm.setElement($markup.findById('#id-right-menu-form'), false); this.btnForm.render().setVisible(true);
+                this.btnForm.on('click', this.onBtnMenuClick.bind(this));
+                this.formSettings = new DE.Views.FormSettings();
+            }
+
 
             if (_.isUndefined(this.scroller)) {
                 this.scroller = new Common.UI.Scroller({
@@ -222,47 +251,61 @@ define([
             }
 
             if (open) {
-                $('#id-paragraph-settings').parent().css("display", "inline-block" );
-                $('#id-paragraph-settings').addClass("active");
+                $markup.findById('#id-paragraph-settings').parent().css("display", "inline-block" );
+                $markup.findById('#id-paragraph-settings').addClass("active");
             }
 
+            // this.$el.html($markup);
             this.trigger('render:after', this);
 
             return this;
         },
 
         setApi: function(api) {
-            this.api = api;
-            var fire = function() { this.fireEvent('editcomplete', this); };
-            this.paragraphSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.headerSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.imageSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.chartSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.tableSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.shapeSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            this.textartSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            if (this.mergeSettings) this.mergeSettings.setApi(api).on('editcomplete', _.bind( fire, this));
-            if (this.signatureSettings) this.signatureSettings.setApi(api).on('editcomplete', _.bind( fire, this));
+            var me = this;
+            me.api = api;
+            var _fire_editcomplete = function() {me.fireEvent('editcomplete', me);};
+            var _isEyedropperStart = function (isStart) {this._isEyedropperStart = isStart;};
+            var _updateScroller = function () {me.updateScroller();};
+            this.paragraphSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('eyedropper', _.bind(_isEyedropperStart, this));
+            this.headerSettings.setApi(api).on('editcomplete', _fire_editcomplete);
+            this.imageSettings.setApi(api).on('editcomplete', _fire_editcomplete);
+            this.chartSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('updatescroller', _updateScroller);
+            this.tableSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('eyedropper', _.bind(_isEyedropperStart, this));
+            this.shapeSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('eyedropper', _.bind(_isEyedropperStart, this)).on('updatescroller', _updateScroller);
+            this.textartSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('eyedropper', _.bind(_isEyedropperStart, this)).on('updatescroller', _updateScroller);
+            if (this.mergeSettings) this.mergeSettings.setApi(api).on('editcomplete', _fire_editcomplete);
+            if (this.signatureSettings) this.signatureSettings.setApi(api).on('editcomplete', _fire_editcomplete);
+            if (this.formSettings) this.formSettings.setApi(api).on('editcomplete', _fire_editcomplete).on('updatescroller', _updateScroller);
         },
 
         setMode: function(mode) {
-            if (this.mergeSettings)
-                this.mergeSettings.setMode(mode);
+            this.mode = mode;
+            this.mergeSettings && this.mergeSettings.setMode(mode);
+            this.imageSettings && this.imageSettings.setMode(mode);
+            this.shapeSettings && this.shapeSettings.setMode(mode);
+            this.formSettings && this.formSettings.setMode(mode);
+            this.headerSettings && this.headerSettings.setMode(mode);
         },
 
         onBtnMenuClick: function(btn, e) {
-            var target_pane = $("#" + this._settings[btn.options.asctype].panel);
-            var target_pane_parent = target_pane.parent();
+            var isPlugin = btn && btn.options.type === 'plugin',
+                target_pane_parent = $(this.el).find('.right-panel'),
+                target_pane;
+            if (btn && !isPlugin) {
+                target_pane = $("#" + this._settings[btn.options.asctype].panel);
+            }
 
-            if (btn.pressed) {
+            if (btn && btn.pressed) {
                 if ( this.minimizedMode ) {
                     $(this.el).width(MENU_SCALE_PART);
                     target_pane_parent.css("display", "inline-block" );
                     this.minimizedMode = false;
                     Common.localStorage.setItem("de-hide-right-settings", 0);
+                    Common.Utils.InternalSettings.set("de-hide-right-settings", false);
                 }
                 target_pane_parent.find('> .active').removeClass('active');
-                target_pane.addClass("active");
+                target_pane && target_pane.addClass("active");
 
                 if (this.scroller) {
                     this.scroller.scrollTop(0);
@@ -272,9 +315,10 @@ define([
                 $(this.el).width(SCALE_MIN);
                 this.minimizedMode = true;
                 Common.localStorage.setItem("de-hide-right-settings", 1);
+                Common.Utils.InternalSettings.set("de-hide-right-settings", true);
             }
 
-            this.fireEvent('rightmenuclick', [this, btn.options.asctype, this.minimizedMode]);
+            btn && !isPlugin && this.fireEvent('rightmenuclick', [this, btn.options.asctype, this.minimizedMode, e]);
         },
 
         SetActivePane: function(type, open) {
@@ -299,7 +343,8 @@ define([
         },
 
         GetActivePane: function() {
-            return (this.minimizedMode) ? null : this.$el.find(".settings-panel.active")[0].id;
+            var active = this.$el.find(".settings-panel.active");
+            return (this.minimizedMode || active.length === 0) ? null : active[0].id;
         },
 
         clearSelection: function() {
@@ -318,6 +363,19 @@ define([
             Common.NotificationCenter.trigger('layout:changed', 'rightmenu');
         },
 
+        updateScroller: function() {
+            if (this.scroller) {
+                this.scroller.update();
+                this.scroller.scrollTop(0);
+            }
+        },
+
+        setButtons: function () {
+            var allButtons = [this.btnText, this.btnTable, this.btnImage, this.btnHeaderFooter, this.btnShape, this.btnChart, this.btnTextArt,
+                    this.btnMailMerge, this.btnSignature, this.btnForm];
+            Common.UI.SideMenu.prototype.setButtons.apply(this, [allButtons]);
+        },
+
         txtParagraphSettings:       'Paragraph Settings',
         txtImageSettings:           'Image Settings',
         txtTableSettings:           'Table Settings',
@@ -326,6 +384,7 @@ define([
         txtTextArtSettings:         'Text Art Settings',
         txtChartSettings:           'Chart Settings',
         txtMailMergeSettings:       'Mail Merge Settings',
-        txtSignatureSettings:       'Signature Settings'
+        txtSignatureSettings:       'Signature Settings',
+        txtFormSettings:            'Form Settings'
     }, DE.Views.RightMenu || {}));
 });

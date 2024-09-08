@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  SignatureSettings.js
  *
- *  Created by Julia Radzhabova on 5/24/17
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 5/24/17
  *
  */
 
@@ -88,7 +86,7 @@ define([
                 enableKeyEvents: false,
                 itemTemplate: _.template([
                     '<div id="<%= id %>" class="signature-item">',
-                        '<div class="caret img-commonctrl <% if (name == "" || date == "") { %>' + 'nomargin' + '<% } %>"></div>',
+                        '<div class="caret img-commonctrl img-colored <% if (name == "" || date == "") { %>' + 'nomargin' + '<% } %>"></div>',
                         '<div class="name"><%= Common.Utils.String.htmlEncode(name) %></div>',
                         '<div class="date"><%= Common.Utils.String.htmlEncode(date) %></div>',
                     '</div>'
@@ -188,7 +186,7 @@ define([
 
             this.showSignatureMenu(record, showPoint);
 
-            menu.menuAlign = 'tl-bl';
+            menu.menuAlign = Common.UI.isRTL() ? 'tr-br' : 'tl-bl';
             menu.menuAlignEl = null;
             menu.setOffset(15, 5);
             menu.show();
@@ -215,7 +213,7 @@ define([
 
                 this.showSignatureMenu(record, showPoint);
 
-                menu.menuAlign = 'tr-br';
+                menu.menuAlign = Common.UI.isRTL() ? 'tl-bl' : 'tr-br';
                 menu.menuAlignEl = currentTarget;
                 menu.setOffset(-20, -currentTarget.height()/2 + 3);
                 menu.show();
@@ -228,6 +226,8 @@ define([
         },
 
         showSignatureMenu: function(record, showPoint) {
+            this.api.asc_gotoSignature(record.get('guid'));
+            
             var menu = this.signatureMenu,
                 parent = $(this.el),
                 menuContainer = parent.find('#menu-signature-container');
@@ -264,7 +264,18 @@ define([
                     this.api.asc_ViewCertificate(item.cmpEl.attr('data-value'));
                     break;
                 case 3:
-                    this.api.asc_RemoveSignature(guid);
+                    var me = this;
+                    Common.UI.warning({
+                        title: this.notcriticalErrorTitle,
+                        msg: this.txtRemoveWarning,
+                        buttons: ['ok', 'cancel'],
+                        primary: 'ok',
+                        callback: function(btn) {
+                            if (btn == 'ok') {
+                                me.api.asc_RemoveSignature(guid);
+                            }
+                        }
+                    });
                     break;
             }
         },
@@ -302,7 +313,7 @@ define([
                     text    : tipText,
                     showLink: showLink,
                     textLink: this.txtContinueEditing,
-                    placement: 'left'
+                    placement: Common.UI.isRTL() ? 'right-bottom' : 'left-bottom'
                 });
                 tip.on({
                     'dontshowclick': function() {
@@ -330,25 +341,32 @@ define([
             }
         },
 
+        hideSignatureTooltip: function() {
+            var tip = this._state.tip;
+            if (tip && tip.isVisible()) {
+                tip.close();
+                this._state.tip = undefined;
+            }
+        },
+
         disableEditing: function(disable) {
             if (this._state.DisabledEditing != disable) {
                 this._state.DisabledEditing = disable;
 
-                var rightMenuController = PE.getController('RightMenu');
-                if (disable && rightMenuController.rightmenu.GetActivePane() !== 'id-signature-settings')
-                    rightMenuController.rightmenu.clearSelection();
-                rightMenuController.SetDisabled(disable, true);
-                PE.getController('Toolbar').DisableToolbar(disable, disable);
-                PE.getController('Statusbar').getView('Statusbar').SetDisabled(disable);
-                PE.getController('Common.Controllers.ReviewChanges').SetDisabled(disable);
-                PE.getController('DocumentHolder').getView('DocumentHolder').SetDisabled(disable);
-
-                // var leftMenu = PE.getController('LeftMenu').leftMenu;
-                // leftMenu.btnComments.setDisabled(disable);
-                PE.getController('LeftMenu').setPreviewMode(disable);
-                var comments = PE.getController('Common.Controllers.Comments');
-                if (comments)
-                    comments.setPreviewMode(disable);
+                Common.NotificationCenter.trigger('editing:disable', disable, {
+                    viewMode: disable,
+                    allowSignature: true,
+                    rightMenu: {clear: false, disable: true},
+                    statusBar: true,
+                    leftMenu: {disable: false, previewMode: true},
+                    fileMenu: false,
+                    comments: {disable: false, previewMode: true},
+                    chat: false,
+                    review: true,
+                    viewport: false,
+                    documentHolder: {clear: true, disable: true},
+                    toolbar: true
+                }, 'signature');
             }
         },
 
@@ -361,7 +379,8 @@ define([
         txtContinueEditing: 'Edit anyway',
         notcriticalErrorTitle: 'Warning',
         txtEditWarning: 'Editing will remove the signatures from the presentation.<br>Are you sure you want to continue?',
-        strDelete: 'Remove Signature'
+        strDelete: 'Remove Signature',
+        txtRemoveWarning: 'Are you sure you want to remove this signature?<br>This action cannot be undone.'
 
     }, PE.Views.SignatureSettings || {}));
 });

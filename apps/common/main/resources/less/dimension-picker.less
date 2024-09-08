@@ -1,5 +1,5 @@
 .dimension-picker {
-    font-size: 18px;
+    font-size: 20px;
 }
 
 .dimension-picker div {
@@ -12,24 +12,12 @@
     position: absolute !important;
 }
 
-.dimension-picker div.dimension-picker-highlighted {
-    left: 0;
-    top: 0;
-    overflow: hidden;
-    position: absolute;
+.rtl .dimension-picker-unhighlighted {
 }
 
-.dimension-picker-unhighlighted {
-    //background: transparent repeat scroll 0 0;
-    .background-ximage('@{common-image-path}/dimension-picker/dimension-unhighlighted.png', '@{common-image-path}/dimension-picker/dimension-unhighlighted@2x.png', 18px, auto, repeat);
-}
 
-.dimension-picker div.dimension-picker-highlighted {
-    //background: transparent repeat scroll 0 0;
-    .background-ximage('@{common-image-path}/dimension-picker/dimension-highlighted.png', '@{common-image-path}/dimension-picker/dimension-highlighted@2x.png', 18px, auto, repeat);
-}
 
 .dimension-picker-status {
-    font-size: 12px;
+    .font-size-medium();
     text-align: center;
 }

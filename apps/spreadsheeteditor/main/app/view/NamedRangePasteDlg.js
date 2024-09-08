@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,13 +28,12 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *
  *  NamedRangePasteDlg.js
  *
- *  Created by Julia.Radzhabova on 05.06.15
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 05.06.15
  *
  */
 
@@ -50,8 +48,8 @@ define([
     SSE.Views.NamedRangePasteDlg =  Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             alias: 'NamedRangePasteDlg',
-            contentWidth: 250,
-            height: 282
+            separator: false,
+            contentWidth: 250
         },
 
         initialize: function (options) {
@@ -59,27 +57,20 @@ define([
 
             _.extend(this.options, {
                 title: this.txtTitle,
-                template: [
-                    '<div class="box" style="height:' + (me.options.height - 85) + 'px;">',
-                        '<div class="content-panel" style="padding: 0;"><div class="inner-content">',
-                            '<div class="settings-panel active">',
+                contentStyle: 'padding: 0;',
+                contentTemplate: _.template([
+                    '<div class="settings-panel active">',
+                        '<div class="inner-content">',
                                 '<table cols="1" style="width: 100%;">',
                                     '<tr>',
-                                        '<td class="padding-small">',
+                                        '<td>',
                                             '<label class="input-label">', me.textNames,'</label>',
-                                            '<div id="named-range-paste-list" class="range-tableview" style="width:100%; height: 150px;"></div>',
+                                            '<div id="named-range-paste-list" class="range-tableview" style="width:100%; height: 169px;"></div>',
                                         '</td>',
                                     '</tr>',
                                 '</table>',
-                            '</div></div>',
-                        '</div>',
-                    '</div>',
-                    '<div class="separator horizontal"></div>',
-                    '<div class="footer center">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;  width: 86px;">' + me.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel" style="width: 86px;">' + me.cancelButtonText + '</button>',
-                    '</div>'
-                ].join('')
+                            '</div></div>'
+                ].join(''))({scope: this})
             }, options);
 
             this.handler    = options.handler;
@@ -95,15 +86,16 @@ define([
                 el: $('#named-range-paste-list', this.$window),
                 store: new Common.UI.DataViewStore(),
                 simpleAddMode: true,
-                template: _.template(['<div class="listview inner" style=""></div>'].join('')),
+                cls: 'dbl-clickable',
                 itemTemplate: _.template([
                     '<div style="pointer-events:none;">',
-                        '<div id="<%= id %>" class="list-item" style="pointer-events:none;width: 100%;display:inline-block;">',
-                            '<div class="listitem-icon <% if (isTable) {%>listitem-table<%} %>"></div>',
-                            '<div style="width:186px;padding-right: 5px;"><%= name %></div>',
+                        '<div id="<%= id %>" class="list-item" style="width: 100%;display:inline-block;">',
+                            '<div class="listitem-icon toolbar__icon margin-right-5 <% print(isTable?"btn-menu-table":(isSlicer ? "btn-slicer" : "btn-named-range")) %>"></div>',
+                            '<div class="padding-right-5" style="width:186px;"><%= Common.Utils.String.htmlEncode(name) %></div>',
                         '</div>',
                     '</div>'
-                ].join(''))
+                ].join('')),
+                tabindex: 1
             });
             this.rangeList.store.comparator = function(item1, item2) {
                 var n1 = item1.get('name').toLowerCase(),
@@ -117,6 +109,14 @@ define([
             this.afterRender();
         },
 
+        getFocusedComponents: function() {
+            return [this.rangeList].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.rangeList;
+        },
+
         afterRender: function() {
             this._setDefaults();
         },
@@ -127,11 +127,14 @@ define([
                 for (var i=0; i<this.ranges.length; i++) {
                     var name = this.ranges[i].asc_getName(true);
                     if (name !== prev_name) {
+                        var type = this.ranges[i].asc_getType();
                         arr.push({
                             name: name,
                             scope: this.ranges[i].asc_getScope(),
                             range: this.ranges[i].asc_getRef(),
-                            isTable: (this.ranges[i].asc_getIsTable()===true)
+                            type: type,
+                            isTable: type===Asc.c_oAscDefNameType.table,
+                            isSlicer: type===Asc.c_oAscDefNameType.slicer
                         });
                     }
                     prev_name = name;
@@ -143,14 +146,14 @@ define([
                 this.rangeList.scroller.update({alwaysVisibleY: true});
 
                 _.delay(function () {
-                    me.rangeList.cmpEl.find('.listview').focus();
+                    me.rangeList.focus();
                 }, 100, this);
             }
         },
 
         getSettings: function() {
             var rec = this.rangeList.getSelectedRec();
-            return (rec) ? (new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('isTable'), undefined, undefined, undefined, true)) : null;
+            return (rec) ? (new Asc.asc_CDefName(rec.get('name'), rec.get('range'), rec.get('scope'), rec.get('type'), undefined, undefined, undefined, true)) : null;
         },
 
         onPrimary: function() {
@@ -171,8 +174,6 @@ define([
         },
 
         txtTitle: 'Paste Name',
-        cancelButtonText : 'Cancel',
-        okButtonText : 'Ok',
         textNames: 'Named Ranges'
     }, SSE.Views.NamedRangePasteDlg || {}));
 });

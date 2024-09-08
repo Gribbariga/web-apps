@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    Layout.js
  *
- *    Created by Maxim Kadushkin on 10 February 2014
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 10 February 2014
  *
  *
  *      Configuration
@@ -167,7 +165,8 @@ define([
                         fmax        : panel.resize.fmax,
                         behaviour   : panel.behaviour,
                         index       : this.splitters.length,
-                        offset      : panel.resize.offset || 0
+                        offset      : panel.resize.offset || 0,
+                        multiply    : panel.resize.multiply
                     };
 
                     if (!stretch) {
@@ -260,10 +259,11 @@ define([
             var panel             = e.data.panel;
             this.resize.type      = e.data.type;
             this.resize.$el       = panel.el;
-            this.resize.min       = panel.minpos;
+            this.resize.min       = panel.minpos > 0 ? panel.minpos : this.resize.$el.parent().width() + panel.minpos;
             this.resize.fmin      = panel.fmin;
             this.resize.fmax      = panel.fmax;
             this.resize.behaviour = panel.behaviour;
+            this.resize.multiply  = panel.multiply;
 
             this.resize.$el.addClass('move');
 
@@ -274,9 +274,11 @@ define([
             } else
             if (e.data.type == 'horizontal') {
                 this.resize.width   = parseInt(this.resize.$el.css('width'));
-                this.resize.max     = (panel.maxpos > 0 ? panel.maxpos : this.resize.$el.parent().height() + panel.maxpos) - this.resize.width;
+                this.resize.max     = (panel.maxpos > 0 ? panel.maxpos : this.resize.$el.parent().width() + panel.maxpos) - this.resize.width;
                 this.resize.initx   = e.pageX*Common.Utils.zoom() - parseInt(e.currentTarget.style.left);
             }
+            if (this.resize.multiply && this.resize.multiply.koeff)
+                this.resize.max = Math.floor(this.resize.max/this.resize.multiply.koeff) * this.resize.multiply.koeff + (this.resize.multiply.offset || 0);
             Common.NotificationCenter.trigger('layout:resizestart');
         },
 
@@ -290,7 +292,13 @@ define([
                 prop        = 'left';
                 value       = e.pageX*zoom - this.resize.initx;
             }
-
+            if (this.resize.multiply && this.resize.multiply.koeff) {
+                var m = this.resize.multiply.koeff,
+                    val = value/m,
+                    vfloor = Math.floor(val) * m + (this.resize.multiply.offset || 0),
+                    vceil = Math.ceil(val) * m + (this.resize.multiply.offset || 0);
+                value = (value>vfloor+m/2) ? vceil : vfloor;
+            }
             if (this.resize.fmin && this.resize.fmax) {
                 if (!(value < this.resize.fmin()) && !(value > this.resize.fmax())) {
                     this.resize.$el[0].style[prop] = value + 'px';
@@ -332,7 +340,13 @@ define([
                 prop = 'width';
                 value = e.pageX*zoom - this.resize.initx;
             }
-
+            if (this.resize.multiply && this.resize.multiply.koeff) {
+                var m = this.resize.multiply.koeff,
+                    val = value/m,
+                    vfloor = Math.floor(val) * m + (this.resize.multiply.offset || 0),
+                    vceil = Math.ceil(val) * m + (this.resize.multiply.offset || 0);
+                value = (value>vfloor+m/2) ? vceil : vfloor;
+            }
             if (this.resize.fmin && this.resize.fmax) {
                 value < this.resize.fmin() && (value = this.resize.fmin());
                 value > this.resize.fmax() && (value = this.resize.fmax());
@@ -349,15 +363,15 @@ define([
                 oldValue = parseInt(panel.css(prop));
             } else {
                 panel = this.resize.$el.next();
-                next = this.resize.$el.next();
+                next = this.resize.$el.prev();
                 oldValue = parseInt(panel.css(prop));
                 value = panel.parent()[prop]() - (value + this.resize[prop]);
             }
 
             if (this.resize.type == 'vertical')
                 value -= panel.position().top;
-            if (this.resize.type == 'horizontal')
-                value -= panel.position().left;
+            // if (this.resize.type == 'horizontal')
+            //     value -= panel.position().left;
 
             panel.css(prop, value + 'px');
 

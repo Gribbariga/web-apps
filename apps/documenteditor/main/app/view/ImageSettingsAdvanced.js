@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ImageSettingsAdvanced.js
  *
- *  Created by Julia Radzhabova on 3/03/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 3/03/14
  *
  */
 
@@ -43,14 +41,15 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
     'common/main/lib/component/ComboBox',
     'common/main/lib/component/MetricSpinner',
     'common/main/lib/component/CheckBox',
-    'common/main/lib/component/RadioBox'
+    'common/main/lib/component/RadioBox',
+    'common/main/lib/component/ComboBoxDataView'
 ], function (contentTemplate) {
     'use strict';
 
     DE.Views.ImageSettingsAdvanced = Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             contentWidth: 340,
-            height: 485,
+            contentHeight: 400,
             toggleGroup: 'image-adv-settings-group',
             sizeOriginal: {width: 0, height: 0},
             sizeMax: {width: 55.88, height: 55.88},
@@ -68,7 +67,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                     {panelId: 'id-adv-image-wrap',       panelCaption: this.textBtnWrap},
                     {panelId: 'id-adv-image-position',   panelCaption: this.textPosition},
                     {panelId: 'id-adv-image-shape',      panelCaption: this.textWeightArrows},
-                    {panelId: 'id-adv-image-margins',    panelCaption: this.strMargins},
+                    {panelId: 'id-adv-image-margins',    panelCaption: this.textTextBox},
                     {panelId: 'id-adv-image-alttext',    panelCaption: this.textAlt}
                 ],
                 contentTemplate: _.template(contentTemplate)({
@@ -103,8 +102,10 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             this.sectionProps = this.options.sectionProps;
             this.pageWidth = this.options.sectionProps ? this.options.sectionProps.get_W() : 210;
             this.pageHeight = this.options.sectionProps ? this.options.sectionProps.get_H() : 297;
+            this.api = this.options.api;
             this._changedProps = null;
             this._changedShapeProps = null;
+            this._isSmartArt = false;
         },
 
         render: function() {
@@ -116,7 +117,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             this.spnWidth = new Common.UI.MetricSpinner({
                 el: $('#image-advanced-spin-width'),
                 step: .1,
-                width: 80,
+                width: 70,
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
@@ -144,7 +145,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             this.spnHeight = new Common.UI.MetricSpinner({
                 el: $('#image-advanced-spin-height'),
                 step: .1,
-                width: 80,
+                width: 70,
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
@@ -173,6 +174,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 el: $('#image-advanced-button-original-size')
             });
             this.btnOriginalSize.on('click', _.bind(function(btn, e) {
+                this.spnAngle.setValue(0);
                 this.spnWidth.setValue(this.sizeOriginal.width, true);
                 this.spnHeight.setValue(this.sizeOriginal.height, true);
                 this._nRatio = this.sizeOriginal.width/this.sizeOriginal.height;
@@ -180,17 +182,18 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                     this._changedProps.put_Height(Common.Utils.Metric.fnRecalcToMM(this.spnHeight.getNumberValue()));
                     this._changedProps.put_Width(Common.Utils.Metric.fnRecalcToMM(this.spnWidth.getNumberValue()));
                     this._changedProps.put_ResetCrop(true);
+                    this._changedProps.put_Rot(0);
                 }
             }, this));
 
             this.btnRatio = new Common.UI.Button({
+                parentEl: $('#image-advanced-button-ratio'),
                 cls: 'btn-toolbar',
-                iconCls: 'advanced-btn-ratio',
+                iconCls: 'toolbar__icon btn-advanced-ratio',
                 style: 'margin-bottom: 1px;',
                 enableToggle: true,
                 hint: this.textKeepRatio
             });
-            this.btnRatio.render($('#image-advanced-button-ratio')) ;
             this.btnRatio.on('click', _.bind(function(btn, e) {
                 if (btn.pressed && this.spnHeight.getNumberValue()>0) {
                     this._nRatio = this.spnWidth.getNumberValue()/this.spnHeight.getNumberValue();
@@ -250,7 +253,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 minValue: 0
             });
             this.spnShapeWidth.on('change', _.bind(function(field, newValue, oldValue, eOpts){
-                if (this.chRatio.getValue()=='checked' && !this.chRatio.isDisabled()) {
+                if (this.chRatio.getValue()=='checked' && (!this.chRatio.isDisabled() || this._isSmartArt)) {
                     var w = field.getNumberValue();
                     var h = w/this._nRatio;
                     if (h>this.sizeMax.height) {
@@ -278,7 +281,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             });
             this.spnShapeHeight.on('change', _.bind(function(field, newValue, oldValue, eOpts){
                 var h = field.getNumberValue(), w = null;
-                if (this.chRatio.getValue()=='checked' && !this.chRatio.isDisabled()) {
+                if (this.chRatio.getValue()=='checked' && (!this.chRatio.isDisabled() || this._isSmartArt)) {
                     w = h * this._nRatio;
                     if (w>this.sizeMax.width) {
                         w = this.sizeMax.width;
@@ -350,7 +353,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrHRelativePc
+                data: this._arrHRelativePc,
+                takeFocusOnClose: true
             });
             this.cmbWidthPc.setDisabled(true);
             this.cmbWidthPc.setValue(this._state.ShapeWidthPcFrom);
@@ -368,7 +372,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrVRelativePc
+                data: this._arrVRelativePc,
+                takeFocusOnClose: true
             });
             this.cmbHeightPc.setDisabled(true);
             this.cmbHeightPc.setValue(this._state.ShapeHeightPcFrom);
@@ -398,87 +403,87 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             // Wrapping
 
             this.btnWrapInline = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-inline',
+                parentEl: $('#image-advanced-button-wrap-inline'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-inline',
                 posId: Asc.c_oAscWrapStyle2.Inline,
                 hint: this.textWrapInlineTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapInline.render( $('#image-advanced-button-wrap-inline')) ;
             this.btnWrapInline.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapSquare = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-square',
+                parentEl: $('#image-advanced-button-wrap-square'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-square',
                 posId: Asc.c_oAscWrapStyle2.Square,
                 hint: this.textWrapSquareTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapSquare.render( $('#image-advanced-button-wrap-square')) ;
             this.btnWrapSquare.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapTight = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-tight',
+                parentEl: $('#image-advanced-button-wrap-tight'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-tight',
                 posId: Asc.c_oAscWrapStyle2.Tight,
                 hint: this.textWrapTightTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapTight.render( $('#image-advanced-button-wrap-tight')) ;
             this.btnWrapTight.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapThrough = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-through',
+                parentEl: $('#image-advanced-button-wrap-through'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-through',
                 posId: Asc.c_oAscWrapStyle2.Through,
                 hint: this.textWrapThroughTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapThrough.render( $('#image-advanced-button-wrap-through')) ;
             this.btnWrapThrough.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapTopBottom = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-topbottom',
+                parentEl: $('#image-advanced-button-wrap-topbottom'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-topbottom',
                 posId: Asc.c_oAscWrapStyle2.TopAndBottom,
                 hint: this.textWrapTopbottomTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapTopBottom.render( $('#image-advanced-button-wrap-topbottom')) ;
             this.btnWrapTopBottom.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapBehind = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-behind',
+                parentEl: $('#image-advanced-button-wrap-behind'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-behind',
                 posId: Asc.c_oAscWrapStyle2.Behind,
                 hint: this.textWrapBehindTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapBehind.render( $('#image-advanced-button-wrap-behind')) ;
             this.btnWrapBehind.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.btnWrapInFront = new Common.UI.Button({
-                cls: 'btn-options x-huge',
-                iconCls: 'icon-advanced-wrap btn-wrap-infront',
+                parentEl: $('#image-advanced-button-wrap-infront'),
+                cls: 'btn-options huge-1',
+                iconCls: 'icon-advanced-wrap options__icon options__icon-huge btn-wrap-infront',
                 posId: Asc.c_oAscWrapStyle2.InFront,
                 hint: this.textWrapInFrontTooltip,
                 enableToggle: true,
                 allowDepress: false,
                 toggleGroup : 'imgAdvWrapGroup'
             });
-            this.btnWrapInFront.render( $('#image-advanced-button-wrap-infront')) ;
             this.btnWrapInFront.on('click', _.bind(this.onBtnWrapClick, this));
 
             this.spnTop = new Common.UI.MetricSpinner({
@@ -621,7 +626,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrHAlign
+                data: this._arrHAlign,
+                takeFocusOnClose: true
             });
             this.cmbHAlign.setValue(this._state.HAlignType);
             this.cmbHAlign.on('selected', _.bind(this.onHAlignSelect, this));
@@ -640,7 +646,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrHRelative
+                data: this._arrHRelative,
+                takeFocusOnClose: true
             });
             this.cmbHRelative.setValue(this._state.HAlignFrom);
             this.cmbHRelative.on('selected', _.bind(this.onHRelativeSelect, this));
@@ -650,7 +657,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrHRelative
+                data: this._arrHRelative,
+                takeFocusOnClose: true
             });
             this.cmbHPosition.setDisabled(true);
             this.cmbHPosition.setValue(this._state.HPositionFrom);
@@ -685,7 +693,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrHRelativePc
+                data: this._arrHRelativePc,
+                takeFocusOnClose: true
             });
             this.cmbHPositionPc.setDisabled(true);
             this.cmbHPositionPc.setValue(this._state.HPositionPcFrom);
@@ -703,7 +712,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrVAlign
+                data: this._arrVAlign,
+                takeFocusOnClose: true
             });
             this.cmbVAlign.setValue(this._state.VAlignType);
             this.cmbVAlign.on('selected', _.bind(this.onVAlignSelect, this));
@@ -722,7 +732,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrVRelative
+                data: this._arrVRelative,
+                takeFocusOnClose: true
             });
             this.cmbVRelative.setValue(this._state.VAlignFrom);
             this.cmbVRelative.on('selected', _.bind(this.onVRelativeSelect, this));
@@ -732,7 +743,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrVRelative
+                data: this._arrVRelative,
+                takeFocusOnClose: true
             });
             this.cmbVPosition.setDisabled(true);
             this.cmbVPosition.setValue(this._state.VPositionFrom);
@@ -767,7 +779,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 115px;',
                 editable: false,
-                data: this._arrVRelativePc
+                data: this._arrVRelativePc,
+                takeFocusOnClose: true
             });
             this.cmbVPositionPc.setDisabled(true);
             this.cmbVPositionPc.setValue(this._state.VPositionPcFrom);
@@ -913,6 +926,16 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             }, this));
             this.spinners.push(this.spnMarginRight);
 
+            this.chAutofit = new Common.UI.CheckBox({
+                el: $('#shape-checkbox-autofit'),
+                labelText: this.textResizeFit
+            });
+            this.chAutofit.on('change', _.bind(function(field, newValue, oldValue, eOpts){
+                if (this._changedShapeProps) {
+                    this._changedShapeProps.asc_putTextFitType(field.getValue()=='checked' ? AscFormat.text_fit_Auto : AscFormat.text_fit_No);
+                }
+            }, this));
+
             // Shape
             this._arrCapType = [
                 {displayValue: this.textFlat,   value: Asc.c_oAscLineCapType.Flat},
@@ -925,7 +948,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 100px;',
                 editable: false,
-                data: this._arrCapType
+                data: this._arrCapType,
+                takeFocusOnClose: true
             });
             this.cmbCapType.setValue(Asc.c_oAscLineCapType.Flat);
             this.cmbCapType.on('selected', _.bind(function(combo, record){
@@ -947,7 +971,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 100px;',
                 editable: false,
-                data: this._arrJoinType
+                data: this._arrJoinType,
+                takeFocusOnClose: true
             });
             this.cmbJoinType.setValue(Asc.c_oAscLineJoinType.Round);
             this.cmbJoinType.on('selected', _.bind(function(combo, record){
@@ -961,18 +986,18 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
 
 
             var _arrStyles = [], _arrSize = [];
-            for ( var i=0; i<6; i++ )
-                _arrStyles.push({value: i, offsetx: 80*i+10, offsety: 0});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.None, idsvg: 'no-'});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.Triangle, idsvg: ''});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.Arrow, idsvg: 'open-'});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.Stealth, idsvg: 'stealth-'});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.Diamond, idsvg: 'dimond-'});
+            _arrStyles.push({type: Asc.c_oAscLineBeginType.Oval, idsvg: 'oval-'});
 
-            _arrStyles[0].type = Asc.c_oAscLineBeginType.None;
-            _arrStyles[1].type = Asc.c_oAscLineBeginType.Triangle;
-            _arrStyles[2].type = Asc.c_oAscLineBeginType.Arrow;
-            _arrStyles[3].type = Asc.c_oAscLineBeginType.Stealth;
-            _arrStyles[4].type = Asc.c_oAscLineBeginType.Diamond;
-            _arrStyles[5].type = Asc.c_oAscLineBeginType.Oval;
+            for ( var i=0; i<6; i++ )
+                _arrStyles[i].value = i;
 
             for ( i=0; i<9; i++ )
-                _arrSize.push({value: i, offsetx: 80+10, offsety: 20*(i+1)});
+                _arrSize.push({value: i, typearrow:''});
 
             _arrSize[0].type = Asc.c_oAscLineBeginSize.small_small;
             _arrSize[1].type = Asc.c_oAscLineBeginSize.small_mid;
@@ -984,120 +1009,89 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             _arrSize[7].type = Asc.c_oAscLineBeginSize.large_mid;
             _arrSize[8].type = Asc.c_oAscLineBeginSize.large_large;
 
-
-            this.btnBeginStyle = new Common.UI.ComboBox({
+            this.btnBeginStyle = new Common.UI.ComboBoxDataView({
                 el: $('#shape-advanced-begin-style'),
-                template: _.template([
-                    '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle combo-arrow-style"  data-toggle="dropdown">',
-                    '<div class="img-arrows form-control image" style="width: 100px;"></div>',
-                    '<div style="display: table-cell;"></div>',
-                    '<button type="button" class="btn btn-default"><span class="caret img-commonctrl"></span></button>',
-                    '</div>'
-                ].join(''))
-            });
-            this.btnBeginStyleMenu = (new Common.UI.Menu({
-                style: 'min-width: 105px;',
                 additionalAlign: this.menuAddAlign,
-                items: [
-                    { template: _.template('<div id="shape-advanced-menu-begin-style" style="width: 105px; margin: 0 5px;"></div>') }
-                ]
-            })).render($('#shape-advanced-begin-style'));
-
-            this.mnuBeginStylePicker = new Common.UI.DataView({
-                el: $('#shape-advanced-menu-begin-style'),
-                parentMenu: this.btnBeginStyleMenu,
+                cls: 'combo-arrow-style move-focus',
+                menuStyle: 'min-width: 105px;',
+                dataViewStyle: 'width: 105px; margin: 0 5px;',
                 store: new Common.UI.DataViewStore(_arrStyles),
-                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows" style="background-position: -<%= offsetx %>px -<%= offsety %>px;"></div>')
+                formTemplate: _.template([
+                    '<div class="form-control" style="width: 100px;">',
+                    '<i class="img-arrows"><svg><use xlink:href="#no-arrow-5"></use></svg></i>',
+                    '</div>'
+                ].join('')),
+                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows">' +
+                    '<svg><use xlink:href= "#<%= idsvg %>arrow-5"></use></svg></div>'),
+                takeFocusOnClose: true,
+                updateFormControl: this.updateFormControl
             });
-            this.mnuBeginStylePicker.on('item:click', _.bind(this.onSelectBeginStyle, this));
-            this._selectStyleItem(this.btnBeginStyle, null);
+            this.btnBeginStyle.on('item:click', _.bind(this.onSelectBeginStyle, this));
+            this.mnuBeginStylePicker = this.btnBeginStyle.getPicker();
+            this.btnBeginStyle.updateFormControl();
 
-            this.btnBeginSize = new Common.UI.ComboBox({
+            this.btnBeginSize = new Common.UI.ComboBoxDataView({
                 el: $('#shape-advanced-begin-size'),
-                template: _.template([
-                    '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle combo-arrow-style"  data-toggle="dropdown">',
-                    '<div class="img-arrows form-control image" style="width: 100px;"></div>',
-                    '<div style="display: table-cell;"></div>',
-                    '<button type="button" class="btn btn-default"><span class="caret img-commonctrl"></span></button>',
-                    '</div>'
-                ].join(''))
-            });
-            this.btnBeginSizeMenu = (new Common.UI.Menu({
-                style: 'min-width: 160px;',
                 additionalAlign: this.menuAddAlign,
-                items: [
-                    { template: _.template('<div id="shape-advanced-menu-begin-size" style="width: 160px; margin: 0 5px;"></div>') }
-                ]
-            })).render($('#shape-advanced-begin-size'));
-
-            this.mnuBeginSizePicker = new Common.UI.DataView({
-                el: $('#shape-advanced-menu-begin-size'),
-                parentMenu: this.btnBeginSizeMenu,
+                cls: 'combo-arrow-style move-focus',
+                menuStyle: 'min-width: 105px;',
+                dataViewStyle: 'width: 160px; margin: 0 5px;',
                 store: new Common.UI.DataViewStore(_arrSize),
-                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows" style="background-position: -<%= offsetx %>px -<%= offsety %>px;"></div>')
+                formTemplate: _.template([
+                    '<div class="form-control" style="width: 100px;">',
+                    '<i class="img-arrows"><svg><use xlink:href=""></use></svg></i>',
+                    '</div>'
+                ].join('')),
+                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows">' +
+                    '<svg><use xlink:href="#<%= typearrow %>arrow-<%= (value+1) %>"></use></svg></div>'),
+                takeFocusOnClose: true,
+                updateFormControl: this.updateFormControl
             });
-            this.mnuBeginSizePicker.on('item:click', _.bind(this.onSelectBeginSize, this));
-            this._selectStyleItem(this.btnBeginSize, null);
+            this.btnBeginSize.on('item:click', _.bind(this.onSelectBeginSize, this));
+            this.mnuBeginSizePicker = this.btnBeginSize.getPicker();
+            this.btnBeginSize.updateFormControl();
 
-            for ( i=0; i<_arrStyles.length; i++ )
-                _arrStyles[i].offsety += 200;
-
-            for ( i=0; i<_arrSize.length; i++ )
-                _arrSize[i].offsety += 200;
-
-            this.btnEndStyle = new Common.UI.ComboBox({
+            this.btnEndStyle = new Common.UI.ComboBoxDataView({
                 el: $('#shape-advanced-end-style'),
-                template: _.template([
-                    '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle combo-arrow-style"  data-toggle="dropdown">',
-                    '<div class="img-arrows form-control image" style="width: 100px;"></div>',
-                    '<div style="display: table-cell;"></div>',
-                    '<button type="button" class="btn btn-default"><span class="caret img-commonctrl"></span></button>',
-                    '</div>'
-                ].join(''))
-            });
-            this.btnEndStyleMenu = (new Common.UI.Menu({
-                style: 'min-width: 105px;',
                 additionalAlign: this.menuAddAlign,
-                items: [
-                    { template: _.template('<div id="shape-advanced-menu-end-style" style="width: 105px; margin: 0 5px;"></div>') }
-                ]
-            })).render($('#shape-advanced-end-style'));
-
-            this.mnuEndStylePicker = new Common.UI.DataView({
-                el: $('#shape-advanced-menu-end-style'),
-                parentMenu: this.btnEndStyleMenu,
+                cls: 'combo-arrow-style move-focus',
+                menuStyle: 'min-width: 105px;',
+                dataViewStyle: 'width: 105px; margin: 0 5px;',
                 store: new Common.UI.DataViewStore(_arrStyles),
-                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows" style="background-position: -<%= offsetx %>px -<%= offsety %>px;"></div>')
-            });
-            this.mnuEndStylePicker.on('item:click', _.bind(this.onSelectEndStyle, this));
-            this._selectStyleItem(this.btnEndStyle, null);
-
-            this.btnEndSize = new Common.UI.ComboBox({
-                el: $('#shape-advanced-end-size'),
-                template: _.template([
-                    '<div class="input-group combobox combo-dataview-menu input-group-nr dropdown-toggle combo-arrow-style"  data-toggle="dropdown">',
-                    '<div class="img-arrows form-control image" style="width: 100px;"></div>',
-                    '<div style="display: table-cell;"></div>',
-                    '<button type="button" class="btn btn-default"><span class="caret img-commonctrl"></span></button>',
+                formTemplate: _.template([
+                    '<div class="form-control" style="width: 100px;">',
+                    '<i class="img-arrows"><svg class ="svg-mirror"><use xlink:href="#no-arrow-5"></use></svg></i>',
                     '</div>'
-                ].join(''))
+                ].join('')),
+                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows">' +
+                    '<svg class ="svg-mirror"><use xlink:href="#<%= idsvg %>arrow-5"></use></svg></div>'),
+                takeFocusOnClose: true,
+                updateFormControl: this.updateFormControl
             });
-            this.btnEndSizeMenu = (new Common.UI.Menu({
-                style: 'min-width: 160px;',
-                additionalAlign: this.menuAddAlign,
-                items: [
-                    { template: _.template('<div id="shape-advanced-menu-end-size" style="width: 160px; margin: 0 5px;"></div>') }
-                ]
-            })).render($('#shape-advanced-end-size'));
+            this.btnEndStyle.on('item:click', _.bind(this.onSelectEndStyle, this));
+            this.mnuEndStylePicker = this.btnEndStyle.getPicker();
+            this.btnEndStyle.updateFormControl();
 
-            this.mnuEndSizePicker = new Common.UI.DataView({
-                el: $('#shape-advanced-menu-end-size'),
-                parentMenu: this.btnEndSizeMenu,
+            this.btnEndSize = new Common.UI.ComboBoxDataView({
+                el: $('#shape-advanced-end-size'),
+                additionalAlign: this.menuAddAlign,
+                cls: 'combo-arrow-style move-focus',
+                menuStyle: 'min-width: 105px;',
+                dataViewStyle: 'width: 160px; margin: 0 5px;',
                 store: new Common.UI.DataViewStore(_arrSize),
-                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows" style="background-position: -<%= offsetx %>px -<%= offsety %>px;"></div>')
+                formTemplate: _.template([
+                    '<div class="form-control" style="width: 100px;">',
+                    '<i class="img-arrows"><svg class ="svg-mirror"><use xlink:href=""></use></svg></i>',
+                    '</div>'
+                ].join('')),
+                itemTemplate: _.template('<div id="<%= id %>" class="item-arrow img-arrows">' +
+                    '<svg class ="svg-mirror"><use xlink:href="#<%= typearrow %>arrow-<%= (value + 1) %>"></use></svg></div>'),
+                takeFocusOnClose: true,
+                updateFormControl: this.updateFormControl
             });
-            this.mnuEndSizePicker.on('item:click', _.bind(this.onSelectEndSize, this));
-            this._selectStyleItem(this.btnEndSize, null);
+            this.btnEndSize.on('item:click', _.bind(this.onSelectEndSize, this));
+            this.mnuEndSizePicker = this.btnEndSize.getPicker();
+            this.btnEndSize.updateFormControl();
 
             // Alt Text
 
@@ -1119,6 +1113,69 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             });
 
             this.afterRender();
+        },
+
+        getFocusedComponents: function() {
+            return this.btnsCategory.concat([
+                this.spnWidth, this.btnRatio, this.spnHeight, this.btnOriginalSize, // 0 tab
+                this.radioHSize, this.spnShapeWidth , this.spnShapeWidthPc, this.radioHSizePc, this.cmbWidthPc,
+                this.radioVSize, this.spnShapeHeight, this.spnShapeHeightPc, this.radioVSizePc, this.cmbHeightPc, this.chRatio, // 1 tab
+                this.spnAngle, this.chFlipHor, this.chFlipVert, // 2 tab
+                this.btnWrapInline, this.btnWrapSquare, this.btnWrapTight, this.btnWrapThrough, this.btnWrapTopBottom, this.btnWrapInFront, this.btnWrapBehind,
+                this.spnTop, this.spnLeft, this.spnBottom, this.spnRight, // 3 tab
+                this.radioHAlign, this.radioHPosition, this.radioHPositionPc, this.cmbHAlign , this.cmbHRelative, this.spnX, this.cmbHPosition, this.spnXPc, this.cmbHPositionPc,
+                this.radioVAlign, this.radioVPosition, this.radioVPositionPc, this.cmbVAlign , this.cmbVRelative, this.spnY, this.cmbVPosition, this.spnYPc, this.cmbVPositionPc, this.chMove, this.chOverlap, // 4 tab
+                this.cmbCapType, this.cmbJoinType, this.btnBeginStyle, this.btnEndStyle, this.btnBeginSize, this.btnEndSize, // 5 tab
+                this.chAutofit, this.spnMarginTop, this.spnMarginLeft, this.spnMarginBottom, this.spnMarginRight, // 6 tab
+                this.inputAltTitle, this.textareaAltDescription  // 7 tab
+            ]).concat(this.getFooterButtons());
+        },
+
+        onCategoryClick: function(btn, index) {
+            Common.Views.AdvancedSettingsWindow.prototype.onCategoryClick.call(this, btn, index);
+
+            var me = this;
+            setTimeout(function(){
+                switch (index) {
+                    case 0:
+                        me.spnWidth.focus();
+                        break;
+                    case 1:
+                        if (!me.spnShapeWidth.isDisabled())
+                            me.spnShapeWidth.focus();
+                        else
+                            me.spnShapeWidthPc.focus();
+                        break;
+                    case 2:
+                        me.spnAngle.focus();
+                        break;
+                    case 3:
+                        if (!me.spnTop.isDisabled())
+                            me.spnTop.focus();
+                        else if (!me.spnLeft.isDisabled())
+                            me.spnLeft.focus();
+                        else if (!me.btnWrapInline.isDisabled())
+                            me.btnWrapInline.focus();
+                        break;
+                    case 4:
+                        if (!me.cmbHAlign.isDisabled())
+                            me.cmbHAlign.focus();
+                        else if (!me.spnX.isDisabled())
+                            me.spnX.focus();
+                        else
+                            me.spnXPc.focus();
+                        break;
+                    case 5:
+                        me.cmbCapType.focus();
+                        break;
+                    case 6:
+                        me.chAutofit.focus();
+                        break;
+                    case 7:
+                        me.inputAltTitle.focus();
+                        break;
+                }
+            }, 10);
         },
 
         afterRender: function() {
@@ -1295,20 +1352,31 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 var shapeprops = props.get_ShapeProperties();
                 var chartprops = props.get_ChartProperties();
                 var pluginGuid = props.asc_getPluginGuid();
+                var control_props = this.api && this.api.asc_IsContentControl() ? this.api.asc_GetContentControlProperties() : null,
+                    fixed_size = false;
+                if (control_props) {
+                    var spectype = control_props.get_SpecificType();
+                    fixed_size = (spectype==Asc.c_oAscContentControlSpecificType.CheckBox || spectype==Asc.c_oAscContentControlSpecificType.ComboBox ||
+                                spectype==Asc.c_oAscContentControlSpecificType.DropDownList || spectype==Asc.c_oAscContentControlSpecificType.None ||
+                                spectype==Asc.c_oAscContentControlSpecificType.Picture || spectype==Asc.c_oAscContentControlSpecificType.Complex ||
+                                spectype==Asc.c_oAscContentControlSpecificType.DateTime) &&
+                                control_props.get_FormPr() && control_props.get_FormPr().get_Fixed();
+                }
 
                 this.btnOriginalSize.setVisible(!(shapeprops || chartprops));
                 this.btnOriginalSize.setDisabled(props.get_ImageUrl()===null || props.get_ImageUrl()===undefined);
-                this.btnsCategory[5].setVisible(shapeprops!==null && !shapeprops.get_FromChart());   // Shapes
-                this.btnsCategory[6].setVisible(shapeprops!==null && !shapeprops.get_FromChart());   // Margins
-                this.btnsCategory[3].setDisabled(props.get_FromGroup()); // Wrapping
+                this.btnsCategory[5].setVisible(shapeprops!==null && !shapeprops.get_FromChart() && !fixed_size);   // Shapes
+                this.btnsCategory[6].setVisible(shapeprops!==null && !shapeprops.get_FromChart() && !fixed_size);   // Margins
+                this.btnsCategory[7].setVisible(!fixed_size);   // Alt
                 this.btnsCategory[2].setVisible(!chartprops && (pluginGuid === null || pluginGuid === undefined)); // Rotation
+                this.btnsCategory[3].setDisabled(props.get_FromGroup() || !!control_props && (control_props.get_SpecificType()==Asc.c_oAscContentControlSpecificType.Picture) && !control_props.get_FormPr()); // Wrapping
 
                 if (shapeprops) {
                     this._objectType = Asc.c_oAscTypeSelectElement.Shape;
                     this._setShapeDefaults(shapeprops);
                     this.setTitle(this.textTitleShape);
                     value = props.asc_getLockAspect();
-                    this.chRatio.setValue(value);
+                    this.chRatio.setValue(value || this._isSmartArt, true); // can resize smart art only proportionately
 
                     this.spnShapeWidth.setMaxValue(this.sizeMax.width);
                     this.spnShapeHeight.setMaxValue(this.sizeMax.height);
@@ -1350,7 +1418,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                         value = props.get_Height();
                         this.spnShapeHeight.setValue((value!==undefined) ? Common.Utils.Metric.fnRecalcFromMM(value).toFixed(2) : '', true);
                     }
-                    this.chRatio.setDisabled(this.radioVSizePc.getValue() || this.radioHSizePc.getValue());
+                    this.chRatio.setDisabled(this.radioVSizePc.getValue() || this.radioHSizePc.getValue() || this._isSmartArt);
 
                     var margins = shapeprops.get_paddings();
                     if (margins) {
@@ -1363,6 +1431,8 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                         val = margins.get_Bottom();
                         this.spnMarginBottom.setValue((null !== val && undefined !== val) ? Common.Utils.Metric.fnRecalcFromMM(val) : '', true);
                     }
+
+                    this.chAutofit.setValue(shapeprops.asc_getTextFitType()==AscFormat.text_fit_Auto);
 
                     this.btnsCategory[6].setDisabled(null === margins);   // Margins
                     this.btnsCategory[5].setDisabled(shapeprops.get_stroke().get_type() == Asc.c_oAscStrokeType.STROKE_NONE);   // Weights & Arrows
@@ -1452,6 +1522,19 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
 
         _setShapeDefaults: function(props) {
             if (props ){
+                if (props.get_FromSmartArt()) {
+                    this.radioHSizePc.setDisabled(true);
+                    this.radioVSizePc.setDisabled(true);
+                    this.btnsCategory[2].setDisabled(true);
+                    this._isSmartArt = true;
+                }
+                if (props.get_FromSmartArtInternal()) {
+                    this.chAutofit.setDisabled(true);
+                    this.chFlipHor.setDisabled(true);
+                    this.chFlipVert.setDisabled(true);
+                    this.btnsCategory[1].setDisabled(true);
+                }
+
                 var stroke = props.get_stroke();
                 if (stroke) {
                     var value = stroke.get_linejoin();
@@ -1484,17 +1567,13 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                             this._beginSizeIdx = rec.get('value');
                         } else {
                             this._beginSizeIdx = null;
-                            this._selectStyleItem(this.btnBeginSize, null);
+                            this.btnBeginSize.updateFormControl();
                         }
 
                         value = stroke.get_linebeginstyle();
                         rec = this.mnuBeginStylePicker.store.findWhere({type: value});
-                        if (rec) {
-                            this.mnuBeginStylePicker.selectRecord(rec, true);
-                            this._updateSizeArr(this.btnBeginSize, this.mnuBeginSizePicker, rec, this._beginSizeIdx);
-                            this._selectStyleItem(this.btnBeginStyle, rec);
-                        } else
-                            this._selectStyleItem(this.btnBeginStyle, null);
+                        this.btnBeginStyle.selectRecord(rec);
+                        rec && this._updateSizeArr(this.btnBeginSize, this.mnuBeginSizePicker, rec, this._beginSizeIdx);
 
                         value = stroke.get_lineendsize();
                         rec = this.mnuEndSizePicker.store.findWhere({type: value});
@@ -1502,22 +1581,13 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                             this._endSizeIdx = rec.get('value');
                         } else {
                             this._endSizeIdx = null;
-                            this._selectStyleItem(this.btnEndSize, null);
+                            this.btnEndSize.updateFormControl();
                         }
 
                         value = stroke.get_lineendstyle();
                         rec = this.mnuEndStylePicker.store.findWhere({type: value});
-                        if (rec) {
-                            this.mnuEndStylePicker.selectRecord(rec, true);
-                            this._updateSizeArr(this.btnEndSize, this.mnuEndSizePicker, rec, this._endSizeIdx);
-                            this._selectStyleItem(this.btnEndStyle, rec);
-                        } else
-                            this._selectStyleItem(this.btnEndStyle, null);
-                    } else {
-                        this._selectStyleItem(this.btnBeginStyle);
-                        this._selectStyleItem(this.btnEndStyle);
-                        this._selectStyleItem(this.btnBeginSize);
-                        this._selectStyleItem(this.btnEndSize);
+                        this.btnEndStyle.selectRecord(rec);
+                        rec && this._updateSizeArr(this.btnEndSize, this.mnuEndSizePicker, rec, this._endSizeIdx);
                     }
                 }
             }
@@ -1699,6 +1769,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             }
             if (newValue) {
                 this.cmbHAlign.setDisabled(false);
+                this.cmbHAlign.focus();
                 this.cmbHRelative.setDisabled(false);
                 this.spnX.setDisabled(true);
                 this.cmbHPosition.setDisabled(true);
@@ -1723,6 +1794,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.cmbHAlign.setDisabled(true);
                 this.cmbHRelative.setDisabled(true);
                 this.spnX.setDisabled(false);
+                this.spnX.focus();
                 this.cmbHPosition.setDisabled(false);
                 this.spnXPc.setDisabled(true);
                 this.cmbHPositionPc.setDisabled(true);
@@ -1747,6 +1819,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.spnX.setDisabled(true);
                 this.cmbHPosition.setDisabled(true);
                 this.spnXPc.setDisabled(false);
+                this.spnXPc.focus();
                 this.cmbHPositionPc.setDisabled(false);
             }
         },
@@ -1765,6 +1838,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             }
             if (newValue) {
                 this.cmbVAlign.setDisabled(false);
+                this.cmbVAlign.focus();
                 this.cmbVRelative.setDisabled(false);
                 this.spnY.setDisabled(true);
                 this.cmbVPosition.setDisabled(true);
@@ -1791,6 +1865,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.cmbVAlign.setDisabled(true);
                 this.cmbVRelative.setDisabled(true);
                 this.spnY.setDisabled(false);
+                this.spnY.focus();
                 this.cmbVPosition.setDisabled(false);
                 this.chMove.setValue(this._state.VPositionFrom==Asc.c_oAscRelativeFromV.Line || this._state.VPositionFrom==Asc.c_oAscRelativeFromV.Paragraph, true);
                 this.chMove.setDisabled(false);
@@ -1819,6 +1894,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.chMove.setValue(false, true);
                 this.chMove.setDisabled(true);
                 this.spnYPc.setDisabled(false);
+                this.spnYPc.focus();
                 this.cmbVPositionPc.setDisabled(false);
             }
         },
@@ -1835,6 +1911,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.cmbWidthPc.setDisabled(true);
                 this.spnShapeWidthPc.setDisabled(true);
                 this.spnShapeWidth.setDisabled(false);
+                this.spnShapeWidth.focus();
             }
         },
 
@@ -1852,6 +1929,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.chRatio.setDisabled(true);
                 this.cmbWidthPc.setDisabled(false);
                 this.spnShapeWidthPc.setDisabled(false);
+                this.spnShapeWidthPc.focus();
                 this.spnShapeWidth.setDisabled(true);
             }
         },
@@ -1868,6 +1946,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.cmbHeightPc.setDisabled(true);
                 this.spnShapeHeightPc.setDisabled(true);
                 this.spnShapeHeight.setDisabled(false);
+                this.spnShapeHeight.focus();
             }
         },
 
@@ -1885,6 +1964,7 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this.chRatio.setDisabled(true);
                 this.cmbHeightPc.setDisabled(false);
                 this.spnShapeHeightPc.setDisabled(false);
+                this.spnShapeHeightPc.focus();
                 this.spnShapeHeight.setDisabled(true);
             }
         },
@@ -1942,26 +2022,29 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
         _updateSizeArr: function(combo, picker, record, sizeidx) {
             if (record.get('value')>0) {
                 picker.store.each( function(rec){
-                    rec.set({offsetx: record.get('value')*80 + 10});
+                    rec.set({typearrow: record.get('idsvg')});
                 }, this);
                 combo.setDisabled(false);
-                if (sizeidx !== null) {
-                    picker.selectByIndex(sizeidx, true);
-                    this._selectStyleItem(combo, picker.store.at(sizeidx));
-                } else
-                    this._selectStyleItem(combo, null);
+                combo.selectRecord(sizeidx !== null ? picker.store.at(sizeidx) : null);
             } else {
-                this._selectStyleItem(combo, null);
+                combo.updateFormControl();
                 combo.setDisabled(true);
             }
         },
 
-        _selectStyleItem: function(combo, record) {
-            var formcontrol = $(combo.el).find('.form-control');
-            formcontrol.css('background-position', ((record) ? (-record.get('offsetx')+20) + 'px' : '0') + ' ' + ((record) ? '-' + record.get('offsety') + 'px' : '-30px'));
+        updateFormControl: function(record) {
+            var formcontrol = $(this.el).find('.form-control > .img-arrows use');
+            if(formcontrol.length) {
+                var str = '';
+                if(record){
+                    var styleId  = record.get('idsvg');
+                    str = (styleId !== undefined) ? styleId + 'arrow-5' : record.get('typearrow') + 'arrow-' + (record.get('value')+1);
+                }
+                formcontrol[0].setAttribute('xlink:href', '#' + str);
+            }
         },
 
-        onSelectBeginStyle: function(picker, view, record, e){
+        onSelectBeginStyle: function(combo, picker, view, record, e){
             if (this._changedShapeProps) {
                 if (this._changedShapeProps.get_stroke()===null)
                     this._changedShapeProps.put_stroke(new Asc.asc_CStroke());
@@ -1971,10 +2054,9 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             if (this._beginSizeIdx===null || this._beginSizeIdx===undefined)
                 this._beginSizeIdx = 4;
             this._updateSizeArr(this.btnBeginSize, this.mnuBeginSizePicker, record, this._beginSizeIdx);
-            this._selectStyleItem(this.btnBeginStyle, record);
         },
 
-        onSelectBeginSize: function(picker, view, record, e){
+        onSelectBeginSize: function(combo, picker, view, record, e){
             if (this._changedShapeProps) {
                 if (this._changedShapeProps.get_stroke()===null)
                     this._changedShapeProps.put_stroke(new Asc.asc_CStroke());
@@ -1982,10 +2064,9 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this._changedShapeProps.get_stroke().put_linebeginsize(record.get('type'));
             }
             this._beginSizeIdx = record.get('value');
-            this._selectStyleItem(this.btnBeginSize, record);
         },
 
-        onSelectEndStyle: function(picker, view, record, e){
+        onSelectEndStyle: function(combo, picker, view, record, e){
             if (this._changedShapeProps) {
                 if (this._changedShapeProps.get_stroke()===null)
                     this._changedShapeProps.put_stroke(new Asc.asc_CStroke());
@@ -1995,10 +2076,9 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
             if (this._endSizeIdx===null || this._endSizeIdx===undefined)
                 this._endSizeIdx = 4;
             this._updateSizeArr(this.btnEndSize, this.mnuEndSizePicker, record, this._endSizeIdx);
-            this._selectStyleItem(this.btnEndStyle, record);
         },
 
-        onSelectEndSize: function(picker, view, record, e){
+        onSelectEndSize: function(combo, picker, view, record, e){
             if (this._changedShapeProps) {
                 if (this._changedShapeProps.get_stroke()===null)
                     this._changedShapeProps.put_stroke(new Asc.asc_CStroke());
@@ -2006,14 +2086,13 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
                 this._changedShapeProps.get_stroke().put_lineendsize(record.get('type'));
             }
             this._endSizeIdx = record.get('value');
-            this._selectStyleItem(this.btnEndSize, record);
         },
 
         textTop:        'Top',
         textLeft:       'Left',
         textBottom:     'Bottom',
         textRight:      'Right',
-        textOriginalSize: 'Default Size',
+        textOriginalSize: 'Actual Size',
         textPosition:   'Position',
         textDistance:   'Distance From Text',
         textSize:       'Size',
@@ -2029,8 +2108,6 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
         textWrapInFrontTooltip: 'In Front',
         textTitle:      'Image - Advanced Settings',
         textKeepRatio: 'Constant Proportions',
-        cancelButtonText: 'Cancel',
-        okButtonText:   'Ok',
         textBtnWrap:    'Text Wrapping',
         textCenter: 'Center',
         textCharacter: 'Character',
@@ -2082,7 +2159,10 @@ define([    'text!documenteditor/main/app/template/ImageSettingsAdvanced.templat
         textAngle: 'Angle',
         textFlipped: 'Flipped',
         textHorizontally: 'Horizontally',
-        textVertically: 'Vertically'
+        textVertically: 'Vertically',
+        textTextBox: 'Text Box',
+        textAutofit: 'AutoFit',
+        textResizeFit: 'Resize shape to fit text'
 
     }, DE.Views.ImageSettingsAdvanced || {}));
 });

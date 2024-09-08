@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ParagraphSettings.js
  *
- *  Created by Julia Radzhabova on 3/28/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 3/28/14
  *
  */
 
@@ -107,8 +105,6 @@ define([
                 return;
             if (this.api)
                 this.api.asc_putPrLineSpacing(this.cmbLineRule.getValue(), (this.cmbLineRule.getValue()==c_paragraphLinerule.LINERULE_AUTO) ? field.getNumberValue() : Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));
-
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
         onNumSpacingBeforeChange: function(field, newValue, oldValue, eOpts){
@@ -119,8 +115,6 @@ define([
                 else
                     this.api.asc_putLineSpacingBeforeAfter(0, Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));
             }
-
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
         onNumSpacingAfterChange: function(field, newValue, oldValue, eOpts){
@@ -131,8 +125,6 @@ define([
                 else
                     this.api.asc_putLineSpacingBeforeAfter(1, Common.Utils.Metric.fnRecalcToMM(field.getNumberValue()));
             }
-
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
         onLineRuleSelect: function(combo, record) {
@@ -238,6 +230,10 @@ define([
                     spinner.setDefaultUnit(Common.Utils.Metric.getCurrentMetricName());
                     spinner.setStep(Common.Utils.Metric.getCurrentMetric()==Common.Utils.Metric.c_MetricUnits.pt ? 1 : 0.01);
                 }
+                var val = this._state.LineSpacingBefore;
+                this.numSpacingBefore && this.numSpacingBefore.setValue((val !== null) ? ((val<0) ? val : Common.Utils.Metric.fnRecalcFromMM(val) ) : '', true);
+                val = this._state.LineSpacingAfter;
+                this.numSpacingAfter && this.numSpacingAfter.setValue((val !== null) ? ((val<0) ? val : Common.Utils.Metric.fnRecalcFromMM(val) ) : '', true);
             }
             if (this.cmbLineRule) {
                 var rec = this.cmbLineRule.store.at(1);
@@ -251,7 +247,13 @@ define([
                     if (!rec) rec = this.cmbLineRule.store.at(0);
                     this.numLineHeight.setDefaultUnit(rec.get('defaultUnit'));
                     this.numLineHeight.setStep(rec.get('step'));
-
+                    var val = '';
+                    if ( this._state.LineRule == c_paragraphLinerule.LINERULE_AUTO ) {
+                        val = this._state.LineHeight;
+                    } else if (this._state.LineHeight !== null ) {
+                        val = Common.Utils.Metric.fnRecalcFromMM(this._state.LineHeight);
+                    }
+                    this.numLineHeight && this.numLineHeight.setValue((val !== null) ?  val : '', true);
                 }
             }
         },
@@ -270,7 +272,10 @@ define([
                 cls: 'input-group-nr',
                 menuStyle: 'min-width: 85px;',
                 editable: false,
-                data: this._arrLineRule
+                data: this._arrLineRule,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbLineRule.setValue(c_paragraphLinerule.LINERULE_AUTO);
             this.lockedControls.push(this.cmbLineRule);
@@ -282,7 +287,10 @@ define([
                 value: '1.5',
                 defaultUnit : "",
                 maxValue: 132,
-                minValue: 0.5
+                minValue: 0.5,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.lockedControls.push(this.numLineHeight);
 
@@ -295,7 +303,10 @@ define([
                 maxValue: 55.88,
                 minValue: 0,
                 allowAuto   : true,
-                autoText    : this.txtAutoText
+                autoText    : this.txtAutoText,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.numSpacingBefore);
             this.lockedControls.push(this.numSpacingBefore);
@@ -309,7 +320,10 @@ define([
                 maxValue: 55.88,
                 minValue: 0,
                 allowAuto   : true,
-                autoText    : this.txtAutoText
+                autoText    : this.txtAutoText,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.numSpacingAfter);
             this.lockedControls.push(this.numSpacingAfter);
@@ -317,6 +331,9 @@ define([
             this.numLineHeight.on('change', _.bind(this.onNumLineHeightChange, this));
             this.numSpacingBefore.on('change', _.bind(this.onNumSpacingBeforeChange, this));
             this.numSpacingAfter.on('change', _.bind(this.onNumSpacingAfterChange, this));
+            this.numLineHeight.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+            this.numSpacingBefore.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+            this.numSpacingAfter.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
             this.cmbLineRule.on('selected', _.bind(this.onLineRuleSelect, this));
             this.cmbLineRule.on('hide:after', _.bind(this.onHideMenus, this));
             $(this.el).on('click', '#paragraph-advanced-link', _.bind(this.openAdvancedSettings, this));

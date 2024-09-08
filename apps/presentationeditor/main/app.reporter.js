@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    app.js
  *
- *    Created by Maxim.Kadushkin on 17 July 2017
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 17 July 2017
  *
  */
 
@@ -48,7 +46,7 @@ require.config({
         jquery          : '../vendor/jquery/jquery.min',
         underscore      : '../vendor/underscore/underscore-min',
         xregexp         : '../vendor/xregexp/xregexp-all-min',
-        sockjs          : '../vendor/sockjs/sockjs.min',
+        socketio        : '../vendor/socketio/socket.io.min',
         allfonts        : '../../sdkjs/common/AllFonts',
         sdk             : '../../sdkjs/slide/sdk-all-min'
     },
@@ -59,10 +57,9 @@ require.config({
         sdk: {
             deps: [
                 'jquery',
-                'underscore',
                 'allfonts',
                 'xregexp',
-                'sockjs'
+                'socketio'
             ]
         }
     }
@@ -92,7 +89,8 @@ require([
 
     var api = new Asc.asc_docs_api({
         'id-view'  : 'editor_sdk',
-        using      : 'reporter'
+        using      : 'reporter',
+        skin       : localStorage.getItem("ui-theme-id")
     });
 
     var setDocumentTitle = function(title) {
@@ -106,6 +104,7 @@ require([
             docInfo = new Asc.asc_CDocInfo();
             docInfo.put_Id(data.key);
             docInfo.put_Url(data.url);
+            docInfo.put_DirectUrl(data.directUrl);
             docInfo.put_Title(data.title);
             docInfo.put_Format(data.fileType);
             docInfo.put_VKey(data.vkey);

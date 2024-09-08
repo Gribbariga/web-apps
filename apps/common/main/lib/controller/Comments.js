@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  Comments.js
  *
- *  Created by Alexey Musinov on 16.01.14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 16.01.14
  *
  */
 
@@ -74,6 +72,7 @@ define([
         subEditStrings : {},
         filter : undefined,
         hintmode : false,
+        fullInfoHintMode: false,
         viewmode: false,
         isSelectedComment : false,
         uids : [],
@@ -102,7 +101,9 @@ define([
 
                     // work handlers
 
-                    'comment:closeEditing':     _.bind(this.closeEditing, this)
+                    'comment:closeEditing':     _.bind(this.closeEditing, this),
+                    'comment:sort':             _.bind(this.setComparator, this),
+                    'comment:filtergroups':     _.bind(this.setFilterGroups, this)
                 },
 
                 'Common.Views.ReviewPopover': {
@@ -126,6 +127,10 @@ define([
                     'comment:closeEditing':     _.bind(this.closeEditing, this),
                     'comment:disableHint':      _.bind(this.disableHint, this),
                     'comment:addDummyComment':  _.bind(this.onAddDummyComment, this)
+                },
+                'Common.Views.ReviewChanges': {
+                    'comment:removeComments':           _.bind(this.onRemoveComments, this),
+                    'comment:resolveComments':          _.bind(this.onResolveComments, this)
                 }
             });
 
@@ -138,12 +143,23 @@ define([
                     }
                 }, this, area);
             }.bind(this));
+            Common.NotificationCenter.on('app:ready', this.onAppReady.bind(this));
         },
         onLaunch: function () {
+            var filter = Common.localStorage.getKeysFilter();
+            this.appPrefix = (filter && filter.length) ? filter.split(',')[0] : '';
+            this._state = {
+                disableEditing: false, // disable editing when disconnect/signed file/mail merge preview/review final or original/forms preview
+                docProtection: {
+                    isReadOnly: false,
+                    isReviewOnly: false,
+                    isFormsOnly: false,
+                    isCommentsOnly: false
+                }
+            };
+
             this.collection                     =   this.getApplication().getCollection('Common.Collections.Comments');
-            if (this.collection) {
-                this.collection.comparator      =   function (collection) { return -collection.get('time'); };
-            }
+            this.setComparator();
 
             this.popoverComments                =   new Common.Collections.Comments();
             if (this.popoverComments) {
@@ -151,6 +167,7 @@ define([
             }
 
             this.groupCollection = [];
+            this.userGroups = []; // for filtering comments
 
             this.view = this.createView('Common.Views.Comments', { store: this.collection });
             this.view.render();
@@ -158,6 +175,7 @@ define([
             this.userCollection = this.getApplication().getCollection('Common.Collections.Users');
             this.userCollection.on('reset', _.bind(this.onUpdateUsers, this));
             this.userCollection.on('add',   _.bind(this.onUpdateUsers, this));
+            Common.NotificationCenter.on('mentions:setusers', this.avatarsUpdate.bind(this));
 
             this.bindViewEvents(this.view, this.events);
         },
@@ -166,10 +184,10 @@ define([
 
             if (data) {
                 this.currentUserId      =   data.config.user.id;
-                this.currentUserName    =   data.config.user.fullname;
                 this.sdkViewName        =   data['sdkviewname'] || this.sdkViewName;
                 this.hintmode           =   data['hintmode'] || false;
-                this.viewmode        =   data['viewmode'] || false;
+                this.fullInfoHintMode   =   data['fullInfoHintMode'] || false;
+                this.viewmode           =   data['viewmode'] || false;
             }
         },
         setApi: function (api) {
@@ -180,7 +198,7 @@ define([
                 this.api.asc_registerCallback('asc_onAddComments', _.bind(this.onApiAddComments, this));
                 this.api.asc_registerCallback('asc_onRemoveComment', _.bind(this.onApiRemoveComment, this));
                 this.api.asc_registerCallback('asc_onChangeComments', _.bind(this.onChangeComments, this));
-                this.api.asc_registerCallback('asc_onRemoveComments', _.bind(this.onRemoveComments, this));
+                this.api.asc_registerCallback('asc_onRemoveComments', _.bind(this.onApiRemoveComments, this));
                 this.api.asc_registerCallback('asc_onChangeCommentData', _.bind(this.onApiChangeCommentData, this));
                 this.api.asc_registerCallback('asc_onLockComment', _.bind(this.onApiLockComment, this));
                 this.api.asc_registerCallback('asc_onUnLockComment', _.bind(this.onApiUnLockComment, this));
@@ -188,6 +206,8 @@ define([
                 this.api.asc_registerCallback('asc_onHideComment', _.bind(this.onApiHideComment, this));
                 this.api.asc_registerCallback('asc_onUpdateCommentPosition', _.bind(this.onApiUpdateCommentPosition, this));
                 this.api.asc_registerCallback('asc_onDocumentPlaceChanged', _.bind(this.onDocumentPlaceChanged, this));
+                this.api.asc_registerCallback('asc_onDeleteComment', _.bind(this.onDeleteComment, this)); // only for PE, when del or ctrl+x pressed
+                this.api.asc_registerCallback('asc_onChangeCommentLogicalPosition', _.bind(this.onApiChangeCommentLogicalPosition, this)); // change comments position in document
             }
         },
 
@@ -199,6 +219,42 @@ define([
             return this;
         },
         //
+
+        setComparator: function(type) {
+            if (this.collection) {
+                var sort = (type !== undefined);
+                if (type === undefined) {
+                    type = Common.localStorage.getItem(this.appPrefix + "comments-sort") || 'date-desc';
+                }
+                Common.localStorage.setItem(this.appPrefix + "comments-sort", type);
+                Common.Utils.InternalSettings.set(this.appPrefix + "comments-sort", type);
+
+                if (type=='position-asc' || type=='position-desc') {
+                    var direction = (type=='position-asc') ? 1 : -1;
+                    this.collection.comparator = function (collection) {
+                        return direction * collection.get('position');
+                    };
+                } else if (type=='author-asc' || type=='author-desc') {
+                    var direction = (type=='author-asc') ? 1 : -1;
+                    this.collection.comparator = function(item1, item2) {
+                        var n1 = item1.get('parsedName').toLowerCase(),
+                            n2 = item2.get('parsedName').toLowerCase();
+                        if (n1==n2) return 0;
+                        return (n1<n2) ? -direction : direction;
+                    };
+                } else { // date
+                    var direction = (type=='date-asc') ? 1 : -1;
+                    this.collection.comparator = function (collection) {
+                        return direction * collection.get('time');
+                    };
+                }
+                sort && this.updateComments(true);
+            }
+        },
+
+        getComparator: function() {
+            return Common.Utils.InternalSettings.get(this.appPrefix + "comments-sort") || 'date';
+        },
 
         onCreateComment: function (panel, commentVal, editMode, hidereply, documentFlag) {
             if (this.api && commentVal && commentVal.length > 0) {
@@ -214,7 +270,7 @@ define([
                     comment.asc_putTime(this.utcDateToString(new Date()));
                     comment.asc_putOnlyOfficeTime(this.ooDateToString(new Date()));
                     comment.asc_putUserId(this.currentUserId);
-                    comment.asc_putUserName(this.currentUserName);
+                    comment.asc_putUserName(AscCommon.UserInfoParser.getCurrentName());
                     comment.asc_putSolved(false);
 
                     if (!_.isUndefined(comment.asc_putDocumentFlag)) {
@@ -233,6 +289,18 @@ define([
                 this.api.asc_removeComment(id);
             }
         },
+        onRemoveComments: function (type) {
+            if (this.api) {
+                this.api.asc_RemoveAllComments(type=='my' || !this.mode.canDeleteComments, type=='current');// 1 param = true if remove only my comments, 2 param - remove current comments
+            }
+        },
+
+        onResolveComments: function (type) {
+            if (this.api) {
+                this.api.asc_ResolveAllComments(type=='my' || !this.mode.canEditComments, type=='current');// 1 param = true if resolve only my comments, 2 param - resolve current comments
+            }
+        },
+
         onResolveComment: function (uid) {
             var t = this,
                 reply = null,
@@ -253,6 +321,7 @@ define([
                 ascComment.asc_putUserName(comment.get('username'));
                 ascComment.asc_putSolved(!comment.get('resolved'));
                 ascComment.asc_putGuid(comment.get('guid'));
+                ascComment.asc_putUserData(comment.get('userdata'));
 
                 if (!_.isUndefined(ascComment.asc_putDocumentFlag)) {
                     ascComment.asc_putDocumentFlag(comment.get('unattached'));
@@ -268,6 +337,7 @@ define([
                             addReply.asc_putOnlyOfficeTime(t.ooDateToString(new Date(reply.get('time'))));
                             addReply.asc_putUserId(reply.get('userid'));
                             addReply.asc_putUserName(reply.get('username'));
+                            addReply.asc_putUserData(reply.get('userdata'));
 
                             ascComment.asc_addReply(addReply);
                         }
@@ -281,7 +351,7 @@ define([
 
             return false;
         },
-        onShowComment: function (id, selected) {
+        onShowComment: function (id, selected, fromLeftPanelSelection) {
             var comment = this.findComment(id);
             if (comment) {
                 if (null !== comment.get('quote')) {
@@ -309,9 +379,11 @@ define([
                             this.isSelectedComment = selected;
                         }
 
-                        this.api.asc_selectComment(id);
-                        this._dontScrollToComment = true;
-                        this.api.asc_showComment(id,false);
+                        if (!fromLeftPanelSelection || !((0 === _.difference(this.uids, [id]).length) && (0 === _.difference([id], this.uids).length))) { 
+                            this.api.asc_selectComment(id);
+                            this._dontScrollToComment = true;
+                            this.api.asc_showComment(id,false);
+                        }
                     }
                 } else {
 
@@ -335,17 +407,20 @@ define([
                     reply = null,
                     addReply = null,
                     ascComment = buildCommentData(),   //  new asc_CCommentData(null),
-                    comment = t.findComment(id);
+                    comment = t.findComment(id),
+                    oldCommentVal = '';
 
                 if (comment && ascComment) {
+                    oldCommentVal = comment.get('comment');
                     ascComment.asc_putText(commentVal);
                     ascComment.asc_putQuoteText(comment.get('quote'));
                     ascComment.asc_putTime(t.utcDateToString(new Date(comment.get('time'))));
                     ascComment.asc_putOnlyOfficeTime(t.ooDateToString(new Date(comment.get('time'))));
                     ascComment.asc_putUserId(t.currentUserId);
-                    ascComment.asc_putUserName(t.currentUserName);
+                    ascComment.asc_putUserName(AscCommon.UserInfoParser.getCurrentName());
                     ascComment.asc_putSolved(comment.get('resolved'));
                     ascComment.asc_putGuid(comment.get('guid'));
+                    ascComment.asc_putUserData(comment.get('userdata'));
 
                     if (!_.isUndefined(ascComment.asc_putDocumentFlag)) {
                         ascComment.asc_putDocumentFlag(comment.get('unattached'));
@@ -372,6 +447,7 @@ define([
                                 addReply.asc_putOnlyOfficeTime(t.ooDateToString(new Date(reply.get('time'))));
                                 addReply.asc_putUserId(reply.get('userid'));
                                 addReply.asc_putUserName(reply.get('username'));
+                                addReply.asc_putUserData(reply.get('userdata'));
 
                                 ascComment.asc_addReply(addReply);
                             }
@@ -379,6 +455,7 @@ define([
                     }
 
                     t.api.asc_changeComment(id, ascComment);
+                    t.mode && t.mode.canRequestSendNotify && t.view.pickEMail(ascComment.asc_getGuid(), commentVal, oldCommentVal);
 
                     return true;
                 }
@@ -392,7 +469,8 @@ define([
                     reply = null,
                     addReply = null,
                     ascComment = buildCommentData(),   //  new asc_CCommentData(null),
-                    comment = me.findComment(id);
+                    comment = me.findComment(id),
+                    oldReplyVal = '';
 
                 if (ascComment && comment) {
                     ascComment.asc_putText(comment.get('comment'));
@@ -403,6 +481,7 @@ define([
                     ascComment.asc_putUserName(comment.get('username'));
                     ascComment.asc_putSolved(comment.get('resolved'));
                     ascComment.asc_putGuid(comment.get('guid'));
+                    ascComment.asc_putUserData(comment.get('userdata'));
 
                     if (!_.isUndefined(ascComment.asc_putDocumentFlag)) {
                         ascComment.asc_putDocumentFlag(comment.get('unattached'));
@@ -415,9 +494,10 @@ define([
                             addReply = buildCommentData();   //  new asc_CCommentData();
                             if (addReply) {
                                 if (reply.get('id') === replyId && !_.isUndefined(replyVal)) {
+                                    oldReplyVal = reply.get('reply');
                                     addReply.asc_putText(replyVal);
                                     addReply.asc_putUserId(me.currentUserId);
-                                    addReply.asc_putUserName(me.currentUserName);
+                                    addReply.asc_putUserName(AscCommon.UserInfoParser.getCurrentName());
                                 } else {
                                     addReply.asc_putText(reply.get('reply'));
                                     addReply.asc_putUserId(reply.get('userid'));
@@ -426,6 +506,7 @@ define([
 
                                 addReply.asc_putTime(me.utcDateToString(new Date(reply.get('time'))));
                                 addReply.asc_putOnlyOfficeTime(me.ooDateToString(new Date(reply.get('time'))));
+                                addReply.asc_putUserData(reply.get('userdata'));
 
                                 ascComment.asc_addReply(addReply);
                             }
@@ -433,7 +514,7 @@ define([
                     }
 
                     me.api.asc_changeComment(id, ascComment);
-
+                    me.mode && me.mode.canRequestSendNotify && me.view.pickEMail(ascComment.asc_getGuid(), replyVal, oldReplyVal);
                     return true;
                 }
             }
@@ -466,6 +547,7 @@ define([
                     ascComment.asc_putUserName(comment.get('username'));
                     ascComment.asc_putSolved(comment.get('resolved'));
                     ascComment.asc_putGuid(comment.get('guid'));
+                    ascComment.asc_putUserData(comment.get('userdata'));
 
                     if (!_.isUndefined(ascComment.asc_putDocumentFlag)) {
                         ascComment.asc_putDocumentFlag(comment.get('unattached'));
@@ -482,6 +564,7 @@ define([
                                 addReply.asc_putOnlyOfficeTime(me.ooDateToString(new Date(reply.get('time'))));
                                 addReply.asc_putUserId(reply.get('userid'));
                                 addReply.asc_putUserName(reply.get('username'));
+                                addReply.asc_putUserData(reply.get('userdata'));
 
                                 ascComment.asc_addReply(addReply);
                             }
@@ -494,12 +577,12 @@ define([
                         addReply.asc_putTime(me.utcDateToString(new Date()));
                         addReply.asc_putOnlyOfficeTime(me.ooDateToString(new Date()));
                         addReply.asc_putUserId(me.currentUserId);
-                        addReply.asc_putUserName(me.currentUserName);
+                        addReply.asc_putUserName(AscCommon.UserInfoParser.getCurrentName());
 
                         ascComment.asc_addReply(addReply);
 
                         me.api.asc_changeComment(id, ascComment);
-                        me.mode && me.mode.canRequestUsers && me.view.pickEMail(ascComment.asc_getGuid(), replyVal);
+                        me.mode && me.mode.canRequestSendNotify && me.view.pickEMail(ascComment.asc_getGuid(), replyVal);
 
                         return true;
                     }
@@ -525,6 +608,7 @@ define([
                     ascComment.asc_putUserName(comment.get('username'));
                     ascComment.asc_putSolved(comment.get('resolved'));
                     ascComment.asc_putGuid(comment.get('guid'));
+                    ascComment.asc_putUserData(comment.get('userdata'));
 
                     if (!_.isUndefined(ascComment.asc_putDocumentFlag)) {
                         ascComment.asc_putDocumentFlag(comment.get('unattached'));
@@ -541,6 +625,7 @@ define([
                                     addReply.asc_putOnlyOfficeTime(me.ooDateToString(new Date(reply.get('time'))));
                                     addReply.asc_putUserId(reply.get('userid'));
                                     addReply.asc_putUserName(reply.get('username'));
+                                    addReply.asc_putUserData(reply.get('userdata'));
 
                                     ascComment.asc_addReply(addReply);
                                 }
@@ -628,14 +713,15 @@ define([
 
                     var end = true;
                     for (var i = this.collection.length - 1; i >= 0; --i) {
-                        if (end) {
-                            this.collection.at(i).set('last', true, {silent: true});
+                        var item = this.collection.at(i);
+                        if (end && !item.get('hide') && !item.get('filtered')) {
+                            item.set('last', true, {silent: true});
+                            end = false;
                         } else {
-                            if (this.collection.at(i).get('last')) {
-                                this.collection.at(i).set('last', false, {silent: true});
+                            if (item.get('last')) {
+                                item.set('last', false, {silent: true});
                             }
                         }
-                        end = false;
                     }
                     this.view.render();
                     this.view.update();
@@ -657,7 +743,8 @@ define([
         // SDK
 
         onApiAddComment: function (id, data) {
-            var comment = this.readSDKComment(id, data);
+            var requestObj = {},
+                comment = this.readSDKComment(id, data, requestObj);
             if (comment) {
                 if (comment.get('groupName')) {
                     this.addCommentToGroupCollection(comment);
@@ -665,7 +752,7 @@ define([
                 } else
                     this.collection.push(comment);
 
-                this.updateComments(true);
+                this.updateComments(true, this.getComparator() === 'position-asc' || this.getComparator() === 'position-desc'); // don't sort by position
 
                 if (this.showPopover) {
                     if (null !== data.asc_getQuoteText()) {
@@ -677,15 +764,17 @@ define([
                     this.showPopover = undefined;
                     this.editPopover = false;
                 }
+                requestObj.arrIds && requestObj.arrIds.length && Common.UI.ExternalUsers.get('info', requestObj.arrIds);
             }
         },
         onApiAddComments: function (data) {
+            var requestObj = {};
             for (var i = 0; i < data.length; ++i) {
-                var comment = this.readSDKComment(data[i].asc_getId(), data[i]);
+                var comment = this.readSDKComment(data[i].asc_getId(), data[i], requestObj);
                 comment.get('groupName') ? this.addCommentToGroupCollection(comment) : this.collection.push(comment);
             }
-
-            this.updateComments(true);
+            this.updateComments(true, this.getComparator() === 'position-asc' || this.getComparator() === 'position-desc');
+            requestObj.arrIds && requestObj.arrIds.length && Common.UI.ExternalUsers.get('info', requestObj.arrIds);
         },
         onApiRemoveComment: function (id, silentUpdate) {
             for (var name in this.groupCollection) {
@@ -725,7 +814,7 @@ define([
 
             this.updateComments(true);
         },
-        onRemoveComments: function (data) {
+        onApiRemoveComments: function (data) {
             for (var i = 0; i < data.length; ++i) {
                 this.onApiRemoveComment(data[i], true);
             }
@@ -747,15 +836,38 @@ define([
                 date = (data.asc_getOnlyOfficeTime()) ? new Date(this.stringOOToLocalDate(data.asc_getOnlyOfficeTime())) :
                        ((data.asc_getTime() == '') ? new Date() : new Date(this.stringUtcToLocalDate(data.asc_getTime())));
 
-                var user = this.userCollection.findOriginalUser(data.asc_getUserId());
+                var userid = data.asc_getUserId(),
+                    user = this.userCollection.findOriginalUser(userid),
+                    avatar = Common.UI.ExternalUsers.getImage(userid),
+                    arrIds = [];
+                (avatar===undefined) && arrIds.push(userid);
+                var hideComment = !AscCommon.UserInfoParser.canViewComment(data.asc_getUserName()),
+                    needSort = (this.getComparator() == 'author-asc' || this.getComparator() == 'author-desc') && (data.asc_getUserName() !== comment.get('username')) ||
+                                hideComment !== comment.get('hide');
                 comment.set('comment',  data.asc_getText());
-                comment.set('userid',   data.asc_getUserId());
+                comment.set('userid',   userid);
                 comment.set('username', data.asc_getUserName());
-                comment.set('usercolor', (user) ? user.get('color') : null);
+                comment.set('initials', Common.Utils.getUserInitials(AscCommon.UserInfoParser.getParsedName(data.asc_getUserName())));
+                comment.set('parsedName', AscCommon.UserInfoParser.getParsedName(data.asc_getUserName()));
+                comment.set('parsedGroups', AscCommon.UserInfoParser.getParsedGroups(data.asc_getUserName()));
+                comment.set('usercolor', (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(userid || data.asc_getUserName()));
+                comment.set('avatar',   avatar);
                 comment.set('resolved', data.asc_getSolved());
                 comment.set('quote',    data.asc_getQuoteText());
+                comment.set('userdata', data.asc_getUserData());
                 comment.set('time',     date.getTime());
                 comment.set('date',     t.dateToLocaleTimeString(date));
+                comment.set('editable', (t.mode.canEditComments || (userid == t.currentUserId)) && AscCommon.UserInfoParser.canEditComment(data.asc_getUserName()));
+                comment.set('removable', (t.mode.canDeleteComments || (userid == t.currentUserId)) && AscCommon.UserInfoParser.canDeleteComment(data.asc_getUserName()));
+                comment.set('hide', hideComment);
+
+                if (!comment.get('hide')) {
+                    var usergroups = comment.get('parsedGroups');
+                    t.fillUserGroups(usergroups);
+                    var group = Common.Utils.InternalSettings.get(t.appPrefix + "comments-filtergroups");
+                    var filter = !!group && (group!==-1) && (!usergroups || usergroups.length<1 || usergroups.indexOf(group)<0);
+                    comment.set('filtered', filter);
+                }
 
                 replies = _.clone(comment.get('replys'));
 
@@ -767,33 +879,46 @@ define([
                     dateReply = (data.asc_getReply(i).asc_getOnlyOfficeTime()) ? new Date(this.stringOOToLocalDate(data.asc_getReply(i).asc_getOnlyOfficeTime())) :
                                 ((data.asc_getReply(i).asc_getTime() == '') ? new Date() : new Date(this.stringUtcToLocalDate(data.asc_getReply(i).asc_getTime())));
 
-                    user = this.userCollection.findOriginalUser(data.asc_getReply(i).asc_getUserId());
+                    userid = data.asc_getReply(i).asc_getUserId();
+                    user = this.userCollection.findOriginalUser(userid);
+                    avatar = Common.UI.ExternalUsers.getImage(userid);
+                    (avatar===undefined) && arrIds.push(userid);
                     replies.push(new Common.Models.Reply({
                         id                  : Common.UI.getId(),
-                        userid              : data.asc_getReply(i).asc_getUserId(),
+                        userid              : userid,
                         username            : data.asc_getReply(i).asc_getUserName(),
-                        usercolor           : (user) ? user.get('color') : null,
+                        initials            : Common.Utils.getUserInitials(AscCommon.UserInfoParser.getParsedName(data.asc_getReply(i).asc_getUserName())),
+                        parsedName          : AscCommon.UserInfoParser.getParsedName(data.asc_getReply(i).asc_getUserName()),
+                        usercolor           : (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(userid || data.asc_getReply(i).asc_getUserName()),
+                        avatar              : avatar,
                         date                : t.dateToLocaleTimeString(dateReply),
                         reply               : data.asc_getReply(i).asc_getText(),
+                        userdata            : data.asc_getReply(i).asc_getUserData(),
                         time                : dateReply.getTime(),
                         editText            : false,
                         editTextInPopover   : false,
                         showReplyInPopover  : false,
                         scope               : t.view,
-                        editable            : t.mode.canEditComments || (data.asc_getReply(i).asc_getUserId() == t.currentUserId)
+                        editable            : (t.mode.canEditComments || (userid == t.currentUserId)) && AscCommon.UserInfoParser.canEditComment(data.asc_getReply(i).asc_getUserName()),
+                        removable           : (t.mode.canDeleteComments || (userid == t.currentUserId)) && AscCommon.UserInfoParser.canDeleteComment(data.asc_getReply(i).asc_getUserName())
                     }));
                 }
 
                 comment.set('replys', replies);
 
+                if (!this.popoverComments.findWhere({hide: false})) {
+                    this.getPopover() && this.getPopover().hideComments();
+                }
+
                 if (!silentUpdate) {
-                    this.updateComments(false, true);
+                    this.updateComments(needSort, !needSort);
 
                     // if (this.getPopover() && this.getPopover().isVisible()) {
                     //     this._dontScrollToComment = true;
                     //     this.api.asc_showComment(id, true);
                     // }
                 }
+                arrIds.length && Common.UI.ExternalUsers.get('info', arrIds);
             }
         },
         onApiLockComment: function (id,userId) {
@@ -821,14 +946,13 @@ define([
             }
         },
         onApiShowComment: function (uids, posX, posY, leftX, opts, hint) {
+            var apihint = hint;
             var same_uids = (0 === _.difference(this.uids, uids).length) && (0 === _.difference(uids, this.uids).length);
             
             if (hint && this.isSelectedComment && same_uids && !this.isModeChanged) {
                 // хотим показать тот же коментарий что был и выбран
                 return;
             }
-            if (this.mode && !this.mode.canComments)
-                hint = true;
 
             var popover = this.getPopover();
             if (popover) {
@@ -860,11 +984,11 @@ define([
 
                     if (!comment) continue;
 
-                    if (this.subEditStrings[saveTxtId] && !hint) {
+                    if (this.subEditStrings[saveTxtId] && (comment.get('fullInfoInHint') || !hint)) {
                         comment.set('editTextInPopover', true);
                         text = this.subEditStrings[saveTxtId];
                     }
-                    else if (this.subEditStrings[saveTxtReplyId] && !hint) {
+                    else if (this.subEditStrings[saveTxtReplyId] && (comment.get('fullInfoInHint') || !hint)) {
                         comment.set('showReplyInPopover', true);
                         text = this.subEditStrings[saveTxtReplyId];
                     }
@@ -872,13 +996,16 @@ define([
                     comment.set('hint', !_.isUndefined(hint) ? hint : false);
 
                     if (!hint && this.hintmode) {
-                        if (same_uids && (this.uids.length === 0))
+                        if (same_uids)
                             animate = false;
 
                         if (this.oldUids.length && (0 === _.difference(this.oldUids, uids).length) && (0 === _.difference(uids, this.oldUids).length)) {
                             animate = false;
                             this.oldUids = [];
                         }
+
+                        if (same_uids && !apihint && !this.isModeChanged)
+                            this.api.asc_selectComment(comment.get('uid'));
                     }
 
                     if (this.animate) {
@@ -886,7 +1013,7 @@ define([
                         this.animate = false;
                     }
 
-                    this.isSelectedComment = !hint || !this.hintmode;
+                    this.isSelectedComment = !apihint || !this.hintmode;
                     this.uids = _.clone(uids);
 
                     comments.push(comment);
@@ -899,12 +1026,15 @@ define([
                 });
                 this.popoverComments.reset(comments);
 
-                if (popover.isVisible()) {
-                    popover.hide();
-                }
+                if (this.popoverComments.findWhere({hide: false})) {
+                    if (popover.isVisible() && (!same_uids || this.isModeChanged)) {
+                        popover.hide();
+                    }
 
-                popover.setLeftTop(posX, posY, leftX);
-                popover.showComments(animate, false, true, text);
+                    popover.setLeftTop(posX, posY, leftX);
+                    popover.showComments(animate, false, true, text);
+                } else
+                    popover.hideComments();
             }
             this.isModeChanged = false;
         },
@@ -982,9 +1112,12 @@ define([
                         });
                         this.popoverComments.reset(comments);
 
-                        useAnimation = true;
-                        this.getPopover().showComments(useAnimation, undefined, undefined, text);
-                    } else if (!this.getPopover().isVisible()) {
+                        if (this.popoverComments.findWhere({hide: false})) {
+                            useAnimation = true;
+                            this.getPopover().showComments(useAnimation, undefined, undefined, text);
+                        } else
+                            this.getPopover().hideComments();
+                    } else if (!this.getPopover().isVisible() && this.popoverComments.findWhere({hide: false})) {
                         this.getPopover().showComments(false, undefined, undefined, text);
                     }
 
@@ -1014,17 +1147,34 @@ define([
             }
         },
 
+        onDeleteComment: function (id, comment) {
+            if (this.api) {
+                this.api.asc_RemoveAllComments(!this.mode.canDeleteComments, true);// 1 param = true if remove only my comments, 2 param - remove current comments
+            }
+        },
+
+        onApiChangeCommentLogicalPosition: function (comments) {
+            for (var uid in comments) {
+                if (comments.hasOwnProperty(uid)) {
+                    var comment = this.findComment(uid) || this.findCommentInGroup(uid);
+                    comment && comment.set('position', comments[uid]);
+                }
+            }
+            (this.getComparator() === 'position-asc' || this.getComparator() === 'position-desc') && this.updateComments(true);
+        },
+
         // internal
 
         updateComments: function (needRender, disableSort, loadText) {
             var me = this;
             me.updateCommentsTime = new Date();
+            me.disableSort = !!disableSort;
             if (me.timerUpdateComments===undefined)
                 me.timerUpdateComments = setInterval(function(){
                     if ((new Date()) - me.updateCommentsTime>100) {
                         clearInterval(me.timerUpdateComments);
                         me.timerUpdateComments = undefined;
-                        me.updateCommentsView(needRender, disableSort, loadText);
+                        me.updateCommentsView(needRender, me.disableSort, loadText);
                     }
                }, 25);
         },
@@ -1038,7 +1188,7 @@ define([
 
             var i, end = true;
 
-            if (_.isUndefined(disableSort)) {
+            if (!disableSort) {
                 this.collection.sort();
             }
 
@@ -1046,14 +1196,15 @@ define([
                 this.onUpdateFilter(this.filter, true);
 
                 for (i = this.collection.length - 1; i >= 0; --i) {
-                    if (end) {
-                        this.collection.at(i).set('last', true, {silent: true});
+                    var item = this.collection.at(i);
+                    if (end && !item.get('hide') && !item.get('filtered')) {
+                        item.set('last', true, {silent: true});
+                        end = false;
                     } else {
-                        if (this.collection.at(i).get('last')) {
-                            this.collection.at(i).set('last', false, {silent: true});
+                        if (item.get('last')) {
+                            item.set('last', false, {silent: true});
                         }
                     }
-                    end = false;
                 }
 
                 this.view.render();
@@ -1133,7 +1284,9 @@ define([
                     commentsStore : this.popoverComments,
                     renderTo : this.sdkViewName,
                     canRequestUsers: (this.mode) ? this.mode.canRequestUsers : undefined,
-                    canRequestSendNotify: (this.mode) ? this.mode.canRequestSendNotify : undefined
+                    canRequestSendNotify: (this.mode) ? this.mode.canRequestSendNotify : undefined,
+                    mentionShare: (this.mode) ? this.mode.mentionShare : true,
+                    api: this.api
                 });
                 this.popover.setCommentsStore(this.popoverComments);
             }
@@ -1144,69 +1297,111 @@ define([
 
         onUpdateUsers: function() {
             var users = this.userCollection,
-                hasGroup = false;
+                hasGroup = false,
+                updateCommentData = function(comment, user, isNotReply) {
+                    var color = (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(comment.get('userid')),
+                        needrender = false;
+                    if (color !== comment.get('usercolor')) {
+                        needrender = true;
+                        comment.set('usercolor', color, {silent: true});
+                    }
+                    if (user && (user.image!==undefined)) {
+                        if (user.image !== comment.get('avatar')) {
+                            needrender = true;
+                            comment.set('avatar', user.image, {silent: true});
+                        }
+                    }
+
+                    //If a comment and not a reply
+                    if(isNotReply){
+                        comment.get('replys').forEach(function (reply) {
+                            var needrenderReply = updateCommentData(reply, users.findOriginalUser(reply.get('userid')), false);
+                            needrender = needrenderReply || needrender;
+                        });
+                        
+                        if (needrender)
+                            comment.trigger('change');
+                    }
+
+                    return needrender;
+                };
+            
             for (var name in this.groupCollection) {
                 hasGroup = true;
-                this.groupCollection[name].each(function (model) {
-                    var user = users.findOriginalUser(model.get('userid')),
-                        color = (user) ? user.get('color') : null,
-                        needrender = false;
-                    if (color !== model.get('usercolor')) {
-                        needrender = true;
-                        model.set('usercolor', color, {silent: true});
-                    }
-
-                    model.get('replys').forEach(function (reply) {
-                        user = users.findOriginalUser(reply.get('userid'));
-                        color = (user) ? user.get('color') : null;
-                        if (color !== reply.get('usercolor')) {
-                            needrender = true;
-                            reply.set('usercolor', color, {silent: true});
-                        }
-                    });
-
-                    if (needrender)
-                        model.trigger('change');
+                this.groupCollection[name].each(function (comment) {
+                    updateCommentData(comment, users.findOriginalUser(comment.get('userid')), true);
                 });
             }
-            !hasGroup && this.collection.each(function (model) {
-                var user = users.findOriginalUser(model.get('userid')),
-                    color = (user) ? user.get('color') : null,
-                    needrender = false;
-                if (color !== model.get('usercolor')) {
-                    needrender = true;
-                    model.set('usercolor', color, {silent: true});
-                }
-
-                model.get('replys').forEach(function (reply) {
-                    user = users.findOriginalUser(reply.get('userid'));
-                    color = (user) ? user.get('color') : null;
-                    if (color !== reply.get('usercolor')) {
-                        needrender = true;
-                        reply.set('usercolor', color, {silent: true});
-                    }
-                });
-                if (needrender)
-                    model.trigger('change');
+            !hasGroup && this.collection.each(function (comment) {
+                updateCommentData(comment, users.findOriginalUser(comment.get('userid')), true);
             });
         },
 
-        readSDKComment: function (id, data) {
+        avatarsUpdate: function(type, users) {
+            if (type!=='info') return;
+
+            var hasGroup = false,
+                updateCommentData = function(comment, isNotReply) {
+                    var user = _.findWhere(users, {id: comment.get('userid')}),
+                        needrender = false;
+                    if (user && (user.image!==undefined)) {
+                        var avatar = user.image;
+                        if (avatar !== comment.get('avatar')) {
+                            needrender = true;
+                            comment.set('avatar', avatar, {silent: true});
+                        }
+                    }
+
+                    //If a comment and not a reply
+                    if(isNotReply){
+                        comment.get('replys').forEach(function (reply) {
+                            var needrenderReply = updateCommentData(reply, false);
+                            needrender = needrenderReply || needrender;
+                        });
+
+                        if (needrender)
+                            comment.trigger('change');
+                    }
+
+                    return needrender;
+                };
+
+            for (var name in this.groupCollection) {
+                hasGroup = true;
+                this.groupCollection[name].each(function (comment) {
+                    updateCommentData(comment, true);
+                });
+            }
+            !hasGroup && this.collection.each(function (comment) {
+                updateCommentData(comment, true);
+            });
+        },
+
+        readSDKComment: function (id, data, requestObj) {
+            requestObj && !requestObj.arrIds && (requestObj.arrIds = []);
             var date = (data.asc_getOnlyOfficeTime()) ? new Date(this.stringOOToLocalDate(data.asc_getOnlyOfficeTime())) :
                 ((data.asc_getTime() == '') ? new Date() : new Date(this.stringUtcToLocalDate(data.asc_getTime())));
-            var user = this.userCollection.findOriginalUser(data.asc_getUserId()),
-                groupname = id.substr(0, id.lastIndexOf('_')+1).match(/^(doc|sheet[0-9_]+)_/);
+            var userid = data.asc_getUserId(),
+                user = this.userCollection.findOriginalUser(userid),
+                groupname = id.substr(0, id.lastIndexOf('_')+1).match(/^(doc|sheet[0-9_]+)_/),
+                avatar = Common.UI.ExternalUsers.getImage(userid);
+            (avatar===undefined) && requestObj.arrIds.push(userid);
             var comment = new Common.Models.Comment({
                 uid                 : id,
                 guid                : data.asc_getGuid(),
-                userid              : data.asc_getUserId(),
+                userid              : userid,
                 username            : data.asc_getUserName(),
-                usercolor           : (user) ? user.get('color') : null,
+                initials            : Common.Utils.getUserInitials(AscCommon.UserInfoParser.getParsedName(data.asc_getUserName())),
+                parsedName          : AscCommon.UserInfoParser.getParsedName(data.asc_getUserName()),
+                parsedGroups        : AscCommon.UserInfoParser.getParsedGroups(data.asc_getUserName()),
+                usercolor           : (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(userid || data.asc_getUserName()),
+                avatar              : avatar,
                 date                : this.dateToLocaleTimeString(date),
                 quote               : data.asc_getQuoteText(),
                 comment             : data.asc_getText(),
                 resolved            : data.asc_getSolved(),
                 unattached          : !_.isUndefined(data.asc_getDocumentFlag) ? data.asc_getDocumentFlag() : false,
+                userdata            : data.asc_getUserData(),
                 id                  : Common.UI.getId(),
                 time                : date.getTime(),
                 showReply           : false,
@@ -1216,12 +1411,22 @@ define([
                 showReplyInPopover  : false,
                 hideAddReply        : !_.isUndefined(this.hidereply) ? this.hidereply : (this.showPopover ? true : false),
                 scope               : this.view,
-                editable            : this.mode.canEditComments || (data.asc_getUserId() == this.currentUserId),
+                editable            : (this.mode.canEditComments || (userid == this.currentUserId)) && AscCommon.UserInfoParser.canEditComment(data.asc_getUserName()),
+                removable           : (this.mode.canDeleteComments || (userid == this.currentUserId)) && AscCommon.UserInfoParser.canDeleteComment(data.asc_getUserName()),
+                hide                : !AscCommon.UserInfoParser.canViewComment(data.asc_getUserName()),
                 hint                : !this.mode.canComments,
+                fullInfoInHint      : this.fullInfoHintMode,
                 groupName           : (groupname && groupname.length>1) ? groupname[1] : null
             });
             if (comment) {
-                var replies = this.readSDKReplies(data);
+                if (!comment.get('hide')) {
+                    var usergroups = comment.get('parsedGroups');
+                    this.fillUserGroups(usergroups);
+                    var group = Common.Utils.InternalSettings.get(this.appPrefix + "comments-filtergroups");
+                    var filter = !!group && (group!==-1) && (!usergroups || usergroups.length<1 || usergroups.indexOf(group)<0);
+                    comment.set('filtered', filter);
+                }
+                var replies = this.readSDKReplies(data, requestObj);
                 if (replies.length) {
                     comment.set('replys', replies);
                 }
@@ -1229,7 +1434,8 @@ define([
 
             return comment;
         },
-        readSDKReplies: function (data) {
+        readSDKReplies: function (data, requestObj) {
+            requestObj && !requestObj.arrIds && (requestObj.arrIds = []);
             var i = 0,
                 replies = [],
                 date = null;
@@ -1239,20 +1445,28 @@ define([
                     date = (data.asc_getReply(i).asc_getOnlyOfficeTime()) ? new Date(this.stringOOToLocalDate(data.asc_getReply(i).asc_getOnlyOfficeTime())) :
                         ((data.asc_getReply(i).asc_getTime() == '') ? new Date() : new Date(this.stringUtcToLocalDate(data.asc_getReply(i).asc_getTime())));
 
-                    var user = this.userCollection.findOriginalUser(data.asc_getReply(i).asc_getUserId());
+                    var userid = data.asc_getReply(i).asc_getUserId(),
+                        user = this.userCollection.findOriginalUser(userid),
+                        avatar = Common.UI.ExternalUsers.getImage(userid);
+                    (avatar===undefined) && requestObj && requestObj.arrIds.push(userid);
                     replies.push(new Common.Models.Reply({
                         id                  : Common.UI.getId(),
-                        userid              : data.asc_getReply(i).asc_getUserId(),
+                        userid              : userid,
                         username            : data.asc_getReply(i).asc_getUserName(),
-                        usercolor           : (user) ? user.get('color') : null,
+                        initials            : Common.Utils.getUserInitials(AscCommon.UserInfoParser.getParsedName(data.asc_getReply(i).asc_getUserName())),
+                        parsedName          : AscCommon.UserInfoParser.getParsedName(data.asc_getReply(i).asc_getUserName()),
+                        usercolor           : (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(userid || data.asc_getReply(i).asc_getUserName()),
+                        avatar              : avatar,
                         date                : this.dateToLocaleTimeString(date),
                         reply               : data.asc_getReply(i).asc_getText(),
+                        userdata            : data.asc_getReply(i).asc_getUserData(),
                         time                : date.getTime(),
                         editText            : false,
                         editTextInPopover   : false,
                         showReplyInPopover  : false,
                         scope               : this.view,
-                        editable            : this.mode.canEditComments || (data.asc_getReply(i).asc_getUserId() == this.currentUserId)
+                        editable            : (this.mode.canEditComments || (userid == this.currentUserId)) && AscCommon.UserInfoParser.canEditComment(data.asc_getReply(i).asc_getUserName()),
+                        removable           : (this.mode.canDeleteComments || (userid == this.currentUserId)) && AscCommon.UserInfoParser.canDeleteComment(data.asc_getReply(i).asc_getUserName())
                     }));
                 }
             }
@@ -1282,8 +1496,11 @@ define([
                         time: date.getTime(),
                         date: this.dateToLocaleTimeString(date),
                         userid: this.currentUserId,
-                        username: this.currentUserName,
-                        usercolor: (user) ? user.get('color') : null,
+                        username: AscCommon.UserInfoParser.getCurrentName(),
+                        avatar: Common.UI.ExternalUsers.getImage(this.currentUserId),
+                        initials: Common.Utils.getUserInitials(AscCommon.UserInfoParser.getParsedName(AscCommon.UserInfoParser.getCurrentName())),
+                        parsedName: AscCommon.UserInfoParser.getParsedName(AscCommon.UserInfoParser.getCurrentName()),
+                        usercolor: (user) ? user.get('color') : Common.UI.ExternalUsers.getColor(this.currentUserId),
                         editTextInPopover: true,
                         showReplyInPopover: false,
                         hideAddReply: true,
@@ -1346,7 +1563,7 @@ define([
                     comment.asc_putTime(this.utcDateToString(new Date()));
                     comment.asc_putOnlyOfficeTime(this.ooDateToString(new Date()));
                     comment.asc_putUserId(this.currentUserId);
-                    comment.asc_putUserName(this.currentUserName);
+                    comment.asc_putUserName(AscCommon.UserInfoParser.getCurrentName());
                     comment.asc_putSolved(false);
 
                     if (!_.isUndefined(comment.asc_putDocumentFlag))
@@ -1354,7 +1571,8 @@ define([
 
                     this.api.asc_addComment(comment);
                     this.view.showEditContainer(false);
-                    this.mode && this.mode.canRequestUsers && this.view.pickEMail(comment.asc_getGuid(), commentVal);
+                    this.mode && this.mode.canRequestSendNotify && this.view.pickEMail(comment.asc_getGuid(), commentVal);
+                    Common.NotificationCenter.trigger('comments:tryshowcomments'); // only for pdf
                     if (!_.isUndefined(this.api.asc_SetDocumentPlaceChangedEnabled)) {
                         this.api.asc_SetDocumentPlaceChangedEnabled(false);
                     }
@@ -1413,13 +1631,13 @@ define([
                     for (i = 0; i < comments.length; ++i) {
                         comment = this.findComment(comments[i].asc_getId());
                         if (comment) {
-                            comment.set('editTextInPopover', t.mode.canEditComments);// dont't edit comment when customization->commentAuthorOnly is true
+                            comment.set('editTextInPopover', t.mode.canEditComments && AscCommon.UserInfoParser.canEditComment(comment.username));// dont't edit comment when customization->commentAuthorOnly is true or when permissions.editCommentAuthorOnly is true
                             comment.set('hint', false);
                             this.popoverComments.push(comment);
                         }
                     }
 
-                    if (this.getPopover() && this.popoverComments.length>0) {
+                    if (this.getPopover() && this.popoverComments.length>0 && this.popoverComments.findWhere({hide: false})) {
                         if (this.getPopover().isVisible()) {
                             this.getPopover().hide();
                         }
@@ -1501,8 +1719,16 @@ define([
                 return strTime;
             }
 
-            // MM/dd/yyyy hh:mm AM
+            var lang = (this.mode ? this.mode.lang || 'en' : 'en').replace('_', '-').toLowerCase();
+            try {
+                if ( lang == 'ar-SA'.toLowerCase() ) lang = lang + '-u-nu-latn-ca-gregory';    // TODO: check Intl.Locale to support suitable options
+                return date.toLocaleString(lang, {dateStyle: 'short', timeStyle: 'short'});
+            } catch (e) {
+                lang = 'en';
+                return date.toLocaleString(lang, {dateStyle: 'short', timeStyle: 'short'});
+            }
 
+            // MM/dd/yyyy hh:mm AM
             return (date.getMonth() + 1) + '/' + (date.getDate()) + '/' + date.getFullYear() + ' ' + format(date);
         },
 
@@ -1512,21 +1738,112 @@ define([
         },
 
         setPreviewMode: function(mode) {
-            if (this.viewmode === mode) return;
-            this.viewmode = mode;
-            if (mode)
+            this._state.disableEditing = mode;
+            this.updatePreviewMode();
+        },
+
+        updatePreviewMode: function() {
+            var docProtection = this._state.docProtection;
+            var viewmode = this._state.disableEditing || docProtection.isReadOnly || docProtection.isFormsOnly;
+
+            if (this.viewmode === viewmode) return;
+            this.viewmode = viewmode;
+
+            if (viewmode)
                 this.prevcanComments = this.mode.canComments;
-            this.mode.canComments = (mode) ? false : this.prevcanComments;
+            this.mode.canComments = (viewmode) ? false : this.prevcanComments;
             this.closeEditing();
             this.setMode(this.mode);
             this.updateComments(true);
             if (this.getPopover())
-                mode ? this.getPopover().hide() : this.getPopover().update(true);
+                viewmode ? this.getPopover().hide() : this.getPopover().update(true);
         },
 
         clearCollections: function() {
             this.collection.reset();
             this.groupCollection = [];
+        },
+
+        fillUserGroups: function(usergroups) {
+            if (!this.mode.canUseCommentPermissions) return;
+
+            var viewgroups = AscCommon.UserInfoParser.getCommentPermissions('view');
+            if (usergroups && usergroups.length>0) {
+                if (viewgroups)
+                    usergroups = _.intersection(usergroups, viewgroups);
+                usergroups = _.uniq(this.userGroups.concat(usergroups));
+            }
+            var view = this.view;
+            if (view && view.buttonSort && _.difference(usergroups, this.userGroups).length>0) {
+                this.userGroups = usergroups;
+                view.hasFilters = this.userGroups.length>0;
+                view.buttonSort.updateHint(this.mode.canComments && !this.mode.compatibleFeatures ? (view.hasFilters ? view.textSortFilterMore : view.textSortMore) : (view.hasFilters ? view.textSortFilter : view.textSort));
+                var menu = view.buttonSort.menu;
+                menu.items[menu.items.length-3].setVisible(view.hasFilters);
+                menu.items[menu.items.length-4].setVisible(view.hasFilters);
+                menu = menu.items[menu.items.length-3].menu;
+                menu.removeAll();
+
+                var last = Common.Utils.InternalSettings.get(this.appPrefix + "comments-filtergroups");
+                menu.addItem(new Common.UI.MenuItem({
+                    checkable: true,
+                    checked: last===-1 || last===undefined,
+                    toggleGroup: 'filtercomments',
+                    caption: view.textAll,
+                    value: -1
+                }));
+                this.userGroups.forEach(function(item){
+                    menu.addItem(new Common.UI.MenuItem({
+                        checkable: true,
+                        checked: last === item,
+                        toggleGroup: 'filtercomments',
+                        caption: item,
+                        value: item
+                    }));
+                });
+            }
+        },
+
+        setFilterGroups: function (group) {
+            Common.Utils.InternalSettings.set(this.appPrefix + "comments-filtergroups", group);
+            var i, end = true;
+            for (i = this.collection.length - 1; i >= 0; --i) {
+                var item = this.collection.at(i);
+                if (!item.get('hide')) {
+                    var usergroups = item.get('parsedGroups');
+                    item.set('filtered', !!group && (group!==-1) && (!usergroups || usergroups.length<1 || usergroups.indexOf(group)<0), {silent: true});
+                }
+                if (end && !item.get('hide') && !item.get('filtered')) {
+                    item.set('last', true, {silent: true});
+                    end = false;
+                } else {
+                    if (item.get('last')) {
+                        item.set('last', false, {silent: true});
+                    }
+                }
+            }
+            this.updateComments(true);
+        },
+
+        onAppReady: function (config) {
+            var me = this;
+            (new Promise(function (accept, reject) {
+                accept();
+            })).then(function(){
+                me.onChangeProtectDocument();
+                Common.NotificationCenter.on('protect:doclock', _.bind(me.onChangeProtectDocument, me));
+            });
+        },
+
+        onChangeProtectDocument: function(props) {
+            if (!props) {
+                var docprotect = this.getApplication().getController('DocProtection');
+                props = docprotect ? docprotect.getDocProps() : null;
+            }
+            if (props) {
+                this._state.docProtection = props;
+                this.updatePreviewMode();
+            }
         }
 
     }, Common.Controllers.Comments || {}));

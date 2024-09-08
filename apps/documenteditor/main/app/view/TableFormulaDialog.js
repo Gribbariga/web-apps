@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -33,8 +32,7 @@
 /**
  *  TableFormulaDialog.js
  *
- *  Created by Julia Radzhabova on 1/21/19
- *  Copyright (c) 2019 Ascensio System SIA. All rights reserved.
+ *  Created on 1/21/19
  *
  */
 
@@ -47,7 +45,8 @@ define([
         options: {
             width: 300,
             style: 'min-width: 230px;',
-            cls: 'modal-dlg'
+            cls: 'modal-dlg',
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -56,7 +55,7 @@ define([
             }, options || {});
 
             this.template = [
-                '<div class="box" style="height: 150px;">',
+                '<div class="box">',
                     '<div class="input-row">',
                         '<label>' + this.textFormula + '</label>',
                     '</div>',
@@ -65,15 +64,11 @@ define([
                         '<label>' + this.textFormat + '</label>',
                     '</div>',
                     '<div id="id-dlg-formula-format" class="input-row" style="margin-bottom: 20px;"></div>',
-                    '<div class="input-row">',
-                        '<div id="id-dlg-formula-function" style="display: inline-block; width: 50%; padding-right: 10px; float: left;"></div>',
+                    '<div class="input-row" style="margin-bottom: 10px;">',
+                        '<div id="id-dlg-formula-function" style="display: inline-block; width: 50%;" class="float-left padding-right-10"></div>',
                         '<div id="id-dlg-formula-bookmark" style="display: inline-block; width: 50%;"></div>',
                     '</div>',
-                    '</div>',
-                '<div class="footer right">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
-                '</div>'
+                    '</div>'
             ].join('');
 
             this.options.tpl = _.template(this.template)(this.options);
@@ -99,7 +94,8 @@ define([
             this.cmbFormat = new Common.UI.ComboBox({
                 el          : $('#id-dlg-formula-format'),
                 cls         : 'input-group-nr',
-                menuStyle   : 'min-width: 100%; max-height: 200px;'
+                menuStyle   : 'min-width: 100%; max-height: 200px;',
+                takeFocusOnClose: true
             });
 
             this.cmbFunction = new Common.UI.ComboBox({
@@ -107,6 +103,7 @@ define([
                 cls         : 'input-group-nr',
                 menuStyle   : 'min-width: 100%; max-height: 150px;',
                 editable    : false,
+                takeFocusOnClose: true,
                 scrollAlwaysVisible: true,
                 data: [
                     {displayValue: 'ABS', value: 1},
@@ -115,6 +112,7 @@ define([
                     {displayValue: 'COUNT', value: 1},
                     {displayValue: 'DEFINED', value: 1},
                     {displayValue: 'FALSE', value: 0},
+                    {displayValue: 'IF', value: 1},
                     {displayValue: 'INT', value: 1},
                     {displayValue: 'MAX', value: 1},
                     {displayValue: 'MIN', value: 1},
@@ -143,7 +141,8 @@ define([
                 el          : $('#id-dlg-formula-bookmark'),
                 cls         : 'input-group-nr',
                 menuStyle   : 'min-width: 100%; max-height: 150px;',
-                editable    : false
+                editable    : false,
+                takeFocusOnClose: true
             });
             this.cmbBookmark.on('selected', _.bind(function(combo, record) {
                 combo.setValue(this.textBookmark);
@@ -156,25 +155,24 @@ define([
             }, this));
             this.cmbBookmark.setValue(this.textBookmark);
 
-            me.btnOk = new Common.UI.Button({
-                el: $window.find('.primary')
-            });
+            me.btnOk = _.find(this.getFooterButtons(), function (item) {
+                return (item.$el && item.$el.find('.primary').addBack().filter('.primary').length>0);
+            }) || new Common.UI.Button({ el: $window.find('.primary') });
 
             $window.find('.dlg-btn').on('click', _.bind(this.onBtnClick, this));
             this.afterRender();
         },
 
-        onSelectItem: function(picker, item, record, e){
-            this.btnOk.setDisabled(record.get('level')==0 && record.get('index')>0);
+        getFocusedComponents: function() {
+            return [this.inputFormula, this.cmbFormat, this.cmbFunction, this.cmbBookmark].concat(this.getFooterButtons());
         },
 
-        show: function() {
-            Common.UI.Window.prototype.show.apply(this, arguments);
+        getDefaultFocusableComponent: function () {
+            return this.inputFormula;
+        },
 
-            var me = this;
-            _.delay(function(){
-                me.inputFormula.cmpEl.find('input').focus();
-            },500);
+        onSelectItem: function(picker, item, record, e){
+            this.btnOk.setDisabled(record.get('level')==0 && record.get('index')>0);
         },
 
         afterRender: function() {
@@ -240,8 +238,6 @@ define([
         textFormat: 'Number Format',
         textBookmark: 'Paste Bookmark',
         textInsertFunction: 'Paste Function',
-        cancelButtonText:   'Cancel',
-        okButtonText:       'Ok',
         textTitle:          'Formula Settings'
     }, DE.Views.TableFormulaDialog || {}))
 });

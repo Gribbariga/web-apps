@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  Statusbar.js
  *
  *  Statusbar controller
  *
- *  Created by Maxim Kadushkin on 8 April 2014
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 8 April 2014
  *
  */
 
@@ -61,20 +59,17 @@ define([
                 'Statusbar': {
                     'langchanged': this.onLangMenu
                 },
-                'Common.Views.Header': {
-                    'statusbar:hide': function (view, status) {
-                        me.statusbar.setVisible(!status);
-                        Common.localStorage.setBool('pe-hidden-status', status);
-
-                        Common.NotificationCenter.trigger('layout:changed', 'status');
-                        Common.NotificationCenter.trigger('edit:complete', this.statusbar);
-                    }
+                'ViewTab': {
+                    'statusbar:hide': _.bind(me.onChangeCompactView, me),
+                    'viewmode:change': _.bind(me.onChangeViewMode, me)
                 }
             });
             this._state = {
                 zoom_type: undefined,
-                zoom_percent: undefined
+                zoom_percent: undefined,
+                slideMasterMode: false
             };
+            this._isZoomRecord = (Common.localStorage.getItem("pe-settings-zoom") != -3);
         },
 
         events: function() {
@@ -90,7 +85,9 @@ define([
 
             this.bindViewEvents(this.statusbar, this.events);
 
-            $('#status-label-zoom').css('min-width', 80);
+            var lblzoom = $('#status-label-zoom');
+            lblzoom.css('min-width', 80);
+            lblzoom.text(Common.Utils.String.format(this.zoomText, 100));
 
             this.statusbar.btnZoomToPage.on('click', _.bind(this.onBtnZoomTo, this, 'topage'));
             this.statusbar.btnZoomToWidth.on('click', _.bind(this.onBtnZoomTo, this, 'towidth'));
@@ -106,6 +103,13 @@ define([
                     me.btnSpelling.render( me.statusbar.$el.find('#btn-doc-spell') );
                     me.btnDocLang = review.getButton('doclang', 'statusbar');
                     me.btnDocLang.render( me.statusbar.$el.find('#btn-doc-lang') );
+
+                    var isVisible = (Common.UI.LayoutManager.isElementVisible('statusBar-textLang') || Common.UI.LayoutManager.isElementVisible('statusBar-docLang'))
+                                    && Common.UI.FeaturesManager.canChange('spellcheck');
+                    me.btnDocLang.$el.find('+.separator.space')[isVisible?'show':'hide']();
+                    isVisible = Common.UI.LayoutManager.isElementVisible('statusBar-textLang') || Common.UI.LayoutManager.isElementVisible('statusBar-docLang')
+                                || Common.UI.FeaturesManager.canChange('spellcheck');
+                    me.statusbar.$el.find('.el-lang')[isVisible?'show':'hide']();
                 } else {
                     me.statusbar.$el.find('.el-edit, .el-review').hide();
                 }
@@ -116,7 +120,7 @@ define([
             this.api = api;
             this.api.asc_registerCallback('asc_onZoomChange',   _.bind(this._onZoomChange, this));
             this.api.asc_registerCallback('asc_onTextLanguage', _.bind(this._onTextLanguage, this));
-
+            this.api.asc_registerCallback('asc_onDocumentContentReady', _.bind(function (){this._isZoomRecord = true;}, this));
             this.statusbar.setApi(api);
         },
 
@@ -147,7 +151,8 @@ define([
         },
 
         onPreview: function(slidenum, presenter) {
-            Common.NotificationCenter.trigger('preview:start', _.isNumber(slidenum) ? slidenum : 0, presenter);
+            var slideNum = this._state.slideMasterMode ? 0 : (_.isNumber(slidenum) ? slidenum : 0);
+            Common.NotificationCenter.trigger('preview:start', slideNum, presenter);
         },
 
         onPreviewBtnClick: function(btn, e) {
@@ -181,6 +186,8 @@ define([
              if (this._state.zoom_percent !== percent) {
                  $('#status-label-zoom').text(Common.Utils.String.format(this.zoomText, percent));
                  this._state.zoom_percent = percent;
+                 if(!this._isZoomRecord ) return;
+                 Common.localStorage.setItem('pe-last-zoom', percent);
              }
         },
 
@@ -198,13 +205,14 @@ define([
             this.statusbar.reloadLanguages(langs);
         },
 
-        setStatusCaption: function(text, force, delay) {
+        setStatusCaption: function(text, force, delay, callback) {
             if (this.timerCaption && ( ((new Date()) < this.timerCaption) || text.length==0 ) && !force )
                 return;
 
             this.timerCaption = undefined;
             if (text.length) {
                 this.statusbar.showStatusMessage(text);
+                callback && callback();
                 if (delay>0)
                     this.timerCaption = (new Date()).getTime() + delay;
             } else
@@ -219,6 +227,54 @@ define([
             this.api.put_TextPrLang(langid);
         },
 
-        zoomText        : 'Zoom {0}%'
+        onChangeCompactView: function (view, status) {
+            this.statusbar.setVisible(!status);
+            Common.localStorage.setBool('pe-hidden-status', status);
+
+            if (view.$el.closest('.btn-slot').prop('id') === 'slot-btn-options') {
+                this.statusbar.fireEvent('view:hide', [this, status]);
+            }
+
+            Common.NotificationCenter.trigger('layout:changed', 'status');
+            Common.NotificationCenter.trigger('edit:complete', this.statusbar);
+        },
+
+        showDisconnectTip: function () {
+            var me = this;
+            if (!this.disconnectTip) {
+                var target = this.statusbar.getStatusLabel();
+                target = target.is(':visible') ? target.parent() : this.statusbar.isVisible() ? this.statusbar.$el : $(document.body);
+                this.disconnectTip = new Common.UI.SynchronizeTip({
+                    target  : target,
+                    text    : this.textDisconnect,
+                    placement: 'top',
+                    position: this.statusbar.isVisible() ? undefined : {bottom: 0},
+                    showLink: false,
+                    style: 'max-width: 310px;'
+                });
+                this.disconnectTip.on({
+                    'closeclick': function() {
+                        me.disconnectTip.hide();
+                        me.disconnectTip = null;
+                    }
+                });
+            }
+            this.disconnectTip.show();
+        },
+
+        hideDisconnectTip: function() {
+            this.disconnectTip && this.disconnectTip.hide();
+            this.disconnectTip = null;
+        },
+
+        onChangeViewMode: function (mode) {
+             var isSlideMaster = mode === 'master';
+             this._state.slideMasterMode = isSlideMaster;
+             this.statusbar.showSlideMasterStatus(isSlideMaster);
+        },
+
+        zoomText        : 'Zoom {0}%',
+        textDisconnect: '<b>Connection is lost</b><br>Trying to connect. Please check connection settings.'
+
     }, PE.Controllers.Statusbar || {}));
 });

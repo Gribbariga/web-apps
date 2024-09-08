@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ChartSettings.js
  *
- *  Created by Julia Radzhabova on 3/28/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 3/28/14
  *
  */
 
@@ -46,7 +44,9 @@ define([
     'common/main/lib/component/Button',
     'common/main/lib/component/MetricSpinner',
     'common/main/lib/component/ComboDataView',
-    'spreadsheeteditor/main/app/view/ChartSettingsDlg'
+    'spreadsheeteditor/main/app/view/ChartSettingsDlg',
+    'spreadsheeteditor/main/app/view/ChartDataDialog',
+    'spreadsheeteditor/main/app/view/ChartWizardDialog'
 ], function (menuTemplate, $, _, Backbone) {
     'use strict';
 
@@ -111,6 +111,8 @@ define([
             this.ChartTypesContainer = $('#chart-panel-types');
             this.SparkTypesContainer = $('#spark-panel-types');
             this.SparkPointsContainer = $('#spark-panel-points');
+            this.NotCombinedSettings = $('.not-combined');
+            this.Chart3DContainer = $('#chart-panel-3d-rotate');
         },
 
         render: function () {
@@ -124,6 +126,7 @@ define([
             this.api = api;
             if (this.api) {
                 this.api.asc_registerCallback('asc_onUpdateChartStyles', _.bind(this._onUpdateChartStyles, this));
+                this.api.asc_registerCallback('asc_onAddChartStylesPreview', _.bind(this.onAddChartStylesPreview, this));
             }
             return this;
         },
@@ -132,11 +135,23 @@ define([
             if (this._initSettings)
                 this.createDelayedElements();
 
-            this.ShowHideElem(!!(props && props.asc_getChartProperties && props.asc_getChartProperties()));
+            if (this._isEditType) {
+                this._props = props;
+                return;
+            }
+
+            var isChart = !!(props && props.asc_getChartProperties && props.asc_getChartProperties()),
+                chartSettings = isChart ? this.api.asc_getChartObject(true) : null, // don't lock chart object
+                props3d = chartSettings ? chartSettings.getView3d() : null;
+
+            if ( this.isChart!==isChart || this._state.is3D!==!!props3d ) {
+                this.ShowHideElem(isChart, !!props3d);
+            }
+            this._state.is3D=!!props3d;
             this.disableControls(this._locked);
 
             if (this.api && props){
-                if (props.asc_getChartProperties && props.asc_getChartProperties()) { // chart
+                if (isChart) { // chart
                     this._originalProps = new Asc.asc_CImgProperty(props);
                     this.isChart = true;
 
@@ -150,46 +165,31 @@ define([
                     }
 
                     value = props.asc_getSeveralChartTypes();
-                    if (this._state.SeveralCharts && value) {
-                        this.btnChartType.setIconCls('');
-                        this._state.ChartType = null;
-                    } else {
-                        var type = this.chartProps.getType();
-                        if (this._state.ChartType !== type) {
-                            var record = this.mnuChartTypePicker.store.findWhere({type: type});
-                            this.mnuChartTypePicker.selectRecord(record, true);
-                            if (record) {
-                                this.btnChartType.setIconCls('item-chartlist ' + record.get('iconCls'));
-                            } else
-                                this.btnChartType.setIconCls('');
-                            this.updateChartStyles(this.api.asc_getChartPreviews(type));
-                            this._state.ChartType = type;
-                        }
+                    var type = (this._state.SeveralCharts && value) ? null : this.chartProps.getType();
+                    if (this._state.ChartType !== type) {
+                        this.ShowCombinedProps(type);
+                        !(type===null || type==Asc.c_oAscChartTypeSettings.comboBarLine || type==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
+                        type==Asc.c_oAscChartTypeSettings.comboAreaBar || type==Asc.c_oAscChartTypeSettings.comboCustom) && this.updateChartStyles(this.api.asc_getChartPreviews(type, undefined, true));
+                        this._state.ChartType = type;
                     }
 
-                    value = props.asc_getSeveralChartStyles();
-                    if (this._state.SeveralCharts && value) {
-                        this.cmbChartStyle.fieldPicker.deselectAll();
-                        this.cmbChartStyle.menuPicker.deselectAll();
-                        this._state.ChartStyle = null;
-                    } else {
-                        value = this.chartProps.getStyle();
-                        if (this._state.ChartStyle!==value || this._isChartStylesChanged) {
-                            this.cmbChartStyle.suspendEvents();
-                            var rec = this.cmbChartStyle.menuPicker.store.findWhere({data: value});
-                            this.cmbChartStyle.menuPicker.selectRecord(rec);
-                            this.cmbChartStyle.resumeEvents();
-
-                            if (this._isChartStylesChanged) {
-                                if (rec)
-                                    this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.getSelectedRec(),true);
-                                else
-                                    this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.store.at(0), true);
+                    if (!(type==Asc.c_oAscChartTypeSettings.comboBarLine || type==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
+                          type==Asc.c_oAscChartTypeSettings.comboAreaBar || type==Asc.c_oAscChartTypeSettings.comboCustom)) {
+                        value = props.asc_getSeveralChartStyles();
+                        if (this._state.SeveralCharts && value) {
+                            this.cmbChartStyle.fieldPicker.deselectAll();
+                            this.cmbChartStyle.menuPicker.deselectAll();
+                            this._state.ChartStyle = null;
+                        } else {
+                            value = this.chartProps.getStyle();
+                            if (this._state.ChartStyle!==value || this._isChartStylesChanged) {
+                                this._state.ChartStyle=value;
+                                var arr = this.selectCurrentChartStyle();
+                                this._isChartStylesChanged && this.api.asc_generateChartPreviews(this._state.ChartType, arr);
                             }
-                            this._state.ChartStyle=value;
                         }
+                        this._isChartStylesChanged = false;
                     }
-                    this._isChartStylesChanged = false;
 
                     this._noApply = false;
 
@@ -215,6 +215,58 @@ define([
                         this.btnRatio.toggle(value);
                         this._state.keepRatio=value;
                     }
+
+                    var series = chartSettings ? chartSettings.getSeries() : null;
+                    this.btnSwitch.setDisabled(this._locked || !series || series.length<1 || !chartSettings || !chartSettings.getRange());
+
+                    if (props3d) {
+                        value = props3d.asc_getRotX();
+                        if ((this._state.X===undefined || value===undefined)&&(this._state.X!==value) ||
+                            Math.abs(this._state.X-value)>0.001) {
+                            this.spnX.setValue((value!==null && value !== undefined) ? value : '', true);
+                            this._state.X = value;
+                        }
+
+                        value = props3d.asc_getRotY();
+                        if ( (this._state.Y===undefined || value===undefined)&&(this._state.Y!==value) ||
+                            Math.abs(this._state.Y-value)>0.001) {
+                            this.spnY.setValue((value!==null && value !== undefined) ? value : '', true);
+                            this._state.Y = value;
+                        }
+
+                        value = props3d.asc_getRightAngleAxes();
+                        if ( this._state.RightAngle!==value ) {
+                            this.chRightAngle.setValue((value !== null && value !== undefined) ? value : 'indeterminate', true);
+                            this._state.RightAngle=value;
+                        }
+
+                        value = props3d.asc_getPerspective();
+                        if ( (this._state.Perspective===undefined || value===undefined)&&(this._state.Perspective!==value) ||
+                            Math.abs(this._state.Perspective-value)>0.001) {
+                            this.spnPerspective.setMinValue((value!==null && value !== undefined) ? 0.1 : 0);
+                            this.spnPerspective.setValue((value!==null && value !== undefined) ? value : 0, true);
+                            this._state.Perspective = value;
+                        }
+                        this.spnPerspective.setDisabled(this._locked || !!this._state.RightAngle);
+                        this.btnNarrow.setDisabled(this._locked || !!this._state.RightAngle);
+                        this.btnWiden.setDisabled(this._locked || !!this._state.RightAngle);
+
+                        value = props3d.asc_getDepth();
+                        if ( Math.abs(this._state.Depth-value)>0.001 ||
+                            (this._state.Depth===undefined || value===undefined)&&(this._state.Depth!==value)) {
+                            this.spn3DDepth.setValue((value!==null && value !== undefined) ? value : '', true);
+                            this._state.Depth = value;
+                        }
+
+                        value = props3d.asc_getHeight();
+                        if ( Math.abs(this._state.Height3d-value)>0.001 ||
+                            (this._state.Height3d===undefined || this._state.Height3d===null || value===null)&&(this._state.Height3d!==value)) {
+                            (value!==null) && this.spn3DHeight.setValue(value, true);
+                            this.chAutoscale.setValue(value===null, true);
+                            this._state.Height3d = value;
+                        }
+                        this.spn3DHeight.setDisabled(this._locked || value===null);
+                    }
                 } else { //sparkline
                     this._originalProps = props;
                     this.isChart = false;
@@ -226,9 +278,9 @@ define([
                         var record = this.mnuSparkTypePicker.store.findWhere({type: type});
                         this.mnuSparkTypePicker.selectRecord(record, true);
                         if (record) {
-                            this.btnSparkType.setIconCls('item-chartlist ' + record.get('iconCls'));
+                            this.btnSparkType.setIconCls('svgicon ' + 'chart-' + record.get('iconCls'));
                         } else
-                            this.btnSparkType.setIconCls('');
+                            this.btnSparkType.setIconCls('svgicon');
                         this._state.SparkType = type;
                         styleChanged = true;
                     }
@@ -514,122 +566,72 @@ define([
                     spinner.setDefaultUnit(Common.Utils.Metric.getCurrentMetricName());
                     spinner.setStep(Common.Utils.Metric.getCurrentMetric()==Common.Utils.Metric.c_MetricUnits.pt ? 1 : 0.1);
                 }
+                this.spnWidth && this.spnWidth.setValue((this._state.Width!==null) ? Common.Utils.Metric.fnRecalcFromMM(this._state.Width) : '', true);
+                this.spnHeight && this.spnHeight.setValue((this._state.Height!==null) ? Common.Utils.Metric.fnRecalcFromMM(this._state.Height) : '', true);
             }
         },
 
         UpdateThemeColors: function() {
+            if (this._initSettings) return;
             var defValue;
             if (!this.btnSparkColor) {
                 defValue = this.defColor;
 
                 this.btnSparkColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
+                    parentEl: $('#spark-color-btn'),
+                    color: '000000'
                 });
-                this.btnSparkColor.render( $('#spark-color-btn'));
-                this.btnSparkColor.setColor('000000');
                 this.lockedControls.push(this.btnSparkColor);
-                this.colorsSpark = new Common.UI.ThemeColorPalette({
-                    el: $('#spark-color-menu'),
-                    value: '000000'
-                });
-                this.colorsSpark.on('select', _.bind(this.onColorsSparkSelect, this));
-                this.btnSparkColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsSpark, this.btnSparkColor));
+                this.colorsSpark = this.btnSparkColor.getPicker();
+                this.btnSparkColor.on('color:select', _.bind(this.onColorsSparkSelect, this));
 
                 this.btnHighColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-high-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-high-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-high-color-btn'));
+                    parentEl: $('#spark-high-color-btn')
+                });
                 this.btnHighColor.setColor(this.defColor.color);
                 this.lockedControls.push(this.btnHighColor);
-                this.colorsHigh = new Common.UI.ThemeColorPalette({ el: $('#spark-high-color-menu') });
-                this.colorsHigh.on('select', _.bind(this.onColorsPointSelect, this, 0, this.btnHighColor));
-                this.btnHighColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsHigh, this.btnHighColor));
+                this.colorsHigh = this.btnHighColor.getPicker();
+                this.btnHighColor.on('color:select', _.bind(this.onColorsPointSelect, this, 0));
 
                 this.btnLowColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-low-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-low-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-low-color-btn'));
+                    parentEl: $('#spark-low-color-btn')
+                });
                 this.btnLowColor.setColor(this.defColor.color);
                 this.lockedControls.push(this.btnLowColor);
-                this.colorsLow = new Common.UI.ThemeColorPalette({ el: $('#spark-low-color-menu') });
-                this.colorsLow.on('select', _.bind(this.onColorsPointSelect, this, 1, this.btnLowColor));
-                this.btnLowColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsLow, this.btnLowColor));
+                this.colorsLow = this.btnLowColor.getPicker();
+                this.btnLowColor.on('color:select', _.bind(this.onColorsPointSelect, this, 1));
 
                 this.btnNegativeColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-negative-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-negative-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-negative-color-btn'));
+                    parentEl: $('#spark-negative-color-btn')
+                });
                 this.btnNegativeColor.setColor(this.defColor.color);
                 this.lockedControls.push(this.btnNegativeColor);
-                this.colorsNegative = new Common.UI.ThemeColorPalette({ el: $('#spark-negative-color-menu') });
-                this.colorsNegative.on('select', _.bind(this.onColorsPointSelect, this, 2, this.btnNegativeColor));
-                this.btnNegativeColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsNegative, this.btnNegativeColor));
+                this.colorsNegative = this.btnNegativeColor.getPicker();
+                this.btnNegativeColor.on('color:select', _.bind(this.onColorsPointSelect, this, 2));
 
                 this.btnFirstColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-first-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-first-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-first-color-btn'));
+                    parentEl: $('#spark-first-color-btn')
+                });
                 this.lockedControls.push(this.btnFirstColor);
-                this.colorsFirst = new Common.UI.ThemeColorPalette({ el: $('#spark-first-color-menu') });
-                this.colorsFirst.on('select', _.bind(this.onColorsPointSelect, this, 3, this.btnFirstColor));
                 this.btnFirstColor.setColor(this.defColor.color);
-                this.btnFirstColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsFirst, this.btnFirstColor));
+                this.colorsFirst = this.btnFirstColor.getPicker();
+                this.btnFirstColor.on('color:select', _.bind(this.onColorsPointSelect, this, 3));
 
                 this.btnLastColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-last-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-last-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-last-color-btn'));
+                    parentEl: $('#spark-last-color-btn')
+                });
                 this.btnLastColor.setColor(this.defColor.color);
                 this.lockedControls.push(this.btnLastColor);
-                this.colorsLast = new Common.UI.ThemeColorPalette({ el: $('#spark-last-color-menu') });
-                this.colorsLast.on('select', _.bind(this.onColorsPointSelect, this, 4, this.btnLastColor));
-                this.btnLastColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsLast, this.btnLastColor));
+                this.colorsLast = this.btnLastColor.getPicker();
+                this.btnLastColor.on('color:select', _.bind(this.onColorsPointSelect, this, 4));
 
                 this.btnMarkersColor = new Common.UI.ColorButton({
-                    style: "width:45px;",
-                    menu        : new Common.UI.Menu({
-                        items: [
-                            { template: _.template('<div id="spark-markers-color-menu" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                            { template: _.template('<a id="spark-markers-color-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                        ]
-                    })
-                }).render( $('#spark-markers-color-btn'));
+                    parentEl: $('#spark-markers-color-btn')
+                });
                 this.btnMarkersColor.setColor(this.defColor.color);
                 this.lockedControls.push(this.btnMarkersColor);
-                this.colorsMarkers = new Common.UI.ThemeColorPalette({ el: $('#spark-markers-color-menu') });
-                this.colorsMarkers.on('select', _.bind(this.onColorsPointSelect, this, 5, this.btnMarkersColor));
-                this.btnMarkersColor.menu.items[1].on('click',  _.bind(this.addNewColor, this, this.colorsMarkers, this.btnMarkersColor));
+                this.colorsMarkers = this.btnMarkersColor.getPicker();
+                this.btnMarkersColor.on('color:select', _.bind(this.onColorsPointSelect, this, 5));
             }
             this.colorsSpark.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
             this.colorsHigh.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors(), defValue);
@@ -650,71 +652,6 @@ define([
         createDelayedControls: function() {
             var me = this;
 
-            // charts
-            this.btnChartType = new Common.UI.Button({
-                cls         : 'btn-large-dataview',
-                iconCls     : 'item-chartlist bar-normal',
-                menu        : new Common.UI.Menu({
-                    style: 'width: 435px; padding-top: 12px;',
-                    items: [
-                        { template: _.template('<div id="id-chart-menu-type" class="menu-insertchart"  style="margin: 5px 5px 5px 10px;"></div>') }
-                    ]
-                })
-            });
-
-            this.btnChartType.on('render:after', function(btn) {
-                me.mnuChartTypePicker = new Common.UI.DataView({
-                    el: $('#id-chart-menu-type'),
-                    parentMenu: btn.menu,
-                    restoreHeight: 421,
-                    groups: new Common.UI.DataViewGroupStore([
-                        { id: 'menu-chart-group-bar',     caption: me.textColumn },
-                        { id: 'menu-chart-group-line',    caption: me.textLine },
-                        { id: 'menu-chart-group-pie',     caption: me.textPie },
-                        { id: 'menu-chart-group-hbar',    caption: me.textBar },
-                        { id: 'menu-chart-group-area',    caption: me.textArea, inline: true },
-                        { id: 'menu-chart-group-scatter', caption: me.textPoint, inline: true },
-                        { id: 'menu-chart-group-stock',   caption: me.textStock, inline: true }
-                        // { id: 'menu-chart-group-surface', caption: me.textSurface}
-                    ]),
-                    store: new Common.UI.DataViewStore([
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barNormal,          iconCls: 'column-normal', selected: true},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barStacked,         iconCls: 'column-stack'},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barStackedPer,      iconCls: 'column-pstack'},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barNormal3d,        iconCls: 'column-3d-normal'},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barStacked3d,       iconCls: 'column-3d-stack'},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barStackedPer3d,    iconCls: 'column-3d-pstack'},
-                        { group: 'menu-chart-group-bar',     type: Asc.c_oAscChartTypeSettings.barNormal3dPerspective,    iconCls: 'column-3d-normal-per'},
-                        { group: 'menu-chart-group-line',    type: Asc.c_oAscChartTypeSettings.lineNormal,         iconCls: 'line-normal'},
-                        { group: 'menu-chart-group-line',    type: Asc.c_oAscChartTypeSettings.lineStacked,        iconCls: 'line-stack'},
-                        { group: 'menu-chart-group-line',    type: Asc.c_oAscChartTypeSettings.lineStackedPer,     iconCls: 'line-pstack'},
-                        { group: 'menu-chart-group-line',    type: Asc.c_oAscChartTypeSettings.line3d,             iconCls: 'line-3d'},
-                        { group: 'menu-chart-group-pie',     type: Asc.c_oAscChartTypeSettings.pie,                iconCls: 'pie-normal'},
-                        { group: 'menu-chart-group-pie',     type: Asc.c_oAscChartTypeSettings.doughnut,           iconCls: 'pie-doughnut'},
-                        { group: 'menu-chart-group-pie',     type: Asc.c_oAscChartTypeSettings.pie3d,              iconCls: 'pie-3d-normal'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarNormal,         iconCls: 'bar-normal'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarStacked,        iconCls: 'bar-stack'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarStackedPer,     iconCls: 'bar-pstack'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarNormal3d,       iconCls: 'bar-3d-normal'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarStacked3d,      iconCls: 'bar-3d-stack'},
-                        { group: 'menu-chart-group-hbar',    type: Asc.c_oAscChartTypeSettings.hBarStackedPer3d,   iconCls: 'bar-3d-pstack'},
-                        { group: 'menu-chart-group-area',    type: Asc.c_oAscChartTypeSettings.areaNormal,         iconCls: 'area-normal'},
-                        { group: 'menu-chart-group-area',    type: Asc.c_oAscChartTypeSettings.areaStacked,        iconCls: 'area-stack'},
-                        { group: 'menu-chart-group-area',    type: Asc.c_oAscChartTypeSettings.areaStackedPer,     iconCls: 'area-pstack'},
-                        { group: 'menu-chart-group-scatter', type: Asc.c_oAscChartTypeSettings.scatter,            iconCls: 'point-normal'},
-                        { group: 'menu-chart-group-stock',   type: Asc.c_oAscChartTypeSettings.stock,              iconCls: 'stock-normal'}
-                        // { group: 'menu-chart-group-surface', type: Asc.c_oAscChartTypeSettings.surfaceNormal,      iconCls: 'surface-normal'},
-                        // { group: 'menu-chart-group-surface', type: Asc.c_oAscChartTypeSettings.surfaceWireframe,   iconCls: 'surface-wireframe'},
-                        // { group: 'menu-chart-group-surface', type: Asc.c_oAscChartTypeSettings.contourNormal,      iconCls: 'contour-normal'},
-                        // { group: 'menu-chart-group-surface', type: Asc.c_oAscChartTypeSettings.contourWireframe,   iconCls: 'contour-wireframe'}
-                    ]),
-                    itemTemplate: _.template('<div id="<%= id %>" class="item-chartlist <%= iconCls %>"></div>')
-                });
-            });
-            this.btnChartType.render($('#chart-button-type'));
-            this.mnuChartTypePicker.on('item:click', _.bind(this.onSelectType, this, this.btnChartType));
-            this.lockedControls.push(this.btnChartType);
-
             this.spnWidth = new Common.UI.MetricSpinner({
                 el: $('#chart-spin-width'),
                 step: .1,
@@ -722,7 +659,10 @@ define([
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.spnWidth);
             this.lockedControls.push(this.spnWidth);
@@ -734,22 +674,30 @@ define([
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.spnHeight);
             this.lockedControls.push(this.spnHeight);
 
             this.spnWidth.on('change', _.bind(this.onWidthChange, this));
             this.spnHeight.on('change', _.bind(this.onHeightChange, this));
+            this.spnWidth.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+            this.spnHeight.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
 
             this.btnRatio = new Common.UI.Button({
+                parentEl: $('#chart-button-ratio'),
                 cls: 'btn-toolbar',
-                iconCls: 'advanced-btn-ratio',
+                iconCls: 'toolbar__icon btn-advanced-ratio',
                 style: 'margin-bottom: 1px;',
                 enableToggle: true,
-                hint: this.textKeepRatio
+                hint: this.textKeepRatio,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
-            this.btnRatio.render($('#chart-button-ratio')) ;
             this.lockedControls.push(this.btnRatio);
 
             this.btnRatio.on('click', _.bind(function(btn, e) {
@@ -766,11 +714,11 @@ define([
             // sparks
             this.btnSparkType = new Common.UI.Button({
                 cls         : 'btn-large-dataview',
-                iconCls     : 'item-chartlist spark-column',
+                iconCls     : 'svgicon chart-spark-column',
                 menu        : new Common.UI.Menu({
-                    style: 'width: 200px; padding-top: 12px;',
+                    style: 'width: 167px;',
                     items: [
-                        { template: _.template('<div id="id-spark-menu-type" class="menu-insertchart"  style="margin: 5px 5px 0 10px;"></div>') }
+                        { template: _.template('<div id="id-spark-menu-type" class="menu-insertchart"></div>') }
                     ]
                 })
             });
@@ -780,17 +728,10 @@ define([
                     parentMenu: btn.menu,
                     restoreHeight: 120,
                     allowScrollbar: false,
-                    groups: new Common.UI.DataViewGroupStore([
-                        { id: 'menu-chart-group-sparkcolumn', inline: true },
-                        { id: 'menu-chart-group-sparkline', inline: true },
-                        { id: 'menu-chart-group-sparkwin', inline: true }
-                    ]),
-                    store: new Common.UI.DataViewStore([
-                        { group: 'menu-chart-group-sparkcolumn',   type: Asc.c_oAscSparklineType.Column,    allowSelected: true, iconCls: 'spark-column', tip: me.textColumnSpark},
-                        { group: 'menu-chart-group-sparkline',     type: Asc.c_oAscSparklineType.Line,      allowSelected: true, iconCls: 'spark-line',   tip: me.textLineSpark},
-                        { group: 'menu-chart-group-sparkwin',      type: Asc.c_oAscSparklineType.Stacked,   allowSelected: true, iconCls: 'spark-win',    tip: me.textWinLossSpark}
-                    ]),
-                    itemTemplate: _.template('<div id="<%= id %>" class="item-chartlist <%= iconCls %>"></div>')
+                    groups: new Common.UI.DataViewGroupStore(Common.define.chartData.getSparkGroupData()),
+                    store: new Common.UI.DataViewStore(Common.define.chartData.getSparkData()),
+                    itemTemplate: _.template('<div id="<%= id %>" class="item-chartlist"><svg width="40" height="40" class=\"icon uni-scale\"><use xlink:href=\"#chart-<%= iconCls %>\"></use></svg></div>'),
+                    delayRenderTips: true
                 });
             });
             this.btnSparkType.render($('#spark-button-type'));
@@ -852,28 +793,267 @@ define([
             this.chLastPoint.on('change', _.bind(this.onCheckPointChange, this, 4));
             this.chMarkersPoint.on('change', _.bind(this.onCheckPointChange, this, 5));
 
+            this.btnChangeType = new Common.UI.Button({
+                parentEl: $('#chart-btn-change-type'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-menu-chart',
+                caption     : this.textChangeType,
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+            this.btnChangeType.on('click', _.bind(this.onChangeType, this));
+            this.lockedControls.push(this.btnChangeType);
+
             this.btnSelectData = new Common.UI.Button({
-                el: $('#chart-btn-select-data')
+                parentEl: $('#chart-btn-select-data'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-select-range',
+                caption     : this.textSelectData,
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.btnSelectData.on('click', _.bind(this.onSelectData, this));
             this.lockedControls.push(this.btnSelectData);
+
+            this.btnSwitch = new Common.UI.Button({
+                parentEl: $('#chart-btn-switch'),
+                cls         : 'btn-toolbar align-left',
+                iconCls     : 'toolbar__icon btn-switch-row-column',
+                caption     : this.textSwitch,
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+            this.btnSwitch.on('click', _.bind(this.onSwitch, this));
+            this.lockedControls.push(this.btnSwitch);
+
+            // 3d rotation
+            this.spnX = new Common.UI.MetricSpinner({
+                el: $('#chart-spin-x'),
+                step: 10,
+                width: 57,
+                defaultUnit : "°",
+                value: '20 °',
+                maxValue: 359.9,
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.spnX);
+            this.spnX.on('change', _.bind(this.onXRotation, this));
+            this.spnX.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+
+            this.btnLeft = new Common.UI.Button({
+                parentEl: $('#chart-btn-x-left', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-270',
+                hint: this.textLeft,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnLeft);
+            this.btnLeft.on('click', _.bind(function() {
+                this.spnX.setValue(Math.ceil((this.spnX.getNumberValue() - 10)/10)*10);
+            }, this));
+
+            this.btnRight= new Common.UI.Button({
+                parentEl: $('#chart-btn-x-right', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-90',
+                hint: this.textRight,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnRight);
+            this.btnRight.on('click', _.bind(function() {
+                this.spnX.setValue(Math.floor((this.spnX.getNumberValue() + 10)/10)*10);
+            }, this));
+
+            this.spnY = new Common.UI.MetricSpinner({
+                el: $('#chart-spin-y'),
+                step: 10,
+                width: 57,
+                defaultUnit : "°",
+                value: '15 °',
+                maxValue: 90,
+                minValue: -90,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.spnY);
+            this.spnY.on('change', _.bind(this.onYRotation, this));
+            this.spnY.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+
+            this.btnUp = new Common.UI.Button({
+                parentEl: $('#chart-btn-y-up', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-y-clockwise',
+                hint: this.textUp,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnUp);
+            this.btnUp.on('click', _.bind(function() {
+                this.spnY.setValue(Math.ceil((this.spnY.getNumberValue() - 10)/10)*10);
+            }, this));
+
+            this.btnDown= new Common.UI.Button({
+                parentEl: $('#chart-btn-y-down', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-y-counterclockwise',
+                hint: this.textDown,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnDown);
+            this.btnDown.on('click', _.bind(function() {
+                this.spnY.setValue(Math.floor((this.spnY.getNumberValue() + 10)/10)*10);
+            }, this));
+
+            this.spnPerspective = new Common.UI.MetricSpinner({
+                el: $('#chart-spin-persp'),
+                step: 5,
+                width: 57,
+                defaultUnit : "°",
+                value: '0 °',
+                maxValue: 100,
+                minValue: 0.1,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.spnPerspective);
+            this.spnPerspective.on('change', _.bind(this.onPerspective, this));
+            this.spnPerspective.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+
+            this.btnNarrow = new Common.UI.Button({
+                parentEl: $('#chart-btn-narrow', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-up',
+                hint: this.textNarrow,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnNarrow);
+            this.btnNarrow.on('click', _.bind(function() {
+                this.spnPerspective.setValue(Math.ceil((this.spnPerspective.getNumberValue() - 5)/5)*5);
+            }, this));
+
+            this.btnWiden= new Common.UI.Button({
+                parentEl: $('#chart-btn-widen', me.$el),
+                cls: 'btn-toolbar',
+                iconCls: 'toolbar__icon btn-rotate-down',
+                hint: this.textWiden,
+                dataHint: '1',
+                dataHintDirection: 'top'
+            });
+            this.lockedControls.push(this.btnWiden);
+            this.btnWiden.on('click', _.bind(function() {
+                this.spnPerspective.setValue(Math.floor((this.spnPerspective.getNumberValue() + 5)/5)*5);
+            }, this));
+
+            this.chRightAngle = new Common.UI.CheckBox({
+                el: $('#chart-checkbox-right-angle'),
+                labelText: this.textRightAngle
+            });
+            this.lockedControls.push(this.chRightAngle);
+            this.chRightAngle.on('change', _.bind(function(field, newValue, oldValue, eOpts) {
+                if (this.api){
+                    var props = this.api.asc_getChartObject(true);
+                    if (props) {
+                        var oView3D = props.getView3d();
+                        if (oView3D) {
+                            oView3D.asc_setRightAngleAxes(field.getValue()=='checked');
+                            props.startEdit();
+                            props.setView3d(oView3D);
+                            props.endEdit();
+                        }
+                    }
+                }
+            }, this));
+
+            this.chAutoscale = new Common.UI.CheckBox({
+                el: $('#chart-checkbox-autoscale'),
+                labelText: this.textAutoscale
+            });
+            this.lockedControls.push(this.chAutoscale);
+            this.chAutoscale.on('change', _.bind(function(field, newValue, oldValue, eOpts) {
+                if (this.api){
+                    var props = this.api.asc_getChartObject(true);
+                    if (props) {
+                        var oView3D = props.getView3d();
+                        if (oView3D) {
+                            oView3D.asc_setHeight(field.getValue()=='checked' ? null : this.spn3DHeight.getNumberValue());
+                            props.startEdit();
+                            props.setView3d(oView3D);
+                            props.endEdit();
+                        }
+                    }
+                }
+            }, this));
+
+            this.spn3DDepth = new Common.UI.MetricSpinner({
+                el: $('#chart-spin-3d-depth'),
+                step: 10,
+                width: 70,
+                defaultUnit : "%",
+                value: '0 %',
+                maxValue: 2000,
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.spn3DDepth);
+            this.spn3DDepth.on('change', _.bind(this.on3DDepth, this));
+            this.spn3DDepth.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+
+            this.spn3DHeight = new Common.UI.MetricSpinner({
+                el: $('#chart-spin-3d-height'),
+                step: 10,
+                width: 70,
+                defaultUnit : "%",
+                value: '50 %',
+                maxValue: 500,
+                minValue: 5,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            });
+            this.lockedControls.push(this.spn3DHeight);
+            this.spn3DHeight.on('change', _.bind(this.on3DHeight, this));
+            this.spn3DHeight.on('inputleave', function(){ Common.NotificationCenter.trigger('edit:complete', me);});
+
+            this.linkDefRotation = $('#chart-def-rotate-link');
+            $(this.el).on('click', '#chart-def-rotate-link', _.bind(this.onDefRotation, this));
 
             this.linkAdvanced = $('#chart-advanced-link');
             $(this.el).on('click', '#chart-advanced-link', _.bind(this.openAdvancedSettings, this));
         },
 
         createDelayedElements: function() {
+            this._initSettings = false;
             this.createDelayedControls();
             this.updateMetricUnit();
             this.UpdateThemeColors();
-            this._initSettings = false;
         },
 
-        ShowHideElem: function(isChart) {
+        ShowHideElem: function(isChart, is3D) {
             this.ChartSizeContainer.toggleClass('settings-hidden', !isChart);
             this.ChartTypesContainer.toggleClass('settings-hidden', !isChart);
             this.SparkTypesContainer.toggleClass('settings-hidden', isChart);
             this.SparkPointsContainer.toggleClass('settings-hidden', isChart);
+            this.Chart3DContainer.toggleClass('settings-hidden', !isChart || !is3D);
+            this.fireEvent('updatescroller', this);
+        },
+
+        ShowCombinedProps: function(type) {
+            this.NotCombinedSettings.toggleClass('settings-hidden', type===null || type==Asc.c_oAscChartTypeSettings.comboBarLine || type==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
+                                                                    type==Asc.c_oAscChartTypeSettings.comboAreaBar || type==Asc.c_oAscChartTypeSettings.comboCustom);
         },
 
         onWidthChange: function(field, newValue, oldValue, eOpts){
@@ -894,8 +1074,6 @@ define([
                 props.asc_putHeight(Common.Utils.Metric.fnRecalcToMM(h));
                 this.api.asc_setGraphicObjectProps(props);
             }
-
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
         onHeightChange: function(field, newValue, oldValue, eOpts){
@@ -915,8 +1093,6 @@ define([
                 props.asc_putHeight(Common.Utils.Metric.fnRecalcToMM(h));
                 this.api.asc_setGraphicObjectProps(props);
             }
-
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
         openAdvancedSettings:   function() {
@@ -952,7 +1128,7 @@ define([
             }
         },
 
-        onSelectData: function() {
+        onSelectData_simple: function() {
             var me = this;
             if (me.api) {
                 var props = me.api.asc_getChartObject(),
@@ -968,7 +1144,7 @@ define([
                     validation = function(value) {
                         var isvalid;
                         if (!_.isEmpty(value)) {
-                            isvalid = me.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.Chart, value, true, !props.getInColumns(), me._state.ChartType);
+                            isvalid = me.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.Chart, value, true, props.getInRows(), me._state.ChartType);
                             if (isvalid == Asc.c_oAscError.ID.No)
                                 return true;
                         } else return '';
@@ -996,36 +1172,52 @@ define([
                 });
             }
         },
-        
-        onSelectType: function(btn, picker, itemView, record) {
-            if (this._noApply) return;
 
-            var rawData = {},
-                isPickerSelect = _.isFunction(record.toJSON);
-
-            if (isPickerSelect){
-                if (record.get('selected')) {
-                    rawData = record.toJSON();
-                } else {
-                    // record deselected
-                    return;
+        onSelectData:   function() {
+            var me = this;
+            var props;
+            if (me.api){
+                props = me.api.asc_getChartObject();
+                if (props) {
+                    me._isEditRanges = true;
+                    props.startEdit();
+                    var win = new SSE.Views.ChartDataDialog({
+                        chartSettings: props,
+                        api: me.api,
+                        handler: function(result, value) {
+                            if (result == 'ok') {
+                                props.endEdit();
+                                me._isEditRanges = false;
+                            }
+                            Common.NotificationCenter.trigger('edit:complete', me);
+                        }
+                    }).on('close', function() {
+                        me._isEditRanges && props.cancelEdit();
+                        me._isEditRanges = false;
+                    });
+                    win.show();
                 }
-            } else {
-                rawData = record;
             }
-
-            this.btnChartType.setIconCls('item-chartlist ' + rawData.iconCls);
-            this._state.ChartType = -1;
-
-            if (this.api && !this._noApply && this.chartProps) {
-                var props = new Asc.asc_CImgProperty();
-                this.chartProps.changeType(rawData.type);
-                props.asc_putChartProperties(this.chartProps);
-                this.api.asc_setGraphicObjectProps(props);
-            }
-            Common.NotificationCenter.trigger('edit:complete', this);
         },
 
+        onChangeType: function() {
+            var me = this;
+            if (me.api){
+                (new SSE.Views.ChartWizardDialog({
+                    api: me.api,
+                    props: {recommended: me.api.asc_getRecommendedChartData()},
+                    type: me._state.ChartType,
+                    isEdit: true,
+                    handler: function(result, value) {
+                        if (result == 'ok') {
+                            me.api && me.api.asc_addChartSpace(value);
+                        }
+                        Common.NotificationCenter.trigger('edit:complete', me.toolbar);
+                    }
+                })).show();
+            }
+        },
+        
         onSelectStyle: function(combo, record) {
             if (this._noApply) return;
 
@@ -1038,9 +1230,53 @@ define([
             Common.NotificationCenter.trigger('edit:complete', this);
         },
 
+        selectCurrentChartStyle: function() {
+            if (!this.cmbChartStyle) return;
+
+            this.cmbChartStyle.suspendEvents();
+            var rec = this.cmbChartStyle.menuPicker.store.findWhere({data: this._state.ChartStyle});
+            this.cmbChartStyle.menuPicker.selectRecord(rec);
+            this.cmbChartStyle.resumeEvents();
+
+            if (this._isChartStylesChanged) {
+                var currentRecords;
+                if (rec)
+                    currentRecords = this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.getSelectedRec(), true);
+                else
+                    currentRecords = this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.store.at(0), true);
+                if (currentRecords && currentRecords.length>0) {
+                    var arr = [];
+                    _.each(currentRecords, function(style, index){
+                        arr.push(style.get('data'));
+                    });
+                    return arr;
+                }
+            }
+        },
+
+        onAddChartStylesPreview: function(styles){
+            if (this._isEditType || !this.cmbChartStyle) return;
+
+            if (styles && styles.length>0){
+                var stylesStore = this.cmbChartStyle.menuPicker.store;
+                if (stylesStore) {
+                    _.each(styles, function(item, index){
+                        var rec = stylesStore.findWhere({
+                            data: item.asc_getName()
+                        });
+                        rec && rec.set('imageUrl', item.asc_getImage());
+                    });
+                }
+            }
+        },
+
         _onUpdateChartStyles: function() {
-            if (this.api && this._state.ChartType!==null && this._state.ChartType>-1)
-                this.updateChartStyles(this.api.asc_getChartPreviews(this._state.ChartType));
+            if (this.api && this._state.ChartType!==null && this._state.ChartType>-1 &&
+                !(this._state.ChartType==Asc.c_oAscChartTypeSettings.comboBarLine || this._state.ChartType==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
+                this._state.ChartType==Asc.c_oAscChartTypeSettings.comboAreaBar || this._state.ChartType==Asc.c_oAscChartTypeSettings.comboCustom)) {
+                this.updateChartStyles(this.api.asc_getChartPreviews(this._state.ChartType, undefined, true));
+                this.api.asc_generateChartPreviews(this._state.ChartType, this.selectCurrentChartStyle());
+            }
         },
 
         updateChartStyles: function(styles) {
@@ -1053,7 +1289,12 @@ define([
                     itemHeight: 50,
                     menuMaxHeight: 270,
                     enableKeyEvents: true,
-                    cls: 'combo-chart-style'
+                    cls: 'combo-chart-style',
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big',
+                    delayRenderTips: true,
+                    fillOnChangeVisibility: true
                 });
                 this.cmbChartStyle.render($('#chart-combo-style'));
                 this.cmbChartStyle.openButton.menu.cmpEl.css({
@@ -1070,24 +1311,15 @@ define([
             if (styles && styles.length>0){
                 var stylesStore = this.cmbChartStyle.menuPicker.store;
                 if (stylesStore) {
-                    var count = stylesStore.length;
-                    if (count>0 && count==styles.length) {
-                        var data = stylesStore.models;
-                        _.each(styles, function(style, index){
-                            data[index].set('imageUrl', style.asc_getImage());
+                    var stylearray = [];
+                    _.each(styles, function(item, index){
+                        stylearray.push({
+                            imageUrl: item.asc_getImage(),
+                            data    : item.asc_getName(),
+                            tip     : me.textStyle + ' ' + item.asc_getName()
                         });
-                    } else {
-                        var stylearray = [],
-                            selectedIdx = -1;
-                        _.each(styles, function(item, index){
-                            stylearray.push({
-                                imageUrl: item.asc_getImage(),
-                                data    : item.asc_getName(),
-                                tip     : me.textStyle + ' ' + item.asc_getName()
-                            });
-                        });
-                        stylesStore.reset(stylearray, {silent: false});
-                    }
+                    });
+                    stylesStore.reset(stylearray, {silent: false});
                 }
             } else {
                 this.cmbChartStyle.menuPicker.store.reset();
@@ -1105,7 +1337,9 @@ define([
                     itemHeight: 50,
                     menuMaxHeight: 272,
                     enableKeyEvents: true,
-                    cls: 'combo-spark-style'
+                    cls: 'combo-spark-style',
+                    delayRenderTips: true,
+                    fillOnChangeVisibility: true
                 });
                 this.cmbSparkStyle.render($('#spark-combo-style'));
                 this.cmbSparkStyle.openButton.menu.cmpEl.css({
@@ -1163,7 +1397,7 @@ define([
                 rawData = record;
             }
 
-            this.btnSparkType.setIconCls('item-chartlist ' + rawData.iconCls);
+            this.btnSparkType.setIconCls('svgicon ' + 'chart-' + rawData.iconCls);
             this._state.SparkType = -1;
 
             if (this.api && !this._noApply && this._originalProps) {
@@ -1186,7 +1420,7 @@ define([
         },
         
         applyBorderSize: function(value) {
-            value = parseFloat(value);
+            value = Common.Utils.String.parseFloat(value);
             value = isNaN(value) ? 1 : Math.max(0.01, Math.min(1584, value));
 
             this.BorderSize = value;
@@ -1205,14 +1439,16 @@ define([
                     expr = new RegExp('^\\s*(\\d*(\\.|,)?\\d+)\\s*(' + me.txtPt + ')?\\s*$');
                 if (!(expr.exec(record.value)) || value<0.01 || value>1584) {
                     this._state.LineWeight = -1;
-                    Common.UI.error({
-                        msg: this.textBorderSizeErr,
-                        callback: function() {
-                            _.defer(function(btn) {
-                                Common.NotificationCenter.trigger('edit:complete', me);
-                            })
-                        }
-                    });
+                    setTimeout( function() {
+                        Common.UI.error({
+                            msg: me.textBorderSizeErr,
+                            callback: function() {
+                                _.defer(function(btn) {
+                                    Common.NotificationCenter.trigger('edit:complete', me);
+                                })
+                            }
+                        });
+                    }, 10);
                 }
             } else
                 this.applyBorderSize(record.value);
@@ -1222,18 +1458,13 @@ define([
             this.applyBorderSize(record.value);
         },
 
-        onColorsSparkSelect: function(picker, color) {
-            this.btnSparkColor.setColor(color);
+        onColorsSparkSelect: function(btn, color) {
             if (this.api && !this._noApply && this._originalProps) {
                 var props = new Asc.sparklineGroup();
                 props.asc_setColorSeries(Common.Utils.ThemeColor.getRgbColor(color));
                 this.api.asc_setSparklineGroup(this._state.SparkId, props);
             }
             Common.NotificationCenter.trigger('edit:complete', this);
-        },
-
-        addNewColor: function(picker, btn) {
-            picker.addNewColor((typeof(btn.color) == 'object') ? btn.color.color : btn.color);
         },
 
         onCheckPointChange: function(type, field, newValue, oldValue, eOpts) {
@@ -1264,8 +1495,7 @@ define([
             Common.NotificationCenter.trigger('edit:complete', this);
         },
 
-        onColorsPointSelect: function(type, btn, picker, color) {
-            btn.setColor(color);
+        onColorsPointSelect: function(type, btn, color) {
             if (this.chPoints[type].getValue() !== 'checked')
                 this.chPoints[type].setValue(true, true);
             if (this.api && !this._noApply && this._originalProps) {
@@ -1300,7 +1530,113 @@ define([
             }
             Common.NotificationCenter.trigger('edit:complete', this);
         },
-        
+
+        onSwitch:   function() {
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    props.startEdit();
+                    var res = props.switchRowCol();
+                    if (res === Asc.c_oAscError.ID.MaxDataSeriesError) {
+                        props.cancelEdit();
+                        Common.UI.warning({msg: this.errorMaxRows, maxwidth: 600});
+                    } else
+                        props.endEdit();
+                }
+            }
+        },
+
+        onXRotation: function(field, newValue, oldValue, eOpts){
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setRotX(field.getNumberValue());
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
+        onYRotation: function(field, newValue, oldValue, eOpts){
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setRotY(field.getNumberValue());
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
+        onPerspective: function(field, newValue, oldValue, eOpts){
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setPerspective(field.getNumberValue());
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
+        on3DDepth: function(field, newValue, oldValue, eOpts){
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setDepth(field.getNumberValue());
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
+        on3DHeight: function(field, newValue, oldValue, eOpts){
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setHeight(field.getNumberValue());
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
+        onDefRotation: function() {
+            if (this.api){
+                var props = this.api.asc_getChartObject(true);
+                if (props) {
+                    var oView3D = props.getView3d();
+                    if (oView3D) {
+                        oView3D.asc_setRotX(20);
+                        oView3D.asc_setRotY(15);
+                        props.startEdit();
+                        props.setView3d(oView3D);
+                        props.endEdit();
+                    }
+                }
+            }
+        },
+
         setLocked: function (locked) {
             this._locked = locked;
         },
@@ -1323,22 +1659,11 @@ define([
         textHeight:     'Height',
         textEditData: 'Edit Data and Location',
         textChartType: 'Change Chart Type',
-        textLine:           'Line',
-        textColumn:         'Column',
-        textBar:            'Bar',
-        textArea:           'Area',
-        textPie:            'Pie',
-        textPoint:          'XY (Scatter)',
-        textStock:          'Stock',
         textStyle:          'Style',
         textAdvanced:       'Show advanced settings',
         strSparkColor:      'Color',
         strLineWeight:      'Line Weight',
         textMarkers:        'Markers',
-        textNewColor: 'Add New Custom Color',
-        textLineSpark:      'Line',
-        textColumnSpark:    'Column',
-        textWinLossSpark:   'Win/Loss',
         textHighPoint: 'High Point',
         textLowPoint: 'Low Point',
         textNegativePoint: 'Negative Point',
@@ -1350,7 +1675,24 @@ define([
         textSelectData: 'Select Data',
         textRanges: 'Data Range',
         textBorderSizeErr: 'The entered value is incorrect.<br>Please enter a value between 0 pt and 1584 pt.',
-        textSurface: 'Surface'
+        textChangeType: 'Change type',
+        textSwitch: 'Switch Row/Column',
+        errorMaxRows: 'The maximum number of data series per chart is 255.',
+        text3dRotation: '3D Rotation',
+        textX: 'X rotation',
+        textY: 'Y rotation',
+        textPerspective: 'Perspective',
+        text3dDepth: 'Depth (% of base)',
+        text3dHeight: 'Height (% of base)',
+        textLeft: 'Left',
+        textRight: 'Right',
+        textUp: 'Up',
+        textDown: 'Down',
+        textNarrow: 'Narrow field of view',
+        textWiden: 'Widen field of view',
+        textRightAngle: 'Right Angle Axes',
+        textAutoscale: 'Autoscale',
+        textDefault: 'Default Rotation'
 
     }, SSE.Views.ChartSettings || {}));
 });

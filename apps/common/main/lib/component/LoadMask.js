@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  LoadMask.js
  *
  *  Displays loading mask over selected element(s) or component. Accepts both single and multiple selectors.
  *
- *  Created by Alexander Yuzhin on 2/7/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/7/14
  *
  */
 
@@ -68,10 +66,6 @@ define([
     'use strict';
 
     Common.UI.LoadMask = Common.UI.BaseView.extend((function() {
-        var ownerEl,
-            maskeEl,
-            loaderEl;
-
         return {
             options : {
                 cls     : '',
@@ -82,8 +76,8 @@ define([
 
             template: _.template([
                 '<div id="<%= id %>" class="asc-loadmask-body <%= cls %>" role="presentation" tabindex="-1">',
-                '<div class="asc-loadmask-image"></div>',
-                '<div class="asc-loadmask-title"><%= title %></div>',
+                    '<i id="loadmask-spinner" class="asc-loadmask-image"></i>',
+                    '<div class="asc-loadmask-title"><%= title %></div>',
                 '</div>'
             ].join('')),
 
@@ -91,77 +85,102 @@ define([
                 Common.UI.BaseView.prototype.initialize.call(this, options);
 
                 this.template   = this.options.template || this.template;
-                this.cls        = this.options.cls;
-                this.style      = this.options.style;
                 this.title      = this.options.title;
-                this.owner      = this.options.owner;
+
+                this.ownerEl     = (this.options.owner instanceof Common.UI.BaseView) ? $(this.options.owner.el) : $(this.options.owner);
+                this.loaderEl    = $(this.template({
+                    id      : this.id,
+                    cls     : this.options.cls,
+                    style   : this.options.style,
+                    title   : this.title
+                }));
+                this.maskeEl = $('<div class="asc-loadmask"></div>');
+                this.timerId = 0;
             },
 
             render: function() {
                 return this;
             },
 
-            show: function(){
-                if (maskeEl || loaderEl)
-                    return;
+            internalShowLoader: function() {
+                this.ownerEl.append(this.loaderEl);
+                this.loaderEl.css('min-width', $('.asc-loadmask-title', this.loaderEl).width() + 105);
 
-                ownerEl = (this.owner instanceof Common.UI.BaseView) ? $(this.owner.el) : $(this.owner);
+                if (this.ownerEl && this.ownerEl.closest('.asc-window.modal').length==0)
+                    Common.util.Shortcuts.suspendEvents();
+            },
+
+            internalShowMask: function() {
+                if (!!this.ownerEl.ismasked) return;
+
+                this.ownerEl.ismasked = true;
+                this.ownerEl.append(this.maskeEl);
+            },
+
+            show: function(immediately){
+                this.internalShowMask();
 
                 // The owner is already masked
-                if (ownerEl.hasClass('masked'))
+                if (!!this.ownerEl.hasloader)
                     return this;
 
+                this.ownerEl.hasloader = true;
+
                 var me = this;
+                if (me.title != me.options.title) {
+                    me.options.title = me.title;
+                    $('.asc-loadmask-title', this.loaderEl).html(me.title);
+                }
 
-                maskeEl     = $('<div class="asc-loadmask"></div>');
-                loaderEl    = $(this.template({
-                    id      : me.id,
-                    cls     : me.cls,
-                    style   : me.style,
-                    title   : me.title
-                }));
-
-                ownerEl.addClass('masked');
-                ownerEl.append(maskeEl);
-                ownerEl.append(loaderEl);
-
-                loaderEl.css({
-                    top : Math.round(ownerEl.height() / 2 - (loaderEl.height() + parseInt(loaderEl.css('padding-top'))  + parseInt(loaderEl.css('padding-bottom'))) / 2) + 'px',
-                    left: Math.round(ownerEl.width()  / 2 - (loaderEl.width()  + parseInt(loaderEl.css('padding-left')) + parseInt(loaderEl.css('padding-right')))  / 2) + 'px'
-
-                });
-                if (ownerEl.height()<1 || ownerEl.width()<1)
-                    loaderEl.css({visibility: 'hidden'});
-
-                Common.util.Shortcuts.suspendEvents();
+                if (immediately) {
+                    me.internalShowLoader();
+                } else if (!me.timerId) {
+                    // show mask after 500 ms if it wont be hided
+                    me.timerId = setTimeout(function () {
+                        me.internalShowLoader();
+                    },500);
+                }
 
                 return this;
             },
 
             hide: function() {
-                ownerEl     && ownerEl.removeClass('masked');
-                maskeEl     && maskeEl.remove();
-                loaderEl    && loaderEl.remove();
-                maskeEl  = null;
-                loaderEl = null;
-                Common.util.Shortcuts.resumeEvents();
+                var ownerEl = this.ownerEl;
+                if (this.timerId) {
+                    clearTimeout(this.timerId);
+                    this.timerId = 0;
+                }
+
+                ownerEl && ownerEl.ismasked && this.maskeEl && this.maskeEl.remove();
+                delete ownerEl.ismasked;
+
+                if (ownerEl && ownerEl.hasloader) {
+                    if (ownerEl.closest('.asc-window.modal').length==0 && !Common.Utils.ModalWindow.isVisible())
+                        Common.util.Shortcuts.resumeEvents();
+
+                    this.loaderEl    && this.loaderEl.remove();
+                }
+                delete ownerEl.hasloader;
             },
 
             setTitle: function(title) {
                 this.title = title;
 
-                if (ownerEl && ownerEl.hasClass('masked') && loaderEl){
-                    $('.asc-loadmask-title', loaderEl).html(title);
+                if (this.ownerEl && this.ownerEl.hasloader && this.loaderEl){
+                    var el = $('.asc-loadmask-title', this.loaderEl);
+                    el.html(title);
+                    this.loaderEl.css('min-width', el.width() + 105);
                 }
-
             },
 
             isVisible: function() {
-                return !_.isEmpty(loaderEl);
+                return !!this.ownerEl.ismasked;
             },
 
             updatePosition: function() {
-                if (ownerEl && ownerEl.hasClass('masked') && loaderEl){
+                var ownerEl = this.ownerEl,
+                    loaderEl = this.loaderEl;
+                if (ownerEl && ownerEl.hasloader && loaderEl){
                     loaderEl.css({
                         top : Math.round(ownerEl.height() / 2 - (loaderEl.height() + parseInt(loaderEl.css('padding-top'))  + parseInt(loaderEl.css('padding-bottom'))) / 2) + 'px',
                         left: Math.round(ownerEl.width()  / 2 - (loaderEl.width()  + parseInt(loaderEl.css('padding-left')) + parseInt(loaderEl.css('padding-right')))  / 2) + 'px'

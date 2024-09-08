@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 if (Common === undefined)
     var Common = {};
 
@@ -55,7 +54,7 @@ define([
                     '<% } %>'+
                     '<div>'+
                         '<div class="cnt-hb img-colorpicker">'+
-                            '<div class="cnt-hb-arrow img-colorpicker"></div>'+
+                            '<div class="cnt-hb-arrow"></div>'+
                         '</div>'+
                         '<% if (this.changeSaturation) { %>'+
                             '<div class="cnt-root">'+
@@ -82,7 +81,7 @@ define([
             Common.UI.BaseView.prototype.initialize.call(this, options);
 
             var me = this,
-                el = $(this.el),
+                el = me.$el || $(this.el),
                 arrowSatBrightness, arrowHue,
                 areaSatBrightness, areaHue,
                 previewColor, previewTransparentColor, previewColorText,
@@ -106,6 +105,7 @@ define([
                 refreshUI();
 
                 me.trigger('changecolor', me, me.color);
+
             };
 
             var refreshUI = function(){
@@ -118,15 +118,17 @@ define([
                     }
                 }
 
-                if (areaSatBrightness.length>0)
-                    areaSatBrightness.css('background-color', new Common.Utils.RGBColor('hsb('+hueVal+', 100, 100)').toHex());
+                if (areaSatBrightness.length>0) {
+                    var fillColor = new Common.Utils.RGBColor('hsb(' + hueVal + ', 100, 100)');
+                    var background = 'linear-gradient(rgba(255,255,255,0), #000), linear-gradient(-90deg,' + fillColor.toRGB() + ','+ fillColor.toRGBA(0) +'), #fff';
+                    areaSatBrightness.css('background', background);
+                }
 
                 if (previewColorText.length>0)
                     previewColorText[0].innerHTML = (me.color == 'transparent') ? me.textNoColor : me.color.toUpperCase();
 
                 if (arrowSatBrightness.length>0 && arrowHue.length>0) {
-                    arrowSatBrightness.css('left', saturationVal + '%');
-                    arrowSatBrightness.css('top', 100 - brightnessVal + '%');
+                    arrowSatBrightness.css({'left': saturationVal + '%', 'top': 100 - brightnessVal + '%', 'background-color' : me.color});
                     arrowHue.css('top', parseInt(hueVal * 100 / 360.0) + '%');
                 }
             };
@@ -134,8 +136,8 @@ define([
             var onSBAreaMouseMove = function(event, element, eOpts){
                 if (arrowSatBrightness.length>0 && areaSatBrightness.length>0) {
                     var pos = [
-                        Math.max(0, Math.min(100, (parseInt((event.pageX*Common.Utils.zoom() - areaSatBrightness.offset().left) / areaSatBrightness.width() * 100)))),
-                        Math.max(0, Math.min(100, (parseInt((event.pageY*Common.Utils.zoom() - areaSatBrightness.offset().top) / areaSatBrightness.height() * 100))))
+                        Math.max(0, Math.min(100, (parseInt((event.pageX*Common.Utils.zoom() - Common.Utils.getOffset(areaSatBrightness).left) / areaSatBrightness.width() * 100)))),
+                        Math.max(0, Math.min(100, (parseInt((event.pageY*Common.Utils.zoom() - Common.Utils.getOffset(areaSatBrightness).top) / areaSatBrightness.height() * 100))))
                     ];
 
                     arrowSatBrightness.css('left', pos[0] + '%');
@@ -154,7 +156,7 @@ define([
 
             var onHueAreaMouseMove = function(event, element, eOpts){
                 if (arrowHue&& areaHue) {
-                    var pos = Math.max(0, Math.min(100, (parseInt((event.pageY*Common.Utils.zoom() - areaHue.offset().top) / areaHue.height() * 100))));
+                    var pos = Math.max(0, Math.min(100, (parseInt((event.pageY*Common.Utils.zoom() - Common.Utils.getOffset(areaHue).top) / areaHue.height() * 100))));
                     arrowHue.css('top', pos + '%');
 
                     hueVal = parseInt(360 * pos / 100.0);
@@ -278,7 +280,7 @@ define([
         },
 
         render: function () {
-            $(this.el).html(this.template());
+            (this.$el || $(this.el)).html(this.template());
 
             this.trigger('render:after', this);
             return this;

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 if (Common === undefined)
     var Common = {};
 
@@ -69,7 +68,7 @@ Common.IrregularStack = function(config) {
     }
 
     var _get = function(obj) {
-        var index = _indexOf(obj, _weakCompare);
+        var index = (typeof obj === 'object')? _indexOf(obj, _weakCompare) : obj;
         if (index != -1) 
             return _stack[index];
         return undefined;
@@ -79,10 +78,15 @@ Common.IrregularStack = function(config) {
         return !(_indexOf(obj, _strongCompare) < 0);
     }
 
+    var _length = function() {
+        return _stack.length;
+    }
+
     return {
         push: _push,
         pop: _pop,
         get: _get,
-        exist: _exist
+        exist: _exist,
+        length: _length
     }
 };

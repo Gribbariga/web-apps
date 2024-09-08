@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  HyperlinkSettingsDialog.js
  *
- *  Created by Julia Radzhabova on 4/19/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/19/14
  *
  */
 
@@ -42,17 +40,11 @@
 if (Common === undefined)
     var Common = {};
 
-var c_oHyperlinkType = {
-    InternalLink:0,
-    WebLink: 1
-};
-
 define([
     'common/main/lib/util/utils',
     'common/main/lib/component/InputField',
-    'common/main/lib/component/ComboBox',
-    'common/main/lib/component/RadioBox',
-    'common/main/lib/component/Window'
+    'common/main/lib/component/Window',
+    'common/main/lib/component/TreeView'
 ], function () { 'use strict';
 
     PE.Views.HyperlinkSettingsDialog = Common.UI.Window.extend(_.extend({
@@ -60,7 +52,8 @@ define([
             width: 350,
             style: 'min-width: 230px;',
             cls: 'modal-dlg',
-            id: 'window-hyperlink-settings'
+            id: 'window-hyperlink-settings',
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -69,24 +62,22 @@ define([
             }, options || {});
 
             this.template = [
-                '<div class="box" style="height: 250px;">',
+                '<div class="box" style="height: 319px;">',
                     '<div class="input-row" style="margin-bottom: 10px;">',
-                        '<button type="button" class="btn btn-text-default auto" id="id-dlg-hyperlink-external" style="border-top-right-radius: 0;border-bottom-right-radius: 0;">', this.textExternalLink,'</button>',
-                        '<button type="button" class="btn btn-text-default auto" id="id-dlg-hyperlink-internal" style="border-top-left-radius: 0;border-bottom-left-radius: 0;">', this.textInternalLink,'</button>',
+                        '<button type="button" class="btn btn-text-default auto" id="id-dlg-hyperlink-external">', this.textExternalLink,'</button>',
+                        '<button type="button" class="btn btn-text-default auto" id="id-dlg-hyperlink-internal">', this.textInternalLink,'</button>',
                     '</div>',
                     '<div id="id-external-link">',
                         '<div class="input-row">',
-                            '<label>' + this.strLinkTo + ' *</label>',
+                            '<label>' + this.strLinkTo + '</label>',
                         '</div>',
                         '<div id="id-dlg-hyperlink-url" class="input-row" style="margin-bottom: 5px;"></div>',
                     '</div>',
-                    '<div id="id-internal-link" class="hidden" style="margin-top: 15px;">',
-                        '<div id="id-dlg-hyperlink-radio-next" style="display: block;margin-bottom: 5px;"></div>',
-                        '<div id="id-dlg-hyperlink-radio-prev" style="display: block;margin-bottom: 5px;"></div>',
-                        '<div id="id-dlg-hyperlink-radio-first" style="display: block;margin-bottom: 5px;"></div>',
-                        '<div id="id-dlg-hyperlink-radio-last"  style="display: block;margin-bottom: 5px;"></div>',
-                        '<div id="id-dlg-hyperlink-radio-slide" style="display: inline-block;margin-bottom: 5px;margin-right: 10px;"></div>',
-                        '<div id="id-dlg-hyperlink-slide" style="display: inline-block;margin-bottom: 10px;"></div>',
+                    '<div id="id-internal-link" class="hidden">',
+                        '<div class="input-row">',
+                            '<label>' + this.strLinkTo + '</label>',
+                        '</div>',
+                        '<div id="id-dlg-hyperlink-list" style="width:100%; height: 171px;"></div>',
                     '</div>',
                     '<div class="input-row">',
                         '<label>' + this.strDisplay + '</label>',
@@ -95,17 +86,16 @@ define([
                     '<div class="input-row">',
                         '<label>' + this.textTipText + '</label>',
                     '</div>',
-                        '<div id="id-dlg-hyperlink-tip" class="input-row" style="margin-bottom: 5px;"></div>',
-                    '</div>',
-                    '<div class="footer right">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
+                    '<div id="id-dlg-hyperlink-tip" class="input-row" style="margin-bottom: 5px;"></div>',
                 '</div>'
             ].join('');
 
             this.options.tpl = _.template(this.template)(this.options);
             this.slides = this.options.slides;
             this.api = this.options.api;
+            this.type = options.type;
+            this.urlType = AscCommon.c_oAscUrlType.Invalid;
+            this.appOptions = this.options.appOptions;
 
             Common.UI.Window.prototype.initialize.call(this, this.options);
         },
@@ -133,18 +123,35 @@ define([
             });
             me.btnInternal.on('click', _.bind(me.onLinkTypeClick, me, c_oHyperlinkType.InternalLink));
 
-            me.inputUrl = new Common.UI.InputField({
+            var config = {
                 el          : $('#id-dlg-hyperlink-url'),
                 allowBlank  : false,
                 blankError  : me.txtEmpty,
                 validateOnBlur: false,
                 style       : 'width: 100%;',
+                iconCls: 'toolbar__icon btn-browse',
+                placeHolder: me.appOptions.isDesktopApp ? me.txtUrlPlaceholder : '',
+                btnHint: me.textSelectFile,
                 validation  : function(value) {
-                    var urltype = me.api.asc_getUrlType($.trim(value));
-                    me.isEmail = (urltype==2);
-                    return (urltype>0) ? true : me.txtNotUrl;
+                    var trimmed = $.trim(value);
+                    if (trimmed.length>2083) return me.txtSizeLimit;
+
+                    me.urlType = me.api.asc_getUrlType(trimmed);
+                    return (me.urlType!==AscCommon.c_oAscUrlType.Invalid) ? true : me.txtNotUrl;
                 }
+            };
+            me.inputUrl = me.appOptions.isDesktopApp ? new Common.UI.InputFieldBtn(config) : new Common.UI.InputField(config);
+            me.inputUrl._input.on('input', function (e) {
+                me.isInputFirstChange && me.inputUrl.showError();
+                me.isInputFirstChange = false;
+                var val = $(e.target).val();
+                if (me.isAutoUpdate) {
+                    me.inputDisplay.setValue(val);
+                    me.isTextChanged = true;
+                }
+                me.btnOk.setDisabled($.trim(val)=='');
             });
+            me.appOptions.isDesktopApp && me.inputUrl.on('button:click', _.bind(me.onSelectFile, me));
 
             me.inputDisplay = new Common.UI.InputField({
                 el          : $('#id-dlg-hyperlink-display'),
@@ -154,6 +161,9 @@ define([
             }).on('changed:after', function() {
                 me.isTextChanged = true;
             });
+            me.inputDisplay._input.on('input', function (e) {
+                me.isAutoUpdate = ($(e.target).val()=='');
+            });
 
             me.inputTip = new Common.UI.InputField({
                 el          : $('#id-dlg-hyperlink-tip'),
@@ -161,74 +171,41 @@ define([
                 maxLength   : Asc.c_oAscMaxTooltipLength
             });
 
-            me.radioNext = new Common.UI.RadioBox({
-                el: $('#id-dlg-hyperlink-radio-next'),
-                labelText: this.txtNext,
-                name: 'asc-radio-slide',
-                checked: true
+            me.internalList = new Common.UI.TreeView({
+                el: $('#id-dlg-hyperlink-list'),
+                store: new Common.UI.TreeViewStore(),
+                enableKeyEvents: true,
+                tabindex: 1
             });
+            me.internalList.on('item:select', _.bind(this.onSelectItem, this));
 
-            me.radioPrev = new Common.UI.RadioBox({
-                el: $('#id-dlg-hyperlink-radio-prev'),
-                labelText: this.txtPrev,
-                name: 'asc-radio-slide'
-            });
-
-            me.radioFirst = new Common.UI.RadioBox({
-                el: $('#id-dlg-hyperlink-radio-first'),
-                labelText: this.txtFirst,
-                name: 'asc-radio-slide'
-            });
-
-            me.radioLast = new Common.UI.RadioBox({
-                el: $('#id-dlg-hyperlink-radio-last'),
-                labelText: this.txtLast,
-                name: 'asc-radio-slide'
-            });
-
-            me.radioSlide = new Common.UI.RadioBox({
-                el: $('#id-dlg-hyperlink-radio-slide'),
-                labelText: this.txtSlide,
-                name: 'asc-radio-slide'
-            });
-
-            me.cmbSlides = new Common.UI.ComboBox({
-                el: $('#id-dlg-hyperlink-slide'),
-                cls: 'input-group-nr',
-                style: 'width: 50px;',
-                menuStyle: 'min-width: 50px; max-height: 200px;',
-                data: this.slides
-            });
-            me.cmbSlides.setValue(0);
-            me.cmbSlides.on('selected', _.bind(function(combo, record) {
-                me.radioSlide.setValue(true);
-            }, me))
-            .on('changed:after', _.bind(function(combo, record) {
-                me.radioSlide.setValue(true);
-                if (record.value>me.slides.length)
-                    combo.setValue(me.slides.length-1);
-                else if (record.value<1)
-                    combo.setValue(0);
-                else
-                    combo.setValue(record.value-1);
-            }, me));
+            me.btnOk = _.find(this.getFooterButtons(), function (item) {
+                return (item.$el && item.$el.find('.primary').addBack().filter('.primary').length>0);
+            }) || new Common.UI.Button({ el: $window.find('.primary') });
+            me.btnOk.setDisabled(true);
 
             $window.find('.dlg-btn').on('click', _.bind(this.onBtnClick, this));
+            me.internalList.on('entervalue', _.bind(me.onPrimary, me));
             me.externalPanel = $window.find('#id-external-link');
             me.internalPanel = $window.find('#id-internal-link');
+        },
+
+        getFocusedComponents: function() {
+            return [this.btnExternal, this.btnInternal, this.inputUrl, this.internalList, this.inputDisplay, this.inputTip].concat(this.getFooterButtons());
         },
 
         setSettings: function (props) {
             if (props) {
                 var me = this;
 
-                var type = me.parseUrl(props.get_Value());
+                var type = (me.type!==undefined) ? me.type : me.parseUrl(props.get_Value());
                 (type == c_oHyperlinkType.WebLink) ? me.btnExternal.toggle(true) : me.btnInternal.toggle(true);
-                me.ShowHideElem(type);
+                me.ShowHideElem(type, props.get_Value());
                 
                 if (props.get_Text()!==null) {
                     me.inputDisplay.setValue(props.get_Text());
                     me.inputDisplay.setDisabled(false);
+                    me.isAutoUpdate = (me.inputDisplay.getValue()=='' || type == c_oHyperlinkType.WebLink && me.inputUrl.getValue()==me.inputDisplay.getValue());
                 } else {
                     this.inputDisplay.setValue(this.textDefault);
                     this.inputDisplay.setDisabled(true);
@@ -236,45 +213,31 @@ define([
                 this.isTextChanged = false;
                 this.inputTip.setValue(props.get_ToolTip());
 
-                if (type==c_oHyperlinkType.WebLink) {
-                    _.delay(function(){
-                        me.inputUrl.cmpEl.find('input').focus();
-                    },50);
-                }
+                me._originalProps = props;
             }
         },
 
         getSettings: function () {
             var me      = this,
                 props   = new Asc.CHyperlinkProperty();
-            var def_display = '';
-            if (this.btnInternal.isActive()) {//InternalLink
+            var def_display = '',
+                type = this.btnExternal.isActive() ? c_oHyperlinkType.WebLink : c_oHyperlinkType.InternalLink;
+            if (type==c_oHyperlinkType.InternalLink) {//InternalLink
                 var url = "ppaction://hlink";
                 var tip = '';
                 var txttip = me.inputTip.getValue();
-                if (this.radioSlide.getValue()) {
-                    url = url + "sldjumpslide" + (this.cmbSlides.getValue());
-                    tip = this.txtSlide + ' ' + (this.cmbSlides.getValue()+1);
-                } else if (this.radioFirst.getValue()) {
-                    url = url + "showjump?jump=firstslide";
-                    tip = this.txtFirst;
-                } else if (this.radioLast.getValue()) {
-                    url = url + "showjump?jump=lastslide";
-                    tip = this.txtLast;
-                } else if (this.radioNext.getValue()) {
-                    url = url + "showjump?jump=nextslide";
-                    tip = this.txtNext;
-                } else if (this.radioPrev.getValue()) {
-                    url = url + "showjump?jump=previousslide";
-                    tip = this.txtPrev;
+                var rec = this.internalList.getSelectedRec();
+                if (rec) {
+                    url = url + rec.get('type');
+                    tip = rec.get('tiptext');
                 }
                 props.put_Value( url );
                 props.put_ToolTip(_.isEmpty(txttip) ? tip : txttip);
                 def_display = tip;
             } else {
                 var url = $.trim(me.inputUrl.getValue());
-                if (! /(((^https?)|(^ftp)):\/\/)|(^mailto:)/i.test(url) )
-                    url = ( (me.isEmail) ? 'mailto:' : 'http://' ) + url;
+                if (me.urlType!==AscCommon.c_oAscUrlType.Unsafe && ! /(((^https?)|(^ftp)):\/\/)|(^mailto:)/i.test(url) )
+                    url = ( (me.urlType==AscCommon.c_oAscUrlType.Email) ? 'mailto:' : 'http://' ) + url;
                 url = url.replace(new RegExp("%20",'g')," ");
                 props.put_Value( url );
                 props.put_ToolTip(me.inputTip.getValue());
@@ -282,7 +245,7 @@ define([
             }
 
             if (!me.inputDisplay.isDisabled() && (me.isTextChanged || _.isEmpty(me.inputDisplay.getValue()))) {
-                if (_.isEmpty(me.inputDisplay.getValue()))
+                if (_.isEmpty(me.inputDisplay.getValue()) || type==c_oHyperlinkType.WebLink && me.isAutoUpdate)
                     me.inputDisplay.setValue(def_display);
                 props.put_Text(me.inputDisplay.getValue());
             }
@@ -308,65 +271,143 @@ define([
                     var checkurl = (this.btnExternal.isActive()) ? this.inputUrl.checkValidate() : true,
                         checkdisp = this.inputDisplay.checkValidate();
                     if (checkurl !== true)  {
-                        this.inputUrl.cmpEl.find('input').focus();
+                        this.isInputFirstChange = true;
+                        this.inputUrl.focus();
                         return;
                     }
                     if (checkdisp !== true) {
-                        this.inputDisplay.cmpEl.find('input').focus();
+                        this.inputDisplay.focus();
                         return;
                     }
+                    !this._originalProps.get_Value() &&  Common.Utils.InternalSettings.set("pe-settings-link-type", this.btnInternal.isActive());
                 }
-
                 this.options.handler.call(this, this, state);
             }
 
             this.close();
         },
 
-        ShowHideElem: function(value) {
+        ShowHideElem: function(value, url) {
             this.externalPanel.toggleClass('hidden', value !== c_oHyperlinkType.WebLink);
             this.internalPanel.toggleClass('hidden', value !== c_oHyperlinkType.InternalLink);
+            if (value==c_oHyperlinkType.InternalLink) {
+                if (url===null || url===undefined || url=='' )
+                    url = "ppaction://hlinkshowjump?jump=firstslide";
+                var store = this.internalList.store;
+                if (store.length<1) {
+                    var arr = [], i = 0;
+                    arr.push(new Common.UI.TreeViewModel({
+                        name : this.txtFirst,
+                        level: 0,
+                        index: i++,
+                        hasParent: false,
+                        isEmptyItem: false,
+                        isNotHeader: true,
+                        hasSubItems: false,
+                        type: "showjump?jump=firstslide",
+                        tiptext: this.txtFirst,
+                        selected: url == "ppaction://hlinkshowjump?jump=firstslide"
+                    }));
+                    arr.push(new Common.UI.TreeViewModel({
+                        name : this.txtLast,
+                        level: 0,
+                        index: i++,
+                        hasParent: false,
+                        isEmptyItem: false,
+                        isNotHeader: true,
+                        hasSubItems: false,
+                        type: "showjump?jump=lastslide",
+                        tiptext: this.txtLast,
+                        selected: url == "ppaction://hlinkshowjump?jump=lastslide"
+                    }));
+                    arr.push(new Common.UI.TreeViewModel({
+                        name : this.txtNext,
+                        level: 0,
+                        index: i++,
+                        hasParent: false,
+                        isEmptyItem: false,
+                        isNotHeader: true,
+                        hasSubItems: false,
+                        type: "showjump?jump=nextslide",
+                        tiptext: this.txtNext,
+                        selected: url == "ppaction://hlinkshowjump?jump=nextslide"
+                    }));
+                    arr.push(new Common.UI.TreeViewModel({
+                        name : this.txtPrev,
+                        level: 0,
+                        index: i++,
+                        hasParent: false,
+                        isEmptyItem: false,
+                        isNotHeader: true,
+                        hasSubItems: false,
+                        type: "showjump?jump=previousslide",
+                        tiptext: this.txtPrev,
+                        selected: url == "ppaction://hlinkshowjump?jump=previousslide"
+                    }));
+                    arr.push(new Common.UI.TreeViewModel({
+                        name : this.textSlides,
+                        level: 0,
+                        index: i++,
+                        hasParent: false,
+                        isEmptyItem: false,
+                        isNotHeader: true,
+                        hasSubItems: this.api.getCountPages()>0
+                    }));
+                    var mask = "ppaction://hlinksldjumpslide",
+                        indSlide = url.indexOf(mask),
+                        slideNum = (0 == indSlide) ? parseInt(url.substring(mask.length)) : -1;
+                    for (var i=0; i<this.api.getCountPages(); i++) {
+                        arr.push(new Common.UI.TreeViewModel({
+                            name : this.txtSlide + ' ' + (i+1),
+                            level: 1,
+                            index: arr.length,
+                            hasParent: false,
+                            isEmptyItem: false,
+                            isNotHeader: true,
+                            hasSubItems: false,
+                            type: 'sldjumpslide' + i,
+                            tiptext: this.txtSlide + ' ' + (i+1),
+                            selected: i==slideNum
+                        }));
+                    }
+                    store.reset(arr);
+                }
+                var rec = this.internalList.getSelectedRec();
+                rec && this.internalList.scrollToRecord(rec);
+                this.btnOk.setDisabled(!rec || rec.get('index')==4);
+                var me = this;
+                _.delay(function(){
+                    me.inputDisplay.focus();
+                },50);
+            } else {
+                this.btnOk.setDisabled($.trim(this.inputUrl.getValue())=='');
+                var me = this;
+                _.delay(function(){
+                    me.inputUrl.focus();
+                },50);
+            }
         },
 
         onLinkTypeClick: function(type, btn, event) {
             this.ShowHideElem(type);
+            if (this.isAutoUpdate) {
+                if (type==c_oHyperlinkType.InternalLink) {
+                    var rec = this.internalList.getSelectedRec();
+                    this.inputDisplay.setValue(rec && (rec.get('level') || rec.get('index')<4) ? rec.get('name') : '');
+                } else {
+                    this.inputDisplay.setValue(this.inputUrl.getValue());
+                }
+                this.isTextChanged = true;
+            }
         },
 
         parseUrl: function(url) {
             if (url===null || url===undefined || url=='' )
-                return c_oHyperlinkType.WebLink;
+                return Common.Utils.InternalSettings.get("pe-settings-link-type") ? c_oHyperlinkType.InternalLink : c_oHyperlinkType.WebLink;
 
             var indAction = url.indexOf("ppaction://hlink");
             if (0 == indAction)
             {
-                if (url == "ppaction://hlinkshowjump?jump=firstslide")
-                {
-                    this.radioFirst.setValue(true);
-                }
-                else if (url == "ppaction://hlinkshowjump?jump=lastslide")
-                {
-                    this.radioLast.setValue(true);
-                }
-                else if (url == "ppaction://hlinkshowjump?jump=nextslide")
-                {
-                    this.radioNext.setValue(true);
-                }
-                else if (url == "ppaction://hlinkshowjump?jump=previousslide")
-                {
-                    this.radioPrev.setValue(true);
-                }
-                else
-                {
-                    this.radioSlide.setValue(true);
-                    var mask = "ppaction://hlinksldjumpslide";
-                    var indSlide = url.indexOf(mask);
-                    if (0 == indSlide)
-                    {
-                        var slideNum = parseInt(url.substring(mask.length));
-                        if (slideNum >= 0 && slideNum < this.slides.length)
-                            this.cmbSlides.setValue(slideNum);
-                    }
-                }
                 return c_oHyperlinkType.InternalLink;
             } else  {
                 this.inputUrl.setValue(url ? url.replace(new RegExp(" ",'g'), "%20") : '');
@@ -374,8 +415,37 @@ define([
             }
         },
 
+        onSelectItem: function(picker, item, record, e){
+            if (!record) return;
+            this.btnOk.setDisabled(record.get('index')==4);
+            if (this.isAutoUpdate) {
+                this.inputDisplay.setValue((record.get('level') || record.get('index')<4) ? record.get('name') : '');
+                this.isTextChanged = true;
+            }
+        },
+
+        onSelectFile: function() {
+            var me = this;
+            if (me.api) {
+                var callback = function(result) {
+                    if (result) {
+                        me.inputUrl.setValue(result);
+                        if (me.inputUrl.checkValidate() !== true)
+                            me.isInputFirstChange = true;
+                        if (me.isAutoUpdate) {
+                            me.inputDisplay.setValue(result);
+                            me.isTextChanged = true;
+                        }
+                        me.btnOk.setDisabled($.trim(result)=='');
+                    }
+                };
+
+                me.api.asc_getFilePath(callback); // change sdk function
+            }
+        },
+
         textTitle:          'Hyperlink Settings',
-        textInternalLink:   'Slide In This Presentation',
+        textInternalLink:   'Place in Document',
         textExternalLink:   'External Link',
         textEmptyLink:      'Enter link here',
         textEmptyDesc:      'Enter caption here',
@@ -386,13 +456,14 @@ define([
         strLinkTo:          'Link To',
         txtEmpty:           'This field is required',
         txtNotUrl:          'This field should be a URL in the format \"http://www.example.com\"',
-        strPlaceInDocument: 'Select a Place in This Document',
-        cancelButtonText:   'Cancel',
-        okButtonText:       'Ok',
         txtNext:            'Next Slide',
         txtPrev:            'Previous Slide',
         txtFirst:           'First Slide',
         txtLast:            'Last Slide',
-        textDefault:        'Selected text'
+        textDefault:        'Selected text',
+        textSlides: 'Slides',
+        txtSizeLimit: 'This field is limited to 2083 characters',
+        txtUrlPlaceholder: 'Enter the web address or select a file',
+        textSelectFile: 'Select file'
     }, PE.Views.HyperlinkSettingsDialog || {}))
 });

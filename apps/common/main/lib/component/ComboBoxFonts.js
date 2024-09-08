@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  ComboBoxFonts.js
  *
- *  Created by Alexander Yuzhin on 2/11/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/11/14
  *
  */
 
@@ -49,34 +47,274 @@ define([
     'use strict';
 
     Common.UI.ComboBoxFonts = Common.UI.ComboBox.extend((function() {
-        var iconWidth       = 302,
-            iconHeight      = Asc.FONT_THUMBNAIL_HEIGHT || 26,
-            isRetina        = window.devicePixelRatio > 1,
+        var iconWidth       = 300,
+            iconHeight      = Asc.FONT_THUMBNAIL_HEIGHT || 28,
             thumbCanvas     = document.createElement('canvas'),
             thumbContext    = thumbCanvas.getContext('2d'),
-            thumbPath       = '../../../../sdkjs/common/Images/fonts_thumbnail.png',
-            thumbPath2x     = '../../../../sdkjs/common/Images/fonts_thumbnail@2x.png',
-            listItemHeight  = 26;
+            postfix = (/^(zh|ja|ko)$/i.test(Common.Locale.getCurrentLanguage())) ? '_ea' : '',
+            thumbs       = [
+                {ratio: 1,      path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '.png', width: iconWidth, height: iconHeight},
+                {ratio: 1.25,   path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@1.25x.png', width: iconWidth * 1.25, height: iconHeight * 1.25},
+                {ratio: 1.5,    path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@1.5x.png', width: iconWidth * 1.5, height: iconHeight * 1.5},
+                {ratio: 1.75,   path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@1.75x.png', width: iconWidth * 1.75, height: iconHeight * 1.75},
+                {ratio: 2,      path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@2x.png', width: iconWidth * 2, height: iconHeight * 2},
+                /*{ratio: 2.5,    path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@2.5x.png', width: iconWidth * 2.5, height: iconHeight * 2.5},
+                {ratio: 3,      path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@3x.png', width: iconWidth * 3, height: iconHeight * 3},
+                {ratio: 3.5,    path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@3.5x.png', width: iconWidth * 3.5, height: iconHeight * 3.5},
+                {ratio: 4,      path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@4x.png', width: iconWidth * 4, height: iconHeight * 4},
+                {ratio: 4.5,    path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@4.5x.png', width: iconWidth * 4.5, height: iconHeight * 4.5},
+                {ratio: 5,      path: '../../../../sdkjs/common/Images/fonts_thumbnail' + postfix + '@5x.png', width: iconWidth * 5, height: iconHeight * 5},*/
+            ],
+            thumbIdx = 0,
+            listItemHeight  = 28,
+            spriteCols     = 1,
+            applicationPixelRatio = Common.Utils.applicationPixelRatio();
 
-        if (typeof window['AscDesktopEditor'] === 'object') {
-            thumbPath       = window['AscDesktopEditor'].getFontsSprite();
-            thumbPath2x     = window['AscDesktopEditor'].getFontsSprite(true);
+        if ( Common.Controllers.Desktop.isActive() ) {
+            thumbs[0].path     = Common.Controllers.Desktop.call('getFontsSprite');
+            thumbs[1].path     = Common.Controllers.Desktop.call('getFontsSprite', '@1.25x');
+            thumbs[2].path     = Common.Controllers.Desktop.call('getFontsSprite', '@1.5x');
+            thumbs[3].path     = Common.Controllers.Desktop.call('getFontsSprite', '@1.75x');
+            thumbs[4].path     = Common.Controllers.Desktop.call('getFontsSprite', '@2x');
+            /*thumbs[5].path     = Common.Controllers.Desktop.call('getFontsSprite', '@2.5x');
+            thumbs[6].path     = Common.Controllers.Desktop.call('getFontsSprite', '@3x');
+            thumbs[7].path     = Common.Controllers.Desktop.call('getFontsSprite', '@3.5x');
+            thumbs[8].path     = Common.Controllers.Desktop.call('getFontsSprite', '@4x');
+            thumbs[9].path     = Common.Controllers.Desktop.call('getFontsSprite', '@4.5x');
+            thumbs[10].path    = Common.Controllers.Desktop.call('getFontsSprite', '@5x');*/
         }
 
-        thumbCanvas.height  = isRetina ? iconHeight * 2 : iconHeight;
-        thumbCanvas.width   = isRetina ? iconWidth  * 2 : iconWidth;
+        var bestDistance = Math.abs(applicationPixelRatio-thumbs[0].ratio);
+        var currentDistance = 0;
+        for (var i=1; i<thumbs.length; i++) {
+            currentDistance = Math.abs(applicationPixelRatio-thumbs[i].ratio);
+            if (currentDistance < (bestDistance - 0.0001))
+            {
+                bestDistance = currentDistance;
+                thumbIdx = i;
+            }
+        }
+
+        thumbCanvas.height  = thumbs[thumbIdx].height;
+        thumbCanvas.width   = thumbs[thumbIdx].width;
+
+        function CThumbnailLoader() {
+            this.supportBinaryFormat = !(Common.Controllers.Desktop.isActive() && !Common.Controllers.Desktop.isFeatureAvailable('isSupportBinaryFontsSprite'));
+            // наш формат - альфамаска с сжатием типа rle для полностью прозрачных пикселов
+
+            this.image = null;
+            this.binaryFormat = null;
+            this.data = null;
+            this.width = 0;
+            this.height = 0;
+            this.heightOne = 0;
+            this.count = 0;
+            this.offsets = null;
+
+            this.load = function(url, callback) {
+                if (!callback)
+                    return;
+
+                if (!this.supportBinaryFormat) {
+                    this.width = thumbs[thumbIdx].width;
+                    this.heightOne = thumbs[thumbIdx].height;
+
+                    this.image = new Image();
+                    this.image.onload = callback;
+                    this.image.src = thumbs[thumbIdx].path;
+                } else {
+                    var me = this;
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', url + ".bin", true);
+                    xhr.responseType = 'arraybuffer';
+
+                    if (xhr.overrideMimeType)
+                        xhr.overrideMimeType('text/plain; charset=x-user-defined');
+                    else
+                        xhr.setRequestHeader('Accept-Charset', 'x-user-defined');
+
+                    xhr.onload = function() {
+                        // TODO: check errors
+                        me.binaryFormat = new Uint8Array(this.response);
+                        callback();
+                    };
+
+                    xhr.send(null);
+                }
+            };
+
+            this.openBinary = function(arrayBuffer) {
+                //var t1 = performance.now();
+
+                var binaryAlpha = this.binaryFormat;
+                this.width      = (binaryAlpha[0] << 24) | (binaryAlpha[1] << 16) | (binaryAlpha[2] << 8) | (binaryAlpha[3] << 0);
+                this.heightOne  = (binaryAlpha[4] << 24) | (binaryAlpha[5] << 16) | (binaryAlpha[6] << 8) | (binaryAlpha[7] << 0);
+                this.count      = (binaryAlpha[8] << 24) | (binaryAlpha[9] << 16) | (binaryAlpha[10] << 8) | (binaryAlpha[11] << 0);
+                this.height     = this.count * this.heightOne;
+
+                var MAX_MEMORY_SIZE = 50000000;
+                var memorySize = 4 * this.width * this.height;
+                var isOffsets = (memorySize > MAX_MEMORY_SIZE) ? true : false;
+                    
+                if (!isOffsets)
+                    this.data = new Uint8ClampedArray(memorySize);
+                else
+                    this.offsets = new Array(this.count);
+
+                var binaryIndex = 12;
+                var binaryLen = binaryAlpha.length;
+                var index = 0;
+
+                var len0 = 0;
+                var tmpValue = 0;
+
+                if (!isOffsets) {
+                    var imagePixels = this.data;
+                    while (binaryIndex < binaryLen) {
+                        tmpValue = binaryAlpha[binaryIndex++];
+                        if (0 == tmpValue) {
+                            len0 = binaryAlpha[binaryIndex++];
+                            while (len0 > 0) {
+                                len0--;
+                                imagePixels[index] = imagePixels[index + 1] = imagePixels[index + 2] = 255;
+                                imagePixels[index + 3] = 0; // this value is already 0.
+                                index += 4;
+                            }
+                        } else {
+                            imagePixels[index] = imagePixels[index + 1] = imagePixels[index + 2] = 255 - tmpValue;
+                            imagePixels[index + 3] = tmpValue;
+                            index += 4;
+                        }
+                    }
+                } else {
+                    var module = this.width * this.heightOne;
+                    var moduleCur = module - 1;
+                    while (binaryIndex < binaryLen) {
+                        tmpValue = binaryAlpha[binaryIndex++];
+                        if (0 == tmpValue) {
+                            len0 = binaryAlpha[binaryIndex++];
+                            while (len0 > 0) {
+                                len0--;
+                                moduleCur++;
+                                if (moduleCur === module) {
+                                    this.offsets[index++] = { pos : binaryIndex, len : len0 + 1 };
+                                    moduleCur = 0;
+                                }
+                            }
+                        } else {
+                            moduleCur++;
+                            if (moduleCur === module) {
+                                this.offsets[index++] = { pos : binaryIndex - 1, len : -1 };
+                                moduleCur = 0;
+                            }
+                        }
+                    }
+                }
+
+                if (!this.offsets)
+                    delete this.binaryFormat;
+
+                //var t2 = performance.now();
+                //console.log(t2 - t1);
+            };
+
+            this.getImage = function(index, canvas, ctx) {
+
+                //var t1 = performance.now();
+                if (this.supportBinaryFormat) {
+                    if (!this.data && !this.offsets) {
+                        this.openBinary(this.binaryFormat);
+                    }
+
+                    if (!canvas)
+                    {
+                        canvas = document.createElement("canvas");
+                        canvas.width = this.width;
+                        canvas.height = this.heightOne;
+                        canvas.style.width = iconWidth + "px";
+                        canvas.style.height = iconHeight + "px";
+
+                        ctx = canvas.getContext("2d");
+                    }
+
+                    var dataTmp = ctx.createImageData(this.width, this.heightOne);
+                    var sizeImage = 4 * this.width * this.heightOne;
+
+                    if (!this.offsets) {
+                        dataTmp.data.set(new Uint8ClampedArray(this.data.buffer, index * sizeImage, sizeImage));                        
+                    } else {
+                        var binaryAlpha = this.binaryFormat;
+                        var binaryIndex = this.offsets[index].pos;
+                        var alphaChannel = 0;
+                        var pixelsCount = this.width * this.heightOne;
+                        var tmpValue = 0, len0 = 0;
+                        var imagePixels = dataTmp.data;
+                        if (-1 != this.offsets[index].len) {
+                            /*
+                            // this values is already 0.
+                            for (var i = 0; i < this.offsets[index].len; i++) {
+                                pixels[alphaChannel] = 0;
+                                alphaChannel += 4;
+                            }
+                            */
+                            alphaChannel += 4 * this.offsets[index].len;
+                        }
+                        while (pixelsCount > 0) {
+                            tmpValue = binaryAlpha[binaryIndex++];
+                            if (0 == tmpValue) {
+                                len0 = binaryAlpha[binaryIndex++];
+                                if (len0 > pixelsCount)
+                                    len0 = pixelsCount;
+                                while (len0 > 0) {
+                                    len0--;
+                                    imagePixels[alphaChannel] = imagePixels[alphaChannel + 1] = imagePixels[alphaChannel + 2] = 255;
+                                    imagePixels[alphaChannel + 3] = 0; // this value is already 0.
+                                    alphaChannel += 4;
+                                    pixelsCount--;
+                                }
+                            } else {
+                                imagePixels[alphaChannel] = imagePixels[alphaChannel + 1] = imagePixels[alphaChannel + 2] = 255 - tmpValue;
+                                imagePixels[alphaChannel + 3] = tmpValue;
+                                alphaChannel += 4;
+                                pixelsCount--;
+                            }
+                        }
+                    }
+                    ctx.putImageData(dataTmp, 0, 0);
+                } else {
+                    if (!canvas)
+                    {
+                        canvas = document.createElement("canvas");
+                        canvas.width = this.width;
+                        canvas.height = this.heightOne;
+                        canvas.style.width = iconWidth + "px";
+                        canvas.style.height = iconHeight + "px";
+
+                        ctx = canvas.getContext("2d");
+                    }
+
+                    ctx.clearRect(0, 0, this.width, this.heightOne);
+                    ctx.drawImage(this.image, 0, -this.heightOne * index);
+                }
+
+                //var t2 = performance.now();
+                //console.log(t2 - t1);
+
+                return canvas;
+            };
+        }
 
         return {
             template: _.template([
                 '<div class="input-group combobox fonts <%= cls %>" id="<%= id %>" style="<%= style %>">',
-                    '<input type="text" class="form-control" spellcheck="false"> ',
+                    '<input dir="ltr" type="text" class="form-control" spellcheck="false" data-hint="<%= dataHint %>" data-hint-direction="<%= dataHintDirection %>"> ',
                     '<div style="display: table-cell;"></div>',
-                    '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret img-commonctrl"></span></button>',
+                    '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>',
                     '<ul class="dropdown-menu <%= menuCls %>" style="<%= menuStyle %>" role="menu">',
                         '<li class="divider">',
                     '<% _.each(items, function(item) { %>',
                         '<li id="<%= item.id %>">',
-                            '<a class="font-item" tabindex="-1" type="menuitem" style="height:<%=scope.getListItemHeight()%>px;"/>',
+                            '<a class="font-item" tabindex="-1" type="menuitem" style="height:<%=scope.getListItemHeight()%>px;"></a>',
                         '</li>',
                     '<% }); %>',
                     '</ul>',
@@ -104,14 +342,17 @@ define([
 
             render : function(parentEl) {
                 var oldRawValue = null;
+                var oldTabindex = '';
 
                 if (!_.isUndefined(this._input)) {
                     oldRawValue = this._input.val();
+                    oldTabindex = this._input.attr('tabindex');
                 }
 
                 Common.UI.ComboBox.prototype.render.call(this, parentEl);
 
                 this.setRawValue(oldRawValue);
+                this._input.attr('tabindex', oldTabindex);
 
                 this._input.on('keyup',     _.bind(this.onInputKeyUp, this));
                 this._input.on('keydown',   _.bind(this.onInputKeyDown, this));
@@ -127,6 +368,8 @@ define([
                      if ($(e.target).closest('input').length) { // enter in input field
                         if (this.lastValue !== this._input.val())
                             this._input.trigger('change');
+                        else
+                            return true;
                     } else { // enter in dropdown list
                         $(e.target).click();
                         if (this.rendered) {
@@ -135,7 +378,7 @@ define([
                             else
                                 this._input.blur();
                         }
-                     }
+                    }
                     return false;
                 } else if (e.keyCode == Common.UI.Keys.ESC && this.isMenuOpen()) {
                     this._input.val(this.lastValue);
@@ -155,6 +398,7 @@ define([
             },
 
             onInputKeyUp: function(e) {
+                if (!this._isKeyDown) return;
                 if (e.keyCode != Common.UI.Keys.RETURN && e.keyCode !== Common.UI.Keys.SHIFT &&
                     e.keyCode !== Common.UI.Keys.CTRL && e.keyCode !== Common.UI.Keys.ALT &&
                     e.keyCode !== Common.UI.Keys.LEFT && e.keyCode !== Common.UI.Keys.RIGHT &&
@@ -186,9 +430,11 @@ define([
                             }, 10);
                     }
                 }
+                this._isKeyDown = false;
             },
 
             onInputKeyDown: function(e) {
+                this._isKeyDown = true;
                 this._inInputKeyDown = (new Date());
                 var me = this;
 
@@ -198,9 +444,11 @@ define([
                         me.closeMenu();
                         me.onAfterHideMenu(e);
                     }, 10);
-                } else if (e.keyCode != Common.UI.Keys.RETURN && e.keyCode != Common.UI.Keys.CTRL && e.keyCode != Common.UI.Keys.SHIFT && e.keyCode != Common.UI.Keys.ALT){
-                    if (!this.isMenuOpen() && !e.ctrlKey)
+                } else if (e.keyCode != Common.UI.Keys.RETURN && e.keyCode != Common.UI.Keys.CTRL && e.keyCode != Common.UI.Keys.SHIFT && e.keyCode != Common.UI.Keys.ALT && e.keyCode != Common.UI.Keys.TAB){
+                    if (!this.isMenuOpen() && !e.ctrlKey) {
                         this.openMenu();
+                        (this.recent > 0) && this.flushVisibleFontsTiles();
+                    }
 
                     if (e.keyCode == Common.UI.Keys.UP || e.keyCode == Common.UI.Keys.DOWN) {
                         _.delay(function() {
@@ -273,15 +521,8 @@ define([
                     return img != null ? img[0].src : undefined;
                 }
 
-                if (isRetina) {
-                    thumbContext.clearRect(0, 0, iconWidth * 2, iconHeight * 2);
-                    thumbContext.drawImage(this.spriteThumbs, 0, -Asc.FONT_THUMBNAIL_HEIGHT * 2 * opts.imgidx);
-                } else {
-                    thumbContext.clearRect(0, 0, iconWidth, iconHeight);
-                    thumbContext.drawImage(this.spriteThumbs, 0, -Asc.FONT_THUMBNAIL_HEIGHT * opts.imgidx);
-                }
-
-                return thumbCanvas.toDataURL();
+                var index = Math.floor(opts.imgidx/spriteCols);
+                return this.spriteThumbs.getImage(index, thumbCanvas, thumbContext).toDataURL();
             },
 
             getImageWidth: function() {
@@ -297,17 +538,15 @@ define([
             },
 
             loadSprite: function(callback) {
-                if (callback) {
-                    this.spriteThumbs = new Image();
-                    this.spriteThumbs.onload = callback;
-                    this.spriteThumbs.src = (window.devicePixelRatio > 1) ? thumbPath2x : thumbPath;
-                }
+                this.spriteThumbs = new CThumbnailLoader();
+                this.spriteThumbs.load(thumbs[thumbIdx].path, callback);
             },
 
             fillFonts: function(store, select) {
                 var me = this;
 
                 this.loadSprite(function() {
+                    spriteCols = Math.floor(me.spriteThumbs.width / (thumbs[thumbIdx].width)) || 1;
                     me.store.set(store.toJSON());
 
                     me.rendered = false;
@@ -336,15 +575,21 @@ define([
 
             onApiChangeFont: function(font) {
                 var me = this;
-                setTimeout(function () {
-                    me.onApiChangeFontInternal(font);
-                }, 100);
+                var name = (_.isFunction(font.get_Name) ?  font.get_Name() : font.asc_getFontName());
+                if (this.__name !== name) {
+                    this.__name = name;
+                    if (!this.__nameId) {
+                        this.__nameId = setTimeout(function () {
+                            me.onApiChangeFontInternal(me.__name);
+                            me.__nameId = null;
+                        }, 100);
+                    }
+
+                }
             },
 
-            onApiChangeFontInternal: function(font) {
+            onApiChangeFontInternal: function(name) {
                 if (this.inFormControl) return;
-
-                var name = (_.isFunction(font.get_Name) ?  font.get_Name() : font.asc_getName());
 
                 if (this.getRawValue() !== name) {
                     var record = this.store.findWhere({
@@ -370,6 +615,12 @@ define([
             },
 
             itemClicked: function (e) {
+                this.__name = undefined;
+                if (this.__nameId) {
+                    clearTimeout(this.__nameId);
+                    this.__nameId = undefined;
+                }
+
                 Common.UI.ComboBox.prototype.itemClicked.apply(this, arguments);
 
                 var el = $(e.target).closest('li');
@@ -380,7 +631,7 @@ define([
             onInsertItem: function(item) {
                 $(this.el).find('ul').prepend(_.template([
                     '<li id="<%= item.id %>">',
-                        '<a class="font-item" tabindex="-1" type="menuitem" style="height:<%=scope.getListItemHeight()%>px;"/>',
+                        '<a class="font-item" tabindex="-1" type="menuitem" style="height:<%=scope.getListItemHeight()%>px;"></a>',
                     '</li>'
                 ].join(''))({
                     item: item.attributes,
@@ -408,6 +659,7 @@ define([
             },
 
             onAfterShowMenu: function(e) {
+                this.alignMenuPosition();
                 if (this.recent > 0) {
                     if (this.scroller && !this._scrollerIsInited) {
                         this.scroller.update();
@@ -417,6 +669,7 @@ define([
                     this.trigger('show:after', this, e);
                     this.flushVisibleFontsTiles();
                     this.updateVisibleFontsTiles(null, 0);
+                    Common.Utils.isGecko && this.scroller && this.scroller.update();
                 } else {
                     Common.UI.ComboBox.prototype.onAfterShowMenu.apply(this, arguments);
                 }
@@ -430,7 +683,7 @@ define([
             },
 
             addItemToRecent: function(record, silent) {
-                if (this.recent<1) return;
+                if (!record || this.recent<1) return;
 
                 var font = this.store.findWhere({name: record.get('name'),type:FONT_TYPE_RECENT});
                 font && this.store.remove(font);
@@ -513,24 +766,8 @@ define([
                 for (j = 0; j < storeCount; ++j) {
                     if (from <= j && j < to) {
                         if (null === me.tiles[j]) {
-                            var fontImage = document.createElement('canvas');
-                            var context = fontImage.getContext('2d');
-
-                            fontImage.height = isRetina ? iconHeight * 2 : iconHeight;
-                            fontImage.width = isRetina ? iconWidth  * 2 : iconWidth;
-
-                            fontImage.style.width = iconWidth + 'px';
-                            fontImage.style.height = iconHeight + 'px';
-
-                            index = me.store.at(j).get('imgidx');
-
-                            if (isRetina) {
-                                context.clearRect(0, 0, iconWidth * 2, iconHeight * 2);
-                                context.drawImage(me.spriteThumbs, 0, -Asc.FONT_THUMBNAIL_HEIGHT * 2 * index);
-                            } else {
-                                context.clearRect(0, 0, iconWidth, iconHeight);
-                                context.drawImage(me.spriteThumbs, 0, -Asc.FONT_THUMBNAIL_HEIGHT * index);
-                            }
+                            index = Math.floor(me.store.at(j).get('imgidx')/spriteCols);
+                            var fontImage = me.spriteThumbs.getImage(index);
 
                             me.tiles[j] = fontImage;
                             $(listItems[j]).get(0).appendChild(fontImage);

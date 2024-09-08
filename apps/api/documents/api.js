@@ -11,10 +11,11 @@
         # Full #
 
         config = {
-            type: 'desktop or mobile',
+            type: 'desktop or mobile or embedded',
             width: '100% by default',
             height: '100% by default',
-            documentType: 'text' | 'spreadsheet' | 'presentation',
+            documentType: 'word' | 'cell' | 'slide' | 'pdf' ,// deprecate 'text' | 'spreadsheet' | 'presentation',
+            token: <string> encrypted signature
             document: {
                 title: 'document title',
                 url: 'document url'
@@ -22,11 +23,10 @@
                 options: <advanced options>,
                 key: 'key',
                 vkey: 'vkey',
+                referenceData: 'data for external paste',
                 info: {
-                    author: 'author name', // must be deprecated, use owner instead
                     owner: 'owner name',
                     folder: 'path to document',
-                    created: '<creation date>', // must be deprecated, use uploaded instead
                     uploaded: '<uploaded date>',
                     sharingSettings: [
                         {
@@ -35,7 +35,8 @@
                             isLink: false
                         },
                         ...
-                    ]
+                    ],
+                    favorite: '<file is favorite>' // true/false/undefined (undefined - don't show fav. button)
                 },
                 permissions: {
                     edit: <can edit>, // default = true
@@ -43,15 +44,31 @@
                     reader: <can view in readable mode>,
                     review: <can review>, // default = edit
                     print: <can print>, // default = true
-                    rename: <can rename>, // default = false
-                    changeHistory: <can change history>, // default = false
                     comment: <can comment in view mode> // default = edit,
                     modifyFilter: <can add, remove and save filter in the spreadsheet> // default = true
                     modifyContentControl: <can modify content controls in documenteditor> // default = true
-                   fillForms:  <can edit forms in view mode> // default = edit || review
+                    fillForms:  <can edit forms in view mode> // default = edit || review,
+                    copy: <can copy data> // default = true,
+                    editCommentAuthorOnly: <can edit your own comments only> // default = false
+                    deleteCommentAuthorOnly: <can delete your own comments only> // default = false,
+                    reviewGroups: ["Group1", ""] // current user can accept/reject review changes made by users from Group1 and users without a group. [] - use groups, but can't change any group's changes
+                    commentGroups: { // {} - use groups, but can't view/edit/delete any group's comments
+                         view: ["Group1", ""] // current user can view comments made by users from Group1 and users without a group.
+                         edit: ["Group1", ""] // current user can edit comments made by users from Group1 and users without a group.
+                         remove: ["Group1", ""] // current user can remove comments made by users from Group1 and users without a group.
+                    },
+                    userInfoGroups: ["Group1", ""], // show tooltips/cursors/info in header only for users in userInfoGroups groups. [""] - means users without group, [] - don't show any users, null/undefined/"" - show all users
+                    protect: <can protect document> // default = true. show/hide protect tab or protect buttons,
+                    chat: <true>
                 }
             },
             editorConfig: {
+                actionLink: { // open file and scroll to data, used with onMakeActionLink or the onRequestSendNotify event
+                    action: {
+                        type: "bookmark", // or type="comment"
+                        data: <bookmark name> // or comment id
+                    }
+                },
                 mode: 'view or edit',
                 lang: <language code>,
                 location: <location>,
@@ -69,20 +86,22 @@
 
                 user: {
                     id: 'user id',
-                    name: 'user name'
+                    name: 'user name',
+                    group: 'group name' // for customization.reviewPermissions or permissions.reviewGroups or permissions.commentGroups. Can be multiple groups separated by commas (,) : 'Group1' or 'Group1,Group2'
+                    image: 'image url'
                 },
                 recent: [
                     {
                         title: 'document title',
                         url: 'document url',
-                        folder: 'path to document'
+                        folder: 'path to document',
                     },
                     ...
                 ],
                 templates: [
                     {
-                        name: 'template name',
-                        icon: 'template icon url',
+                        title: 'template name', // name - is deprecated
+                        image: 'template icon url',
                         url: 'http://...'
                     },
                     ...
@@ -90,16 +109,20 @@
                 customization: {
                     logo: {
                         image: url,
-                        imageEmbedded: url,
-                        url: http://...
+                        imageDark: url, // logo for dark theme
+                        imageEmbedded: url, // deprecated, use image instead
+                        url: http://...,
+                        visible: true // hide logo if visible=false
                     },
                     customer: {
                         name: 'SuperPuper',
                         address: 'New-York, 125f-25',
                         mail: 'support@gmail.com',
                         www: 'www.superpuper.com',
+                        phone: '1234567890',
                         info: 'Some info',
-                        logo: ''
+                        logo: '',
+                        logoDark: '', // logo for dark theme
                     },
                     about: true,
                     feedback: {
@@ -109,27 +132,120 @@
                     goback: {
                         url: 'http://...',
                         text: 'Go to London',
-                        blank: true
+                        blank: true,
+                        requestClose: false // if true - goback send onRequestClose event instead opening url, deprecated, use customization.close instead
                     },
-                    chat: true,
+                    close: {
+                        visible: true,
+                        text: 'Close file'
+                    },
+                    reviewPermissions: {
+                        "Group1": ["Group2"], // users from Group1 can accept/reject review changes made by users from Group2
+                        "Group2": ["Group1", "Group2"] // users from Group2 can accept/reject review changes made by users from Group1 and Group2
+                        "Group3": [""] // users from Group3 can accept/reject review changes made by users without a group
+                    },
+                    anonymous: { // set name for anonymous user
+                        request: bool (default: true), // enable set name
+                        label: string (default: "Guest") // postfix for user name
+                    },
+                    review: {
+                        hideReviewDisplay: false, // hide button Review mode
+                        hoverMode: false, // true - show review balloons on mouse move, not on click on text
+                        showReviewChanges: false,
+                        reviewDisplay: 'original', // original for viewer, markup for editor
+                        trackChanges: undefined // true/false - open editor with track changes mode on/off,
+                    },
+                    layout: { // hide elements, but don't disable feature
+                        toolbar: {
+                            file: { // menu file
+                                close: false / true, // close menu button
+                                settings: false / true, // advanced settings
+                                info: false / true // document info
+                                save: false/true // save button
+                            } / false / true,
+                            home:  {
+                                mailmerge: false/true // mail merge button // deprecated, button is moved to collaboration tab. use toolbar->collaboration->mailmerge instead
+                            },
+                            layout:  false / true, // layout tab
+                            references:  false / true, // de references tab
+                            collaboration:  {
+                                mailmerge: false/true // mail merge button in de
+                            } / false / true, // collaboration tab
+                            draw:  false / true // draw tab
+                            protect:  false / true, // protect tab
+                            plugins:  false / true // plugins tab
+                            view: {
+                                navigation: false/true // navigation button in de
+                            } / false / true, // view tab
+                            save: false/true // save button on toolbar in 
+                        } / false / true, // use instead of customization.toolbar,
+                        header: {
+                            users: false/true // users list button
+                            save: false/true // save button
+                            editMode: false/true // change mode button
+                        },
+                        leftMenu: {
+                            navigation: false/true,
+                            spellcheck: false/true // spellcheck button in sse,
+                            mode: false/true // init value for left panel, true - is visible, false - is hidden, used for option "Left panel" on the View Tab
+                        } / false / true, // use instead of customization.leftMenu
+                        rightMenu: {
+                            mode: false/true // init value for right panel, true - is visible, false - is hidden, used for option "Right panel" on the View Tab
+                        } / false/true, // use instead of customization.rightMenu
+                        statusBar: {
+                            textLang: false/true // text language button in de/pe
+                            docLang: false/true // document language button in de/pe
+                            actionStatus: false/true // status of operation
+                        } / false / true, // use instead of customization.statusBar
+                    },
+                    features: { // disable feature
+                        spellcheck: {
+                            mode: false/true // init value in de/pe
+                            change: false/true // hide/show feature in de/pe/sse
+                        } / false / true // if false/true - use as init value in de/pe. use instead of customization.spellcheck parameter
+                        roles: false/true // hide/show Roles manager, roles settings in right panel and roles in View form button in de
+                    },
+                    font: {
+                        name: "Arial",
+                        size: "11px";
+                    },
+                    chat: true, // deprecated 7.1, use permissions.chat
                     comments: true,
                     zoom: 100,
                     compactToolbar: false,
-                    leftMenu: true,
-                    rightMenu: true,
-                    hideRightMenu: false, // hide or show right panel on first loading
-                    toolbar: true,
-                    statusBar: true,
+                    leftMenu: true, // must be deprecated. use layout.leftMenu instead
+                    rightMenu: true, // must be deprecated. use layout.rightMenu instead
+                    hideRightMenu: true, // hide or show right panel on first loading !! default value changed in 8.1
+                    toolbar: true, // must be deprecated. use layout.toolbar instead
+                    statusBar: true, // must be deprecated. use layout.statusBar instead
                     autosave: true,
                     forcesave: false,
-                    commentAuthorOnly: false,
-                    showReviewChanges: false,
+                    commentAuthorOnly: false, // must be deprecated. use permissions.editCommentAuthorOnly and permissions.deleteCommentAuthorOnly instead
+                    showReviewChanges: false, // must be deprecated. use customization.review.showReviewChanges instead
                     help: true,
                     compactHeader: false,
                     toolbarNoTabs: false,
                     toolbarHideFileName: false,
-                    reviewDisplay: 'original'
+                    reviewDisplay: 'original', // must be deprecated. use customization.review.reviewDisplay instead
+                    spellcheck: true, // must be deprecated. use customization.features.spellcheck instead
+                    compatibleFeatures: false,
+                    unit: 'cm' // cm, pt, inch,
+                    mentionShare : true // customize tooltip for mention,
+                    macros: true // can run macros in document
+                    plugins: true // can run plugins in document
+                    macrosMode: 'warn' // warn about automatic macros, 'enable', 'disable', 'warn',
+                    trackChanges: undefined // true/false - open editor with track changes mode on/off,  // must be deprecated. use customization.review.trackChanges instead
+                    hideRulers: false // hide or show rulers on first loading (presentation or document editor)
+                    hideNotes: false // hide or show notes panel on first loading (presentation editor)
+                    uiTheme: 'theme-dark' // set interface theme: id or default-dark/default-light
+                    integrationMode: "embed" // turn off scroll to frame
+                    mobileForceView: true/false (default: true) // turn on/off the 'reader' mode on launch. for mobile document editor only
                 },
+                 coEditing: {
+                     mode: 'fast', // <coauthoring mode>, 'fast' or 'strict'. if 'fast' and 'customization.autosave'=false -> set 'customization.autosave'=true. 'fast' - default for editor
+                     // for viewer: 'strict' is default, offline viewer; 'fast' - live viewer, show changes from other users
+                     change: true, // can change co-authoring mode. true - default for editor, false - default for viewer
+                 },
                 plugins: {
                     autostart: ['asc.{FFE1F462-1EA2-4391-990D-4CC84940B754}'],
                     pluginsData: [
@@ -138,13 +254,45 @@
                         "speech/config.json",
                         "clipart/config.json",
                     ]
+                },
+                wopi: { // only for wopi
+                    FileNameMaxLength: 250 // max filename length for rename, 250 by default
                 }
             },
             events: {
                 'onAppReady': <application ready callback>,
-                'onBack': <back to folder callback>,
                 'onDocumentStateChange': <document state changed callback>
                 'onDocumentReady': <document ready callback>
+                'onRequestEditRights': <request rights for switching from view to edit>,
+                'onRequestHistory': <request version history>,// must call refreshHistory method
+                'onRequestHistoryData': <request version data>,// must call setHistoryData method
+                'onRequestRestore': <try to restore selected version>,
+                'onRequestHistoryClose': <request closing history>,
+                'onError': <error callback>,
+                'onWarning': <warning callback>,
+                'onInfo': <document open callback>,// send view or edit mode
+                'onOutdatedVersion': <outdated version callback>,// send when  previous version is opened
+                'onDownloadAs': <download as callback>,// send url of downloaded file as a response for downloadAs method
+                'onRequestSaveAs': <try to save copy of the document>,
+                'onCollaborativeChanges': <co-editing changes callback>,// send when other user co-edit document
+                'onRequestRename': <try to rename document>,
+                'onMetaChange': // send when meta information changed
+                'onRequestClose': <request close editor>,
+                'onMakeActionLink': <request link to document with bookmark, comment...>,// must call setActionLink method
+                'onRequestUsers': <request users list for mentions>,// must call setUsers method
+                'onRequestSendNotify': //send when user is mentioned in a comment,
+                'onRequestInsertImage': <try to insert image>,// must call insertImage method
+                'onRequestCompareFile': <request file to compare>,// must call setRevisedFile method. must be deprecated
+                'onRequestSharingSettings': <request sharing settings>,// must call setSharingSettings method
+                'onRequestCreateNew': <try to create document>,
+                'onRequestReferenceData': <try to refresh external data>,
+                'onRequestOpen': <try to open external link>,
+                'onRequestSelectDocument': <try to open document>, // used for compare and combine documents. must call setRequestedDocument method. use instead of onRequestCompareFile/setRevisedFile
+                'onRequestSelectSpreadsheet': <try to open spreadsheet>, // used for mailmerge id de. must call setRequestedSpreadsheet method. use instead of onRequestMailMergeRecipients/setMailMergeRecipients
+                'onRequestReferenceSource': <try to change source for external link>, // used for external links in sse. must call setReferenceSource method,
+                'onSaveDocument': 'save document from binary',
+                'onRequestStartFilling': <try to start filling forms> // used in pdf-form edit mode. must call startFilling method
+                'onSubmit': <filled form is submitted> // send when filled form is submitted successfully
             }
         }
 
@@ -154,7 +302,7 @@
             type: 'embedded',
             width: '100% by default',
             height: '100% by default',
-            documentType: 'text' | 'spreadsheet' | 'presentation',
+            documentType: 'word' | 'cell' | 'slide',// deprecate 'text' | 'spreadsheet' | 'presentation',
             document: {
                 title: 'document title',
                 url: 'document url',
@@ -205,7 +353,18 @@
         _config.editorConfig.canRequestSaveAs = _config.events && !!_config.events.onRequestSaveAs;
         _config.editorConfig.canRequestInsertImage = _config.events && !!_config.events.onRequestInsertImage;
         _config.editorConfig.canRequestMailMergeRecipients = _config.events && !!_config.events.onRequestMailMergeRecipients;
+        _config.editorConfig.canRequestCompareFile = _config.events && !!_config.events.onRequestCompareFile;
+        _config.editorConfig.canRequestSharingSettings = _config.events && !!_config.events.onRequestSharingSettings;
+        _config.editorConfig.canRequestCreateNew = _config.events && !!_config.events.onRequestCreateNew;
+        _config.editorConfig.canRequestReferenceData = _config.events && !!_config.events.onRequestReferenceData;
+        _config.editorConfig.canRequestOpen = _config.events && !!_config.events.onRequestOpen;
+        _config.editorConfig.canRequestSelectDocument = _config.events && !!_config.events.onRequestSelectDocument;
+        _config.editorConfig.canRequestSelectSpreadsheet = _config.events && !!_config.events.onRequestSelectSpreadsheet;
+        _config.editorConfig.canRequestReferenceSource = _config.events && !!_config.events.onRequestReferenceSource;
+        _config.editorConfig.canSaveDocumentToBinary = _config.events && !!_config.events.onSaveDocument;
+        _config.editorConfig.canStartFilling = _config.events && !!_config.events.onRequestStartFilling;
         _config.frameEditorId = placeholderId;
+        _config.parentOrigin = window.location.origin;
 
         var onMouseUp = function (evt) {
             _processMouse(evt);
@@ -252,40 +411,12 @@
             }
         };
 
-        var _callLocalStorage = function(data) {
-            if (data.cmd == 'get') {
-                if (data.keys && data.keys.length) {
-                    var af = data.keys.split(','), re = af[0];
-                    for (i = 0; ++i < af.length;)
-                        re += '|' + af[i];
-
-                    re = new RegExp(re); k = {};
-                    for (i in localStorage)
-                        if (re.test(i)) k[i] = localStorage[i];
-                } else {
-                    k = localStorage;
-                }
-
-                _sendCommand({
-                    command: 'internalCommand',
-                    data: {
-                        type: 'localstorage',
-                        keys: k
-                    }
-                });
-            } else
-            if (data.cmd == 'set') {
-                var k = data.keys, i;
-                for (i in k) {
-                    localStorage.setItem(i, k[i]);
-                }
-            }
-        };
-
         var _onMessage = function(msg) {
             if ( msg ) {
                 if ( msg.type === "onExternalPluginMessage" ) {
                     _sendCommand(msg);
+                } else if ((window.parent !== window) && msg.type === "onExternalPluginMessageCallback") {
+                    postMessage(window.parent, msg);
                 } else
                 if ( msg.frameEditorId == placeholderId ) {
                     var events = _config.events || {},
@@ -294,8 +425,6 @@
 
                     if (msg.event === 'onRequestEditRights' && !handler) {
                         _applyEditRights(false, 'handler isn\'t defined');
-                    } else if (msg.event === 'onInternalMessage' && msg.data && msg.data.type == 'localstorage') {
-                        _callLocalStorage(msg.data.data);
                     } else {
                         if (msg.event === 'onAppReady') {
                             _onAppReady();
@@ -321,8 +450,15 @@
                         'text': 'docx',
                         'text-pdf': 'pdf',
                         'spreadsheet': 'xlsx',
-                        'presentation': 'pptx'
+                        'presentation': 'pptx',
+                        'word': 'docx',
+                        'cell': 'xlsx',
+                        'slide': 'pptx',
+                        'pdf': 'pdf'
                     }, app;
+
+                if (_config.documentType=='text' || _config.documentType=='spreadsheet' ||_config.documentType=='presentation')
+                    console.warn("The \"documentType\" parameter for the config object must take one of the values word/cell/slide/pdf.");
 
                 if (typeof _config.documentType === 'string' && _config.documentType != '') {
                     app = appMap[_config.documentType.toLowerCase()];
@@ -335,19 +471,21 @@
                 }
 
                 if (typeof _config.document.fileType === 'string' && _config.document.fileType != '') {
-                    var type = /^(?:(xls|xlsx|ods|csv|xlst|xlsy|gsheet|xlsm|xlt|xltm|xltx|fods|ots)|(pps|ppsx|ppt|pptx|odp|pptt|ppty|gslides|pot|potm|potx|ppsm|pptm|fodp|otp)|(doc|docx|doct|odt|gdoc|txt|rtf|pdf|mht|htm|html|epub|djvu|xps|docm|dot|dotm|dotx|fodt|ott))$/
+                    _config.document.fileType = _config.document.fileType.toLowerCase();
+                    var type = /^(?:(xls|xlsx|ods|csv|gsheet|xlsm|xlt|xltm|xltx|fods|ots|xlsb|sxc|et|ett)|(pps|ppsx|ppt|pptx|odp|gslides|pot|potm|potx|ppsm|pptm|fodp|otp|sxi|dps|dpt)|(pdf|djvu|xps|oxps)|(doc|docx|odt|gdoc|txt|rtf|mht|htm|html|mhtml|epub|docm|dot|dotm|dotx|fodt|ott|fb2|xml|oform|docxf|sxw|stw|wps|wpt))$/
                                     .exec(_config.document.fileType);
                     if (!type) {
                         window.alert("The \"document.fileType\" parameter for the config object is invalid. Please correct it.");
                         return false;
                     } else if (typeof _config.documentType !== 'string' || _config.documentType == ''){
-                        if (typeof type[1] === 'string') _config.documentType = 'spreadsheet'; else
-                        if (typeof type[2] === 'string') _config.documentType = 'presentation'; else
-                        if (typeof type[3] === 'string') _config.documentType = 'text';
+                        if (typeof type[1] === 'string') _config.documentType = 'cell'; else
+                        if (typeof type[2] === 'string') _config.documentType = 'slide'; else
+                        if (typeof type[3] === 'string') _config.documentType = 'pdf'; else
+                        if (typeof type[4] === 'string') _config.documentType = 'word';
                     }
                 }
 
-                var type = /^(?:(pdf|djvu|xps))$/.exec(_config.document.fileType);
+                var type = /^(?:(djvu|xps|oxps))$/.exec(_config.document.fileType);
                 if (type && typeof type[1] === 'string') {
                     _config.editorConfig.canUseHistory = false;
                 }
@@ -360,6 +498,11 @@
                 } else if (typeof _config.document.key !== 'string') {
                     window.alert("The \"document.key\" parameter for the config object must be string. Please correct it.");
                     return false;
+                }
+
+                if (_config.editorConfig.user && _config.editorConfig.user.id && (typeof _config.editorConfig.user.id == 'number')) {
+                    _config.editorConfig.user.id = _config.editorConfig.user.id.toString();
+                    console.warn("The \"id\" parameter for the editorConfig.user object must be a string.");
                 }
 
                 _config.document.token = _config.token;
@@ -377,8 +520,6 @@
                     if (!_config.editorConfig.customization) _config.editorConfig.customization = {};
                     _config.editorConfig.customization.about = false;
                     _config.editorConfig.customization.compactHeader = false;
-
-                    if ( window.AscDesktopEditor ) window.AscDesktopEditor.execCommand('webapps:events', 'loading');
                 }
             }
         })();
@@ -388,6 +529,27 @@
 
         if (target && _checkConfigParams()) {
             iframe = createIframe(_config);
+            if (_config.editorConfig.customization && _config.editorConfig.customization.integrationMode==='embed')
+                window.AscEmbed && window.AscEmbed.initWorker(iframe);
+
+            if (_config.document && (_config.document.isForm!==true && _config.document.isForm!==false)) {
+                iframe.onload = function() {
+                    _sendCommand({
+                        command: 'checkParams',
+                        data: {
+                            url: _config.document.url,
+                            directUrl: _config.document.directUrl,
+                            token: _config.document.token,
+                            key: _config.document.key
+                        }
+                    })
+                };
+            }
+
+            if (iframe.src) {
+                var pathArray = iframe.src.split('/');
+                this.frameOrigin = pathArray[0] + '//' + pathArray[2];
+            }
             target.parentNode && target.parentNode.replaceChild(iframe, target);
             var _msgDispatcher = new MessageDispatcher(_onMessage, this);
         }
@@ -410,9 +572,9 @@
             }
         };
 
-        var _sendCommand = function(cmd) {
+        var _sendCommand = function(cmd, buffer) {
             if (iframe && iframe.contentWindow)
-                postMessage(iframe.contentWindow, cmd);
+                postMessage(iframe.contentWindow, cmd, buffer);
         };
 
         var _init = function(editorConfig) {
@@ -431,6 +593,13 @@
                     doc: doc
                 }
             });
+        };
+
+        var _openDocumentFromBinary = function(doc) {
+            doc && _sendCommand({
+                command: 'openDocumentFromBinary',
+                data: doc.buffer
+            }, doc.buffer);
         };
 
         var _showMessage = function(title, msg) {
@@ -574,6 +743,55 @@
             });
         };
 
+        var _setRevisedFile = function(data) {
+            _sendCommand({
+                command: 'setRevisedFile',
+                data: data
+            });
+        };
+
+        var _setRequestedDocument = function(data) {
+            _sendCommand({
+                command: 'setRequestedDocument',
+                data: data
+            });
+        };
+
+        var _setRequestedSpreadsheet = function(data) {
+            _sendCommand({
+                command: 'setRequestedSpreadsheet',
+                data: data
+            });
+        };
+
+        var _setReferenceSource = function(data) {
+            _sendCommand({
+                command: 'setReferenceSource',
+                data: data
+            });
+        };
+
+        var _setFavorite = function(data) {
+            _sendCommand({
+                command: 'setFavorite',
+                data: data
+            });
+        };
+
+        var _requestClose = function(data) {
+            _sendCommand({
+                command: 'requestClose',
+                data: data
+            });
+        };
+
+        var _startFilling = function(data) {
+            _sendCommand({
+                command: 'startFilling',
+                data: data
+            });
+        };
+
         var _processMouse = function(evt) {
             var r = iframe.getBoundingClientRect();
             var data = {
@@ -585,6 +803,29 @@
 
             _sendCommand({
                 command: 'processMouse',
+                data: data
+            });
+        };
+
+        var _grabFocus = function(data) {
+            setTimeout(function(){
+                _sendCommand({
+                    command: 'grabFocus',
+                    data: data
+                });
+            }, 10);
+        };
+
+        var _blurFocus = function(data) {
+            _sendCommand({
+                command: 'blurFocus',
+                data: data
+            });
+        };
+
+        var _setReferenceData = function(data) {
+            _sendCommand({
+                command: 'setReferenceData',
                 data: data
             });
         };
@@ -618,7 +859,18 @@
             showSharingSettings : _showSharingSettings,
             setSharingSettings  : _setSharingSettings,
             insertImage         : _insertImage,
-            setMailMergeRecipients: _setMailMergeRecipients
+            setMailMergeRecipients: _setMailMergeRecipients,
+            setRevisedFile      : _setRevisedFile,
+            setFavorite         : _setFavorite,
+            requestClose        : _requestClose,
+            grabFocus           : _grabFocus,
+            blurFocus           : _blurFocus,
+            setReferenceData    : _setReferenceData,
+            setRequestedDocument: _setRequestedDocument,
+            setRequestedSpreadsheet: _setRequestedSpreadsheet,
+            setReferenceSource: _setReferenceSource,
+            openDocument: _openDocumentFromBinary,
+            startFilling: _startFilling
         }
     };
 
@@ -668,7 +920,13 @@
 
         var _onMessage = function(msg) {
             // TODO: check message origin
-            if (msg && window.JSON) {
+            if (msg && window.JSON && _scope.frameOrigin==msg.origin ) {
+                if (msg.data && msg.data.event === 'onSaveDocument') {
+                    if (_fn) {
+                        _fn.call(_scope, msg.data);
+                    }
+                    return;
+                }
 
                 try {
                     var msg = window.JSON.parse(msg.data);
@@ -706,37 +964,83 @@
         return extensionParams["url"] + "apps/";
     }
 
+
+    function getTestPath() {
+        var scripts = document.getElementsByTagName('script'),
+            match;
+
+        for (var i = scripts.length - 1; i >= 0; i--) {
+            match = scripts[i].src.match(/(.*)apps\/api\/documents\/api.js/i);
+            if (match) {
+                return match[1] + "test/";
+            }
+        }
+
+        return "";
+    }
+
     function getAppPath(config) {
         var extensionPath = getExtensionPath(),
-            path = extensionPath ? extensionPath : getBasePath(),
+            path = extensionPath ? extensionPath : (config.type=="test" ? getTestPath() : getBasePath()),
             appMap = {
                 'text': 'documenteditor',
                 'text-pdf': 'documenteditor',
                 'spreadsheet': 'spreadsheeteditor',
-                'presentation': 'presentationeditor'
+                'presentation': 'presentationeditor',
+                'word': 'documenteditor',
+                'cell': 'spreadsheeteditor',
+                'slide': 'presentationeditor',
+                'pdf': 'pdfeditor',
+                'common': 'common'
             },
-            app = appMap['text'];
+            appType = 'word',
+            type,
+            fillForms = false,
+            isForm = false;
+        if (config.document) {
+            if (typeof config.document.fileType === 'string')
+                type = /^(?:(pdf)|(djvu|xps|oxps)|(xls|xlsx|ods|csv|xlst|xlsy|gsheet|xlsm|xlt|xltm|xltx|fods|ots|xlsb)|(pps|ppsx|ppt|pptx|odp|pptt|ppty|gslides|pot|potm|potx|ppsm|pptm|fodp|otp)|(oform|docxf))$/
+                    .exec(config.document.fileType);
 
-        if (typeof config.documentType === 'string') {
-            app = appMap[config.documentType.toLowerCase()];
-        } else
-        if (!!config.document && typeof config.document.fileType === 'string') {
-            var type = /^(?:(xls|xlsx|ods|csv|xlst|xlsy|gsheet|xlsm|xlt|xltm|xltx|fods|ots)|(pps|ppsx|ppt|pptx|odp|pptt|ppty|gslides|pot|potm|potx|ppsm|pptm|fodp|otp))$/
-                            .exec(config.document.fileType);
-            if (type) {
-                if (typeof type[1] === 'string') app = appMap['spreadsheet']; else
-                if (typeof type[2] === 'string') app = appMap['presentation'];
+            if (config.document.permissions)
+                fillForms = (config.document.permissions.fillForms===undefined ? config.document.permissions.edit !== false : config.document.permissions.fillForms) &&
+                            config.editorConfig && (config.editorConfig.mode !== 'view');
+        }
+        if (type && typeof type[2] === 'string') { // djvu|xps|oxps
+            appType = config.type === 'mobile' ||  config.type === 'embedded' ? 'word' : 'pdf';
+        } else if (type && typeof type[1] === 'string') { // pdf - need check
+            isForm = config.document ? config.document.isForm : undefined;
+            if (config.type === 'embedded')
+                appType = fillForms && isForm===undefined ? 'common' : 'word';
+            else if (config.type !== 'mobile')
+                appType = isForm===undefined ? 'common' : isForm ? 'word' : 'pdf';
+        } else if (type && typeof type[5] === 'string') { // oform|docxf
+            appType = 'word';
+        } else {
+            if (typeof config.documentType === 'string')
+                appType = config.documentType.toLowerCase();
+            else {
+                if (type && typeof type[3] === 'string') appType = 'cell'; else
+                if (type && typeof type[4] === 'string') appType = 'slide';
             }
         }
+        path += appMap[appType];
 
-        path += app + "/";
-        path += config.type === "mobile"
-            ? "mobile"
-            : config.type === "embedded"
-                ? "embed"
-                : "main";
-        path += "/index.html";
+        const path_type = config.type === "mobile" ? "mobile" :
+                          config.type === "embedded" ? (fillForms && isForm ? "forms" : "embed") : "main";
+        if (appType !== 'common')
+            path += "/" + path_type;
 
+        var index = "/index.html";
+        if (config.editorConfig && path_type!=="forms" && appType!=='common') {
+            var customization = config.editorConfig.customization;
+            if ( typeof(customization) == 'object' && ( customization.toolbarNoTabs ||
+               (config.editorConfig.targetApp!=='desktop') && (customization.loaderName || customization.loaderLogo))) {
+                index = "/index_loader.html";
+            } else if (config.editorConfig.mode === 'editdiagram' || config.editorConfig.mode === 'editmerge' || config.editorConfig.mode === 'editole')
+                index = "/index_internal.html";
+        }
+        path += index;
         return path;
     }
 
@@ -748,17 +1052,72 @@
 
         if (config.editorConfig && config.editorConfig.targetApp!=='desktop') {
             if ( (typeof(config.editorConfig.customization) == 'object') && config.editorConfig.customization.loaderName) {
-                if (config.editorConfig.customization.loaderName !== 'none') params += "&customer=" + config.editorConfig.customization.loaderName;
+                if (config.editorConfig.customization.loaderName !== 'none') params += "&customer=" + encodeURIComponent(config.editorConfig.customization.loaderName);
             } else
-                params += "&customer=ONLYOFFICE";
-            if ( (typeof(config.editorConfig.customization) == 'object') && config.editorConfig.customization.loaderLogo) {
-                if (config.editorConfig.customization.loaderLogo !== '') params += "&logo=" + config.editorConfig.customization.loaderLogo;
+                params += "&customer={{APP_CUSTOMER_NAME}}";
+            if (typeof(config.editorConfig.customization) == 'object') {
+                if ( config.editorConfig.customization.loaderLogo && config.editorConfig.customization.loaderLogo !== '') {
+                    params += "&logo=" + encodeURIComponent(config.editorConfig.customization.loaderLogo);
+                }
+                if ( config.editorConfig.customization.logo ) {
+                    if (config.editorConfig.customization.logo.visible===false) {
+                        params += "&headerlogo=";
+                    } else if (config.type=='embedded' && (config.editorConfig.customization.logo.image || config.editorConfig.customization.logo.imageEmbedded || config.editorConfig.customization.logo.imageDark)) {
+                        (config.editorConfig.customization.logo.image || config.editorConfig.customization.logo.imageEmbedded) && (params += "&headerlogo=" + encodeURIComponent(config.editorConfig.customization.logo.image || config.editorConfig.customization.logo.imageEmbedded));
+                        config.editorConfig.customization.logo.imageDark && (params += "&headerlogodark=" + encodeURIComponent(config.editorConfig.customization.logo.imageDark));
+                    } else if (config.type!='embedded' && (config.editorConfig.customization.logo.image || config.editorConfig.customization.logo.imageDark)) {
+                        config.editorConfig.customization.logo.image && (params += "&headerlogo=" + encodeURIComponent(config.editorConfig.customization.logo.image));
+                        config.editorConfig.customization.logo.imageDark && (params += "&headerlogodark=" + encodeURIComponent(config.editorConfig.customization.logo.imageDark));
+                    }
+                }
             }
         }
 
+        if (config.editorConfig && (config.editorConfig.mode == 'editdiagram' || config.editorConfig.mode == 'editmerge' || config.editorConfig.mode == 'editole'))
+            params += "&internal=true";
+
+        if (config.type)
+            params += "&type=" + config.type;
+
         if (config.frameEditorId)
             params += "&frameEditorId=" + config.frameEditorId;
-        
+
+        var type = config.document ? /^(?:(pdf)|(oform|docxf))$/.exec(config.document.fileType) : null,
+            isPdf = type && typeof type[1] === 'string',
+            oldForm = type && typeof type[2] === 'string';
+
+        if (!(isPdf || oldForm) && (config.editorConfig && config.editorConfig.mode == 'view' ||
+            config.document && config.document.permissions && (config.document.permissions.edit === false && !config.document.permissions.review )))
+            params += "&mode=view";
+        if ((isPdf || oldForm) && (config.document && config.document.permissions && config.document.permissions.edit === false || config.editorConfig && config.editorConfig.mode == 'view'))
+            params += "&mode=fillforms";
+
+        if (config.document) {
+            config.document.isForm = isPdf ? config.document.isForm : !!oldForm;
+            (config.document.isForm===true || config.document.isForm===false) && (params += "&isForm=" + config.document.isForm);
+        }
+
+        if (config.editorConfig && config.editorConfig.customization && !!config.editorConfig.customization.compactHeader)
+            params += "&compact=true";
+
+        if (config.editorConfig && config.editorConfig.customization && (config.editorConfig.customization.toolbar===false))
+            params += "&toolbar=false";
+
+        if (config.parentOrigin)
+            params += "&parentOrigin=" + config.parentOrigin;
+
+        if (config.editorConfig && config.editorConfig.customization && config.editorConfig.customization.uiTheme )
+            params += "&uitheme=" + config.editorConfig.customization.uiTheme;
+
+        if (config.document && config.document.fileType)
+            params += "&fileType=" + config.document.fileType;
+
+        if (config.editorConfig) {
+            var customization = config.editorConfig.customization;
+            if ( customization && typeof(customization) == 'object' && ( customization.toolbarNoTabs || (config.editorConfig.targetApp!=='desktop') && (customization.loaderName || customization.loaderLogo))) {
+                params += "&indexPostfix=_loader";
+            }
+        }
         return params;
     }
 
@@ -771,10 +1130,12 @@
         iframe.align = "top";
         iframe.frameBorder = 0;
         iframe.name = "frameEditor";
+        config.title && (typeof config.title === 'string') && (iframe.title = config.title);
         iframe.allowFullscreen = true;
         iframe.setAttribute("allowfullscreen",""); // for IE11
         iframe.setAttribute("onmousewheel",""); // for Safari on Mac
-		
+        iframe.setAttribute("allow", "autoplay; camera; microphone; display-capture; clipboard-write;");
+
 		if (config.type == "mobile")
 		{
 			iframe.style.position = "fixed";
@@ -784,12 +1145,11 @@
         return iframe;
     }
 
-    function postMessage(wnd, msg) {
+    function postMessage(wnd, msg, buffer) {
         if (wnd && wnd.postMessage && window.JSON) {
             // TODO: specify explicit origin
-            wnd.postMessage(window.JSON.stringify(msg), "*");
+            buffer ? wnd.postMessage(msg, "*", [buffer]) : wnd.postMessage(window.JSON.stringify(msg), "*");
         }
-
     }
 
     function extend(dest, src) {

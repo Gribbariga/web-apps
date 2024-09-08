@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,7 +28,7 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  * User: Julia.Radzhabova
  * Date: 06.03.15
@@ -59,6 +58,10 @@ define([
             this.currentDocIdPrev = '';
             this.currentRev = 0;
             this.currentServerVersion = 0;
+            this.currentUserId = '';
+            this.currentUserName = '';
+            this.currentUserColor = '';
+            this.currentDateCreated = '';
         },
 
         events: {
@@ -71,6 +74,7 @@ define([
             this.panelHistory.storeHistory.on('reset', _.bind(this.onResetStore, this));
             this.panelHistory.on('render:after', _.bind(this.onAfterRender, this));
             Common.Gateway.on('sethistorydata', _.bind(this.onSetHistoryData, this));
+            Common.NotificationCenter.on('mentions:setusers', _.bind(this.avatarsUpdate, this));
         },
 
         setApi: function(api) {
@@ -100,9 +104,10 @@ define([
             this.panelHistory.$el.find('#history-list').css('padding-bottom', hasChanges ? '45px' : 0);
         },
 
-        onDownloadUrl: function(url) {
-            if (this.isFromSelectRevision !== undefined)
-                Common.Gateway.requestRestore(this.isFromSelectRevision, url);
+        onDownloadUrl: function(url, fileType) {
+            if (this.isFromSelectRevision !== undefined) {
+                Common.Gateway.requestRestore(this.isFromSelectRevision, url, fileType);
+            }
             this.isFromSelectRevision = undefined;
         },
 
@@ -111,10 +116,11 @@ define([
                 var btn = $(e.target);
                 if (btn && btn.hasClass('revision-restore')) {
                     if (record.get('isRevision'))
-                        Common.Gateway.requestRestore(record.get('revision'));
+                        Common.Gateway.requestRestore(record.get('revision'), undefined, record.get('fileType'));
                     else {
                         this.isFromSelectRevision = record.get('revision');
-                        this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.DOCX, true));
+                        var fileType = Asc.c_oAscFileType[(record.get('fileType') || '').toUpperCase()] || Asc.c_oAscFileType.DOCX;
+                        this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(fileType, true));
                     }
                     return;
                 }
@@ -133,12 +139,28 @@ define([
             this.currentDocIdPrev = record.get('docIdPrev');
             this.currentRev = rev;
             this.currentServerVersion = record.get('serverVersion');
+            this.currentUserId = record.get('userid');
+            this.currentUserName = record.get('username');
+            this.currentUserColor = record.get('usercolor');
+            this.currentDateCreated = record.get('created');
 
             if ( _.isEmpty(url) || (urlGetTime - record.get('urlGetTime') > 5 * 60000)) {
-                 _.delay(function() {
-                    Common.Gateway.requestHistoryData(rev); // получаем url-ы для ревизий
-                 }, 10);
+                var me = this;
+                if (!me.timerId) {
+                    me.timerId = setTimeout(function () {
+                        me.timerId = 0;
+                    },30000);
+                    _.delay(function() {
+                        Common.Gateway.requestHistoryData(rev); // получаем url-ы для ревизий
+                    }, 10);
+                }
             } else {
+                var commentsController = this.getApplication().getController('Common.Controllers.Comments');
+                if (commentsController) {
+                    commentsController.onApiHideComment();
+                    commentsController.clearCollections();
+                }
+
                 var urlDiff = record.get('urlDiff'),
                     token   = record.get('token'),
                     hist = new Asc.asc_CVersionHistory();
@@ -150,13 +172,12 @@ define([
                 hist.asc_setToken(token);
                 hist.asc_setIsRequested(false);
                 hist.asc_setServerVersion(this.currentServerVersion);
+                hist.asc_SetUserId(this.currentUserId);
+                hist.asc_SetUserName(this.currentUserName);
+                hist.asc_SetUserColor(this.currentUserColor);
+                hist.asc_SetDateOfRevision(this.currentDateCreated);
                 this.api.asc_showRevision(hist);
 
-                var commentsController = this.getApplication().getController('Common.Controllers.Comments');
-                if (commentsController) {
-                    commentsController.onApiHideComment();
-                    commentsController.clearCollections();
-                }
                 var reviewController = this.getApplication().getController('Common.Controllers.ReviewChanges');
                 if (reviewController)
                     reviewController.onApiShowChange();
@@ -165,6 +186,11 @@ define([
 
         onSetHistoryData: function(opts) {
             if (!this.mode.canUseHistory) return;
+
+            if (this.timerId) {
+                clearTimeout(this.timerId);
+                this.timerId = 0;
+            }
 
             if (opts.data.error) {
                  var config = {
@@ -175,13 +201,20 @@ define([
                 };
                 Common.UI.alert(config);
             } else {
+                var commentsController = this.getApplication().getController('Common.Controllers.Comments');
+                if (commentsController) {
+                    commentsController.onApiHideComment();
+                    commentsController.clearCollections();
+                }
+
                 var data = opts.data;
                 var historyStore = this.getApplication().getCollection('Common.Collections.HistoryVersions');
                 if (historyStore && data!==null) {
                     var rev, revisions = historyStore.findRevisions(data.version),
                         urlGetTime = new Date();
-                    var diff = (this.currentChangeId===undefined) ? null : opts.data.changesUrl, // if revision has changes, but serverVersion !== app.buildVersion -> hide revision changes
+                    var diff = (!opts.data.previous || this.currentChangeId===undefined) ? null : opts.data.changesUrl, // if revision has changes, but serverVersion !== app.buildVersion -> hide revision changes
                         url = (!_.isEmpty(diff) && opts.data.previous) ? opts.data.previous.url : opts.data.url,
+                        fileType = (!_.isEmpty(diff) && opts.data.previous) ? opts.data.previous.fileType : opts.data.fileType,
                         docId = opts.data.key ? opts.data.key : this.currentDocId,
                         docIdPrev = opts.data.previous && opts.data.previous.key ? opts.data.previous.key : this.currentDocIdPrev,
                         token = opts.data.token;
@@ -197,6 +230,7 @@ define([
                                 rev.set('docIdPrev', docIdPrev, {silent: true});
                             }
                             rev.set('token', token, {silent: true});
+                            fileType && rev.set('fileType', fileType, {silent: true});
                         }
                     }
                     var hist = new Asc.asc_CVersionHistory();
@@ -208,13 +242,13 @@ define([
                     hist.asc_setToken(token);
                     hist.asc_setIsRequested(true);
                     hist.asc_setServerVersion(this.currentServerVersion);
+                    hist.asc_SetUserId(this.currentUserId);
+                    hist.asc_SetUserName(this.currentUserName);
+                    hist.asc_SetUserColor(this.currentUserColor);
+                    hist.asc_SetDateOfRevision(this.currentDateCreated);
                     this.api.asc_showRevision(hist);
+                    this.currentRev = data.version;
 
-                    var commentsController = this.getApplication().getController('Common.Controllers.Comments');
-                    if (commentsController) {
-                        commentsController.onApiHideComment();
-                        commentsController.clearCollections();
-                    }
                     var reviewController = this.getApplication().getController('Common.Controllers.ReviewChanges');
                     if (reviewController)
                         reviewController.onApiShowChange();
@@ -244,8 +278,23 @@ define([
             store.where({isRevision: false}).forEach(function(item){
                 item.set('isVisible', needExpand);
             });
-            this.panelHistory.viewHistoryList.scroller.update({minScrollbarLength: 40});
+            this.panelHistory.viewHistoryList.scroller.update({minScrollbarLength: this.panelHistory.viewHistoryList.minScrollbarLength});
             this.panelHistory.btnExpand.cmpEl.text(needExpand ? this.panelHistory.textHideAll : this.panelHistory.textShowAll);
+        },
+
+        avatarsUpdate: function(type, users) {
+            if (type!=='info') return;
+
+            if (users && users.length>0 ){
+                this.panelHistory.storeHistory.each(function(item){
+                    var user = _.findWhere(users, {id: item.get('userid')});
+                    if (user && (user.image!==undefined)) {
+                        if (user.image !== item.get('avatar')) {
+                            item.set('avatar', user.image);
+                        }
+                    }
+                });
+            }
         },
 
         notcriticalErrorTitle: 'Warning'

@@ -1,6 +1,7 @@
 #history-box {
     position: relative;
-    border-right: 1px solid #cbcbcb;
+    border-right: @scaled-one-px-value-ie solid @border-toolbar-ie;
+    border-right: @scaled-one-px-value solid @border-toolbar;
 }
 
 #history-header {
@@ -10,18 +11,20 @@
     top: 0;
     right: 0;
     overflow: hidden;
-    border-bottom: 1px solid @gray-dark;
+    border-bottom: @scaled-one-px-value-ie solid @border-toolbar-ie;
+    border-bottom: @scaled-one-px-value solid @border-toolbar;
 
     #history-btn-back {
         height: 27px;
         margin-top: 15px;
         padding-top: 4px;
-        padding-left: 20px;
-        font-size: 13px;
+        .padding-left-20();
+        .font-size-large();
         cursor: pointer;
 
         &:hover {
-            background-color: @secondary;
+            background-color: @highlight-button-hover-ie;
+            background-color: @highlight-button-hover;
         }
     }
 }
@@ -33,18 +36,20 @@
     bottom: 0;
     right: 0;
     overflow: hidden;
-    border-top: 1px solid @gray-dark;
+    border-top: @scaled-one-px-value-ie solid @border-toolbar-ie;
+    border-top: @scaled-one-px-value solid @border-toolbar;
 
     #history-btn-expand {
         height: 27px;
         margin-top: 8px;
         padding-top: 4px;
-        padding-left: 20px;
-        font-size: 13px;
+        .padding-left-20();
+        .font-size-large();
         cursor: pointer;
 
         &:hover {
-            background-color: @secondary;
+            background-color: @highlight-button-hover-ie;
+            background-color: @highlight-button-hover;
         }
     }
 }
@@ -60,42 +65,46 @@
         width: 100%;
         .box-shadow(none);
         margin: 0;
-        font-size: 12px;
+        .font-size-medium();
 
         &:hover:not(.selected),
         &.over {
-            background-color: @secondary;
-
-            .user-version {
-                color: #fff;
-                background-color: #ababab;
-            }
+            background-color: @highlight-button-hover-ie;
+            background-color: @highlight-button-hover;
         }
 
         &.selected {
-            background-color: @primary;
+            background-color: @highlight-button-pressed-ie;
+            background-color: @highlight-button-pressed;
 
             .user-name,
             .user-date {
-                color: #fff;
+                color: @text-normal-pressed-ie;
+                color: @text-normal-pressed;
             }
 
             .revision-expand {
-                background-position: -70px -145px;
+                border-color: @icon-normal-pressed-ie;
+                border-color: @icon-normal-pressed;
             }
         }
     }
 
     .history-item-wrap {
         padding: 10px 2px 15px 20px;
-        color: @gray-deep;
+        color: @text-normal-ie;
+        color: @text-normal;
         text-overflow: ellipsis;
+
+        .rtl & {
+            padding: 10px 20px 15px 2px;
+        }
 
         .user-date {
             display: inline-block;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 12px;
+            .font-size-medium();
+            .font-weight-bold();
+            .margin-right(12px);
             white-space: nowrap;
             overflow: hidden;
         }
@@ -104,11 +113,15 @@
             display: inline-block;
             max-width: 60px;
             height: 18px;
-            color: @primary;
+            color: @highlight-button-pressed-ie;
+            color: @highlight-button-pressed;
             font-size: 10px;
             white-space: nowrap;
             overflow: hidden;
-            background-color: #e6e6e6;
+            color: @text-tertiary-ie;
+            color: @text-tertiary;
+            background-color: @background-normal-ie;
+            background-color: @background-normal;
             text-align: center;
             padding: 1px 5px;
             border-radius: 2px;
@@ -118,38 +131,60 @@
             width: 100%;
             white-space: nowrap;
             overflow: hidden;
-            font-size: 12px;
-            font-weight: bold;
+            .font-size-medium();
+            .font-weight-bold();
             cursor: pointer;
             text-overflow: ellipsis;
-            padding-right: 35px;
+            .padding-right(35px);
         }
 
         .color {
-            width: 12px;
-            height: 12px;
-            border: 1px solid @gray-dark;
-            margin: 0 5px 3px 0;
+            display: inline-block;
+            width: 26px;
+            height: 26px;
+            border-radius: 20px;
+            border-width: @scaled-two-px-value;
+            .margin-right-8();
             vertical-align: middle;
+            background-color: #ffffff;
+            background-size: cover;
+            background-position: center;
+
+            color: #ffffff;
+            line-height: 26px;
+            text-align: center;
         }
 
         .revision-expand {
-            width: 23px;
-            height: 23px;
-            background-position: -43px -145px;
-            margin: 10px 10px;
+            width: 8px;
+            height: 8px;
+            border: solid 2px @icon-normal-ie;
+            border: solid 2px @icon-normal;
+            border-bottom: none;
+            border-right: none;
+            background-image: none;
             display: inline-block;
             position: absolute;
-            right: 0;
+            right: 2px;
+            margin: 15px;
+            //transition: transform 0.2s ease;
+            transform: rotate(-135deg) ;
+
+            .rtl & {
+                right: auto;
+                left: 2px;
+            }
 
             &.up {
-                transform: rotate(180deg);
+                transform: rotate(45deg);
             }
         }
 
         .revision-restore {
-            color: #fff;
-            border-bottom: 1px dotted #fff;
+            color: @text-normal-pressed-ie;
+            color: @text-normal-pressed;
+            border-bottom: @scaled-one-px-value-ie dotted @text-normal-pressed-ie;
+            border-bottom: @scaled-one-px-value dotted @text-normal-pressed;
             height: 16px;
             margin-top: 5px;
             white-space: pre-wrap;

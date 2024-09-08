@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  RadioBox.js
  *
- *  Created by Julia Radzhabova on 2/26/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/26/14
  *
  */
 /**
@@ -71,13 +69,22 @@ define([
         disabled    : false,
         rendered    : false,
 
-        template    : _.template('<label class="radiobox"><input type="button" name="<%= name %>" class="img-commonctrl"><%= labelText %></label>'),
+        template    : _.template('<div class="radiobox" data-hint="<%= dataHint %>" data-hint-direction="<%= dataHintDirection %>" data-hint-offset="<%= dataHintOffset %>">' +
+                                    '<input type="radio" name="<%= name %>" id="<%= id %>" class="button__radiobox">' +
+                                    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                                        '<circle class="rb-circle" cx="8" cy="8" r="6.5" />' +
+                                        '<circle class="rb-check-mark" cx="8" cy="8" r="4" />' +
+                                    '</svg>' +
+                                    '<span></span></div>'),
 
         initialize : function(options) {
             Common.UI.BaseView.prototype.initialize.call(this, options);
 
-            var me = this,
-                el = $(this.el);
+            this.dataHint = options.dataHint;
+            this.dataHintDirection = options.dataHintDirection;
+            this.dataHintOffset = options.dataHintOffset;
+
+            var me = this;
 
             this.name =  this.options.name || Common.UI.getId();
 
@@ -89,18 +96,32 @@ define([
             if (this.options.checked!==undefined)
                 this.setValue(this.options.checked, true);
 
+            this.setCaption(this.options.labelText);
+
             // handle events
-            this.$radio.on('click', _.bind(this.onItemCheck, this));
         },
 
         render: function () {
-            var el = $(this.el);
+            var el = this.$el || $(this.el);
             el.html(this.template({
                 labelText: this.options.labelText,
-                name: this.name
+                name: this.name,
+                id: Common.UI.getId('rdb-'),
+                dataHint: this.dataHint,
+                dataHintDirection: this.dataHintDirection,
+                dataHintOffset: this.dataHintOffset
             }));
 
-            this.$radio = el.find('input[type=button]');
+            this.$radio = el.find('input[type=radio]');
+            this.$label = el.find('div.radiobox');
+            this.$span = this.$label.find('span');
+            this.$label.on({
+                'keydown': this.onKeyDown.bind(this),
+                'click': function(e){
+                    if ( !this.disabled )
+                        this.setValue(true);
+                }.bind(this),});
+
             this.rendered = true;
 
             return this;
@@ -110,9 +131,15 @@ define([
             if (!this.rendered)
                 return;
 
+            disabled = !!disabled;
             if (disabled !== this.disabled) {
+                this.$label.toggleClass('disabled', disabled);
                 this.$radio.toggleClass('disabled', disabled);
                 (disabled) ? this.$radio.attr({disabled: disabled}) : this.$radio.removeAttr('disabled');
+                if (this.tabindex!==undefined) {
+                    disabled && (this.tabindex = this.$label.attr('tabindex'));
+                    this.$label.attr('tabindex', disabled ? "-1" : this.tabindex);
+                }
             }
 
             this.disabled = disabled;
@@ -128,8 +155,9 @@ define([
 
         setRawValue: function(value) {
             var value = (value === true || value === 'true' || value === '1' || value === 1 );
-            $('input[type=button][name=' + this.name + ']').removeClass('checked');
+            value && $('input[type=radio][name=' + this.name + ']').removeClass('checked');
             this.$radio.toggleClass('checked', value);
+            this.$radio.prop('checked', value);
         },
 
         setValue: function(value, suspendchange) {
@@ -137,14 +165,39 @@ define([
                 var lastValue = this.$radio.hasClass('checked');
                 this.setRawValue(value);
                 if (suspendchange !== true && lastValue !== value)
-                    this.trigger('change', this, this.$radio.hasClass('checked'));
+                    this.trigger('change', this, this.$radio.is(':checked'));
             } else {
                 this.options.checked = value;
             }
         },
 
         getValue: function() {
-            return this.$radio.hasClass('checked');
+            return this.$radio.is(':checked');
+        },
+
+        setCaption: function(text) {
+            this.$span.text(text);
+            this.$span.css('visibility', text ? 'visible' : 'hidden');
+        },
+
+        onKeyDown: function(e) {
+            if (e.isDefaultPrevented())
+                return;
+
+            if (e.keyCode === Common.UI.Keys.SPACE)
+                this.onItemCheck(e);
+        },
+
+        focus: function() {
+            this.$label && this.$label.focus();
+        },
+
+        setTabIndex: function(tabindex) {
+            if (!this.rendered)
+                return;
+
+            this.tabindex = tabindex.toString();
+            !this.disabled && this.$label.attr('tabindex', this.tabindex);
         }
     });
 });

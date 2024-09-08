@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,16 +28,27 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
-if (Common === undefined) {
-    var Common = {};
+ */
+if (window.Common === undefined) {
+    window.Common = {};
 }
 
 if (Common.Utils === undefined) {
     Common.Utils = {};
 }
 
-Common.Utils = _.extend(new(function() {
+function _extend_object(dest, source) {
+    if ( typeof _ != "undefined" ) {
+        return _.extend({}, dest, source);
+    } else
+    if ( !!Object ) {
+        return Object.assign({}, dest, source);
+    }
+
+    return source;
+}
+
+var utils = new(function() {
     var userAgent = navigator.userAgent.toLowerCase(),
         check = function(regex){
             return regex.test(userAgent);
@@ -87,12 +97,12 @@ Common.Utils = _.extend(new(function() {
         isSecure = /^https/i.test(window.location.protocol),
         emailRe = /^(mailto:)?([a-z0-9'\._-]+@[a-z0-9\.-]+\.[a-z0-9]{2,4})([a-яё0-9\._%+-=\? :&]*)/i,
         ipRe = /^(((https?)|(ftps?)):\/\/)?([\-\wа-яё]*:?[\-\wа-яё]*@)?(((1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9])\.){3}(1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9]))(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?/i,
-        hostnameRe = /^(((https?)|(ftps?)):\/\/)?([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+\.)+[\wа-яё\-]{2,}(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
-        localRe = /^(((https?)|(ftps?)):\/\/)([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+)(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
+        hostnameRe = /^(((https?)|(ftps?)):\/\/)?([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+\.)+[\wа-яё\-]{2,}(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/\+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
+        localRe = /^(((https?)|(ftps?)):\/\/)([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+)(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/\+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
         emailStrongRe = /(mailto:)?([a-z0-9'\._-]+@[a-z0-9\.-]+\.[a-z0-9]{2,4})([a-яё0-9\._%+-=\?:&]*)/ig,
-        emailAddStrongRe = /(mailto:|\s[@]|\s[+])?([a-z0-9'\._-]+@[a-z0-9\.-]+\.[a-z0-9]{2,4})([a-яё0-9\._%+-=\?:&]*)/ig,
-        ipStrongRe = /(((https?)|(ftps?)):\/\/([\-\wа-яё]*:?[\-\wа-яё]*@)?)(((1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9])\.){3}(1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9]))(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?/ig,
-        hostnameStrongRe = /((((https?)|(ftps?)):\/\/([\-\wа-яё]*:?[\-\wа-яё]*@)?)|(([\-\wа-яё]*:?[\-\wа-яё]*@)?www\.))((([\-\wа-яё]+\.)+[\wа-яё\-]{2,}|([\-\wа-яё]+))(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/ig,
+        emailAddStrongRe = /(mailto:|\s[@]|\s[+])?([a-z0-9'\._-]+@[a-z0-9\.-]+\.[a-z0-9]{2,4})([a-яё0-9\._%\+-=\?:&]*)/ig,
+        ipStrongRe = /(((https?)|(ftps?)):\/\/([\-\wа-яё]*:?[\-\wа-яё]*@)?)(((1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9])\.){3}(1[0-9]{2}|2[0-4][0-9]|25[0-5]|[1-9][0-9]|[0-9]))(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/\+@&#;:`~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?/ig,
+        hostnameStrongRe = /((((https?)|(ftps?)):\/\/([\-\wа-яё]*:?[\-\wа-яё]*@)?)|(([\-\wа-яё]*:?[\-\wа-яё]*@)?www\.))((([\-\wа-яё]+\.)+[\wа-яё\-]{2,}|([\-\wа-яё]+))(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/\+@&#;:`~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/ig,
         documentSettingsType = {
         	Paragraph  : 0,
             Table      : 1,
@@ -105,53 +115,159 @@ Common.Utils = _.extend(new(function() {
             MailMerge  : 8,
             Signature  : 9,
             Pivot      : 10,
-            Cell       : 11
+            Cell       : 11,
+            Slicer     : 12,
+            Form       : 13
         },
         importTextType = {
             DRM: 0,
             CSV: 1,
             TXT: 2,
             Paste: 3,
-            Columns: 4
+            Columns: 4,
+            Data: 5
         },
         isMobile = /android|avantgo|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od|ad)|iris|kindle|lge |maemo|midp|mmp|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|symbian|treo|up\.(browser|link)|vodafone|wap|windows (ce|phone)|xda|xiino/i.test(navigator.userAgent || navigator.vendor || window.opera),
         me = this,
         checkSize = function() {
-			me.zoom = 1;
-			if (isChrome && !isOpera && !isMobile && document && document.firstElementChild && document.body)
-			{
-                // делаем простую проверку
-                // считаем: 0 < window.devicePixelRatio < 2 => _devicePixelRatio = 1; zoom = window.devicePixelRatio / _devicePixelRatio;
-                // считаем: window.devicePixelRatio >= 2 => _devicePixelRatio = 2; zoom = window.devicePixelRatio / _devicePixelRatio;
-                if (window.devicePixelRatio > 0.1)
-                {
-                    if (window.devicePixelRatio < 1.99)
-                    {
-                        var _devicePixelRatio = 1;
-                        me.zoom = window.devicePixelRatio / _devicePixelRatio;
-                    }
-                    else
-                    {
-                        var _devicePixelRatio = 2;
-                        me.zoom = window.devicePixelRatio / _devicePixelRatio;
-                    }
-                    // chrome 54.x: zoom = "reset" - clear retina zoom (windows)
-                    //document.firstElementChild.style.zoom = "reset";
-                    document.firstElementChild.style.zoom = 1.0 / me.zoom;
+            var scale = {};
+            if ( !!window.AscCommon && !!window.AscCommon.checkDeviceScale ) {
+                scale = window.AscCommon.checkDeviceScale();
+                AscCommon.correctApplicationScale(scale);
+            } else {
+                var str_mq_125 = "screen and (-webkit-min-device-pixel-ratio: 1.25) and (-webkit-max-device-pixel-ratio: 1.49), " +
+                        "screen and (min-resolution: 1.25dppx) and (max-resolution: 1.49dppx)";
+                var str_mq_150 = "screen and (-webkit-min-device-pixel-ratio: 1.5) and (-webkit-max-device-pixel-ratio: 1.74), " +
+                        "screen and (min-resolution: 1.5dppx) and (max-resolution: 1.74dppx)";
+                var str_mq_175 = "screen and (-webkit-min-device-pixel-ratio: 1.75) and (-webkit-max-device-pixel-ratio: 1.99), " +
+                        "screen and (min-resolution: 1.75dppx) and (max-resolution: 1.99dppx)";
+                var str_mq_200 = "screen and (-webkit-min-device-pixel-ratio: 2), " +
+                        "screen and (min-resolution: 2dppx), screen and (min-resolution: 192dpi)";
+                const str_mq_225 = "screen and (-webkit-min-device-pixel-ratio: 2.25), " +
+                        "screen and (min-resolution: 2.25dppx), screen and (min-resolution: 216dpi)";
+
+                if ( window.matchMedia(str_mq_125).matches ) {
+                    scale.devicePixelRatio = 1.5;
+                } else
+                if ( window.matchMedia(str_mq_150).matches ) {
+                    scale.devicePixelRatio = 1.5;
+                } else
+                if ( window.matchMedia(str_mq_175).matches ) {
+                    scale.devicePixelRatio = 1.75;
+                } else
+                if ( window.matchMedia(str_mq_200).matches )
+                    scale.devicePixelRatio = 2;
+                else scale.devicePixelRatio = 1;
+
+                if ( window.matchMedia(str_mq_225).matches ) {
+                    scale.devicePixelRatio = 2.25;
                 }
-                else
-                    document.firstElementChild.style.zoom = "normal";
-			}
+            }
+
+            var $root = $(document.body);
+            var classes = document.body.className;
+            var clear_list = classes.replace(/pixel-ratio__[\w-]+/gi,'').trim();
+            if ( scale.devicePixelRatio < 1.25 ) {
+                 if ( /pixel-ratio__/.test(classes) ) {
+                     document.body.className = clear_list;
+                 }
+            } else
+            if ( scale.devicePixelRatio < 1.5 ) {
+                if ( !/pixel-ratio__1_25/.test(classes) ) {
+                    document.body.className = clear_list + ' pixel-ratio__1_25';
+                }
+            } else
+            if ( scale.devicePixelRatio < 1.75 ) {
+                if ( !/pixel-ratio__1_5/.test(classes) ) {
+                    document.body.className = clear_list + ' pixel-ratio__1_5';
+                }
+            } else
+            if ( !(scale.devicePixelRatio < 1.75) && scale.devicePixelRatio < 2 ) {
+                if ( !/pixel-ratio__1_75/.test(classes) ) {
+                    document.body.className = clear_list + ' pixel-ratio__1_75';
+                }
+            } else
+            if ( !(scale.devicePixelRatio < 2) && scale.devicePixelRatio < 2.25 ) {
+                if ( !/pixel-ratio__2\b/.test(classes) ) {
+                    document.body.className = clear_list + ' pixel-ratio__2';
+                }
+            } else {
+                // $root.addClass('pixel-ratio__2_5');
+                if ( !/pixel-ratio__2_5/.test(classes) ) {
+                    document.body.className = clear_list + ' pixel-ratio__2_5';
+                }
+            }
+
+            me.zoom = scale.correct ? scale.zoom : 1;
             me.innerWidth = window.innerWidth * me.zoom;
             me.innerHeight = window.innerHeight * me.zoom;
+            me.applicationPixelRatio = scale.applicationPixelRatio || scale.devicePixelRatio;
         };
+        checkSizeIE = function() {
+            me.innerWidth = window.innerWidth;
+            me.innerHeight = window.innerHeight;
+        },
+        isOffsetUsedZoom = function() {
+            if (isChrome && 128 <= chromeVersion)
+                return (me.zoom === 1) ? false : true;
+            return false;
+        },
+        getBoundingClientRect = function(element) {
+            let rect = element.getBoundingClientRect();
+            if (!isOffsetUsedZoom())
+                return rect;
+
+            let koef = me.zoom;
+            let newRect = {}
+            if (rect.x!==undefined) newRect.x = rect.x * koef;
+            if (rect.y!==undefined) newRect.y = rect.y * koef;
+            if (rect.width!==undefined) newRect.width = rect.width * koef;
+            if (rect.height!==undefined) newRect.height = rect.height * koef;
+
+            if (rect.left!==undefined) newRect.left = rect.left * koef;
+            if (rect.top!==undefined) newRect.top = rect.top * koef;
+            if (rect.right!==undefined) newRect.right = rect.right * koef;
+            if (rect.bottom!==undefined) newRect.bottom = rect.bottom * koef;
+            return newRect;
+        },
+        getOffsetLeft = function(element) {
+            if (!isOffsetUsedZoom())
+                return element.offsetLeft;
+            return element.offsetLeft * me.zoom;
+        },
+        getOffsetTop = function(element) {
+            if (!isOffsetUsedZoom())
+                return element.offsetTop;
+            return element.offsetTop * me.zoom;
+        },
+        getOffset = function($element) {
+            let pos = $element.offset();
+            if (!isOffsetUsedZoom())
+                return pos;
+            return {left: pos.left * me.zoom, top: pos.top * me.zoom};
+        },
+        getPosition = function($element) {
+            let pos = $element.position();
+            if (!isOffsetUsedZoom())
+                return pos;
+            return {left: pos.left * me.zoom, top: pos.top * me.zoom};
+        };
+
         me.zoom = 1;
+        me.applicationPixelRatio = 1;
         me.innerWidth = window.innerWidth;
         me.innerHeight = window.innerHeight;
-        checkSize();
-        $(window).on('resize', checkSize);
+        if ( isIE ) {
+            $(document.body).addClass('ie');
+            $(window).on('resize', checkSizeIE);
+        } else {
+            checkSize();
+            $(window).on('resize', checkSize);
+        }
 
     return {
+        checkSize: checkSize,
+
         userAgent: userAgent,
         isStrict: isStrict,
         isIEQuirks: isIE && (!isStrict && (isIE6 || isIE7 || isIE8 || isIE9)),
@@ -214,23 +330,103 @@ Common.Utils = _.extend(new(function() {
         documentSettingsType: documentSettingsType,
         importTextType: importTextType,
         zoom: function() {return me.zoom;},
+        applicationPixelRatio: function() {return me.applicationPixelRatio;},
+        topOffset: 0,
         innerWidth: function() {return me.innerWidth;},
-        innerHeight: function() {return me.innerHeight;}
+        innerHeight: function() {return me.innerHeight;},
+        croppedGeometry: function() {return {left:0, top: Common.Utils.InternalSettings.get('window-inactive-area-top'),
+                                        width: me.innerWidth, height: me.innerHeight - Common.Utils.InternalSettings.get('window-inactive-area-top')}},
+        getBoundingClientRect: getBoundingClientRect,
+        getOffsetLeft: getOffsetLeft,
+        getOffsetTop: getOffsetTop,
+        getOffset: getOffset,
+        getPosition: getPosition
     }
-})(), Common.Utils || {});
+})();
 
-Common.Utils.ThemeColor = new(function() {
+Common.Utils = _extend_object(Common.Utils, utils);
+
+var themecolor = new(function() {
+    var initnames = true;
+
     return {
+        txtBlack: 'Black',
+        txtWhite: 'White',
+        txtRed: 'Red',
+        txtGreen: 'Green',
+        txtBlue: 'Blue',
+        txtYellow: 'Yellow',
+        txtPurple: 'Purple',
+        txtAqua: 'Aqua',
+        txtDarkRed: 'Dark red',
+        txtDarkGreen: 'Dark green',
+        txtDarkBlue: 'Dark blue',
+        txtDarkYellow: 'Dark yellow',
+        txtDarkPurple: 'Dark purple',
+        txtDarkTeal: 'Dark teal',
+        txtLightGray: 'Light gray',
+        txtGray: 'Gray',
+        txtLightBlue: 'Light blue',
+        txtPink: 'Pink',
+        txtLightYellow: 'Light yellow',
+        txtSkyBlue: 'Sky blue',
+        txtRose: 'Rose',
+        txtTurquosie: 'Turquosie',
+        txtLightGreen: 'Light green',
+        txtLavender: 'Lavender',
+        txtLightOrange: 'Light orange',
+        txtTeal: 'Teal',
+        txtGold: 'Gold',
+        txtOrange: 'Orange',
+        txtIndigo: 'Indigo',
+        txtBrown: 'Brown',
+        txtDarkGray: 'Dark gray',
+        txtbackground: 'Background',
+        txttext: 'Text',
+        txtaccent: 'Accent',
+        txtDarker: 'Darker',
+        txtLighter: 'Lighter',
+        txtBrightGreen: 'Bright green',
+        txtViolet: 'Violet',
+
         ThemeValues: [6, 15, 7, 16, 0, 1, 2, 3, 4, 5],
 
+        getTranslation: function(name) {
+            if (!name) return '';
+
+            return this['txt' + name.replace(' ', '')] || name
+        },
+
+        getEffectTranslation: function(value) {
+            value =  parseInt(value*100);
+            if (value !== 0) {
+                return (value>0 ? this.txtLighter : this.txtDarker) + ' ' + Math.abs(value) + '%';
+            }
+            return '';
+        },
+
         setColors: function(colors, standart_colors) {
+            if (initnames) {
+                for (var i=1; i<3; i++) {
+                    this['txtbackground'+i] = this.txtbackground + ' ' + i;
+                    this['txttext'+i] = this.txttext + ' ' + i;
+                }
+                for (var i=1; i<7; i++) {
+                    this['txtaccent'+i] = this.txtaccent + ' ' + i;
+                }
+                initnames = false;
+            }
+
             var i, j, item;
 
             if (standart_colors && standart_colors.length > 0) {
                 var standartcolors = [];
 
                 for (i = 0; i < standart_colors.length; i++) {
-                    item = this.getHexColor(standart_colors[i].get_r(), standart_colors[i].get_g(), standart_colors[i].get_b());
+                    item = {
+                        color: this.getHexColor(standart_colors[i].get_r(), standart_colors[i].get_g(), standart_colors[i].get_b()),
+                        tip: this.getTranslation(standart_colors[i].asc_getName())
+                    };
                     standartcolors.push(item);
                 }
 
@@ -242,10 +438,18 @@ Common.Utils.ThemeColor = new(function() {
             for (i = 0; i < 6; i++) {
                 for (j = 0; j < 10; j++) {
                     var idx = i + j * 6;
+                    var colorName = this.getTranslation(colors[idx].asc_getName()),
+                        schemeName = this.getTranslation(colors[idx].asc_getNameInColorScheme()),
+                        effectName = this.getEffectTranslation(colors[idx].asc_getEffectValue());
+                    if (colorName) {
+                        schemeName && (colorName += Common.Utils.String.textComma + ' ' + schemeName);
+                        effectName && (colorName += Common.Utils.String.textComma + ' ' + effectName);
+                    }
                     item = {
                         color: this.getHexColor(colors[idx].get_r(), colors[idx].get_g(), colors[idx].get_b()),
                         effectId: idx,
-                        effectValue: this.ThemeValues[j]
+                        effectValue: this.ThemeValues[j],
+                        tip: colorName
                     };
                     effectСolors.push(item);
                 }
@@ -289,7 +493,7 @@ Common.Utils.ThemeColor = new(function() {
         },
 
         colorValue2EffectId: function(clr){
-            if (typeof(clr) == 'object' && clr.effectValue !== undefined && this.effectcolors) {
+            if (typeof(clr) == 'object' && clr && clr.effectValue !== undefined && this.effectcolors) {
                 for (var i = 0; i < this.effectcolors.length; i++) {
                     if (this.effectcolors[i].effectValue===clr.effectValue && clr.color.toUpperCase()===this.effectcolors[i].color.toUpperCase()) {
                         clr.effectId = this.effectcolors[i].effectId;
@@ -301,8 +505,9 @@ Common.Utils.ThemeColor = new(function() {
         }
     }
 })();
+Common.Utils.ThemeColor = _extend_object(themecolor, Common.Utils.ThemeColor);
 
-Common.Utils.Metric = _.extend( new(function() {
+var metrics = new(function() {
     var me = this;
 
     me.c_MetricUnits = {
@@ -373,7 +578,9 @@ Common.Utils.Metric = _.extend( new(function() {
             return value;
         }
     }
-})(), Common.Utils.Metric || {});
+})();
+
+Common.Utils.Metric = _extend_object(metrics, Common.Utils.Metric);
 
 Common.Utils.RGBColor = function(colorString) {
     var r, g, b;
@@ -540,8 +747,13 @@ Common.Utils.RGBColor = function(colorString) {
     }
 };
 
-Common.Utils.String = new (function() {
+var utilsString = new (function() {
     return {
+        textCtrl: 'Ctrl',
+        textShift: 'Shift',
+        textAlt: 'Alt',
+        textComma: ',',
+
         format: function(format) {
             var args = _.toArray(arguments).slice(1);
             if (args.length && typeof args[0] == 'object')
@@ -552,7 +764,8 @@ Common.Utils.String = new (function() {
         },
 
         htmlEncode: function(string) {
-            return _.escape(string);
+            return (typeof _ !== 'undefined') ? _.escape(string) :
+                            string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
         },
 
         htmlDecode: function(string) {
@@ -584,10 +797,39 @@ Common.Utils.String = new (function() {
                 return Common.Utils.String.format(template, string.replace(/\+(?=\S)/g, '').replace(/Ctrl|ctrl/g, '⌘').replace(/Alt|alt/g, '⌥').replace(/Shift|shift/g, '⇧'));
             }
 
-            return Common.Utils.String.format(template, string);
+            return Common.Utils.String.format(template, string.replace(/Ctrl|ctrl/g, this.textCtrl).replace(/Alt|alt/g, this.textAlt).replace(/Shift|shift/g, this.textShift));
+        },
+
+        parseFloat: function(string) {
+            (typeof string === 'string') && (string = string.replace(',', '.'));
+            return parseFloat(string)
+        },
+
+        encodeSurrogateChar: function(nUnicode) {
+            if (nUnicode < 0x10000)
+            {
+                return String.fromCharCode(nUnicode);
+            }
+            else
+            {
+                nUnicode = nUnicode - 0x10000;
+                var nLeadingChar = 0xD800 | (nUnicode >> 10);
+                var nTrailingChar = 0xDC00 | (nUnicode & 0x3FF);
+                return String.fromCharCode(nLeadingChar) + String.fromCharCode(nTrailingChar);
+            }
+        },
+
+        fixedDigits: function(num, digits, fill) {
+            (fill===undefined) && (fill = '0');
+            var strfill = "",
+                str = num.toString();
+            for (var i=str.length; i<digits; i++) strfill += fill;
+            return strfill + str;
         }
     }
 })();
+
+Common.Utils.String = _extend_object(utilsString, Common.Utils.String);
 
 Common.Utils.isBrowserSupported = function() {
     return !((Common.Utils.ieVersion != 0 && Common.Utils.ieVersion < 10.0) ||
@@ -599,7 +841,7 @@ Common.Utils.isBrowserSupported = function() {
 
 Common.Utils.showBrowserRestriction = function() {
     if (document.getElementsByClassName && document.getElementsByClassName('app-error-panel').length>0) return;
-    var editor = (window.DE ? 'Document' : window.SSE ? 'Spreadsheet' : window.PE ? 'Presentation' : 'that');
+    var editor = (window.DE ? 'Document' : window.SSE ? 'Spreadsheet' : window.PE ? 'Presentation' : window.PDFE ? 'PDF' : 'that');
     var newDiv = document.createElement("div");
     newDiv.innerHTML = '<div class="app-error-panel">' +
                             '<div class="message-block">' +
@@ -685,10 +927,13 @@ Common.Utils.applyCustomizationPlugins = function(plugins) {
     });
 };
 
-Common.Utils.fillUserInfo = function(info, lang, defname) {
+Common.Utils.fillUserInfo = function(info, lang, defname, defid) {
     var _user = info || {};
-    !_user.id && (_user.id = ('uid-' + Date.now()));
-    _user.fullname = _.isEmpty(_user.name) ? defname : _user.name;
+    _user.anonymous = !_user.id;
+    !_user.id && (_user.id = defid);
+    _user.fullname = !_user.name ? defname : _user.name;
+    _user.group && (_user.fullname = (_user.group).toString() + AscCommon.UserInfoParser.getSeparator() + _user.fullname);
+    _user.guest = !_user.name;
     return _user;
 };
 
@@ -730,15 +975,19 @@ Common.Utils.getConfigJson = function (url) {
 };
 
 Common.Utils.loadConfig = function(url, callback) {
-    "use strict";
-
-    fetch(url)
-        .then(function(response){
+    fetch(url, {
+            method: 'get',
+            headers: {
+                'Accept': 'application/json',
+            },
+        }).then(function(response){
             if ( response.ok )
                 return response.json();
             else return 'error';
         }).then(function(json){
             callback(json);
+        }).catch(function(e) {
+            callback('error');
         });
 };
 
@@ -783,7 +1032,7 @@ Common.Utils.lockControls = function(causes, lock, opts, defControls) {
     opts.merge && (controls = _.union(defControls,controls));
 
     function doLock(cmp, cause) {
-        if ( cmp && _.contains(cmp.options.lock, cause) ) {
+        if ( cmp && cmp.options && _.contains(cmp.options.lock, cause) ) {
             var index = cmp.keepState.indexOf(cause);
             if (lock) {
                 if (index < 0) {
@@ -815,7 +1064,7 @@ Common.Utils.lockControls = function(causes, lock, opts, defControls) {
     });
 };
 
-Common.Utils.injectButtons = function($slots, id, iconCls, caption, lock, split, menu, toggle) {
+Common.Utils.injectButtons = function($slots, id, iconCls, caption, lock, split, menu, toggle, dataHint, dataHintDirection, dataHintOffset, dataHintTitle) {
     var btnsArr = createButtonSet();
     btnsArr.setDisabled(true);
     id = id || ("id-toolbar-" + iconCls);
@@ -824,6 +1073,7 @@ Common.Utils.injectButtons = function($slots, id, iconCls, caption, lock, split,
         /x-huge/.test(el.className) && (_cls += ' x-huge icon-top');
 
         var button = new Common.UI.Button({
+            parentEl: $slots.eq(index),
             id: id + index,
             cls: _cls,
             iconCls: iconCls,
@@ -832,8 +1082,12 @@ Common.Utils.injectButtons = function($slots, id, iconCls, caption, lock, split,
             menu: menu || false,
             enableToggle: toggle || false,
             lock: lock,
-            disabled: true
-        }).render( $slots.eq(index) );
+            disabled: true,
+            dataHint: dataHint,
+            dataHintDirection: dataHintDirection,
+            dataHintOffset: dataHintOffset,
+            dataHintTitle: dataHintTitle
+        });
 
         btnsArr.add(button);
     });
@@ -846,10 +1100,353 @@ Common.Utils.injectComponent = function ($slot, cmp) {
     }
 };
 
+Common.Utils.startFullscreenForElement = function (element) {
+    if (element) {
+        if(element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if(element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if(element.mozRequestFullScreen) {
+            element.mozRequestFullScreen();
+        } else if(element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+    }
+}
+
+Common.Utils.cancelFullscreen = function () {
+    if(document.cancelFullScreen) {
+        document.cancelFullScreen();
+    } else if(document.webkitCancelFullScreen ) {
+        document.webkitCancelFullScreen();
+    } else if(document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+    } else if(document.msExitFullscreen) {
+        document.msExitFullscreen();
+    }
+}
+
+Common.Utils.warningDocumentIsLocked = function (opts) {
+    if ( opts.disablefunc )
+        opts.disablefunc(true);
+
+    var app = window.DE || window.PE || window.SSE || window.PDFE;
+
+    Common.UI.warning({
+        msg: Common.Locale.get("warnFileLocked",{name:"Common.Translation", default: "You can't edit this file. Document is in use by another application."}),
+        buttons: [{
+            value: 'view',
+            caption: Common.Locale.get("warnFileLockedBtnView",{name:"Common.Translation", default: "Open for viewing"})
+        }, {
+            value: 'edit',
+            caption: Common.Locale.get("warnFileLockedBtnEdit",{name:"Common.Translation", default: "Create a copy"})
+        }],
+        primary: 'view',
+        callback: function(btn){
+            if (btn == 'edit') {
+                if ( opts.disablefunc ) opts.disablefunc(false);
+                app.getController('Main').api.asc_setLocalRestrictions(Asc.c_oAscLocalRestrictionType.None);
+            }
+        }
+    });
+};
+
+jQuery.fn.extend({
+    elementById: function (id, parent) {
+        /**
+         * usage:   $obj.findById('#id')
+         *          $().findById('#id', $obj | node)
+         *          $.fn.findById('#id', $obj | node)
+         *
+         * return:  dom element
+         * */
+        var _el = document.getElementById(id.substring(1));
+        if ( !_el ) {
+            parent = parent || this;
+            if ( parent && parent.length > 0 ) {
+                parent.each(function (i, node) {
+                    if (node.querySelectorAll) {
+                        _el = node.querySelectorAll(id);
+                        if ( _el.length == 0 ) {
+                            if ( ('#' + node.id) == id ) {
+                                _el = node;
+                                return false;
+                            }
+                        } else
+                        if ( _el.length ) {
+                            _el = _el[0];
+                            return false;
+                        }
+                    }
+                })
+            } else {
+                if (parent && parent.querySelectorAll) {
+                    _el = parent.querySelectorAll(id);
+                    if ( _el && _el.length ) return _el[0];
+                }
+            }
+        }
+
+        return _el;
+    },
+
+    findById: function (id, parent) {
+        var _el = $.fn.elementById.apply(this, arguments);
+        return !!_el ? $(_el) : $();
+    }
+});
+
 Common.Utils.InternalSettings.set('toolbar-height-tabs', 32);
 Common.Utils.InternalSettings.set('toolbar-height-tabs-top-title', 28);
 Common.Utils.InternalSettings.set('toolbar-height-controls', 67);
 Common.Utils.InternalSettings.set('document-title-height', 28);
+Common.Utils.InternalSettings.set('window-inactive-area-top', 0);
 
 Common.Utils.InternalSettings.set('toolbar-height-compact', Common.Utils.InternalSettings.get('toolbar-height-tabs'));
 Common.Utils.InternalSettings.set('toolbar-height-normal', Common.Utils.InternalSettings.get('toolbar-height-tabs') + Common.Utils.InternalSettings.get('toolbar-height-controls'));
+
+Common.Utils.ModalWindow = new(function() {
+    var count = 0;
+    return {
+        show: function() {
+            count++;
+        },
+
+        close: function() {
+            count--;
+        },
+
+        isVisible: function() {
+            return count>0;
+        }
+    }
+})();
+
+Common.Utils.UserInfoParser = new(function() {
+    var parse = false;
+    var separator = String.fromCharCode(160);
+    return {
+        setParser: function(value) {
+            parse = !!value;
+        },
+
+        getSeparator: function() {
+            return separator;
+        },
+
+        getParsedName: function(username) {
+            if (parse && username) {
+                return username.substring(username.indexOf(separator)+1);
+            } else
+                return username;
+        },
+
+        getParsedGroups: function(username) {
+            if (parse && username) {
+                var idx = username.indexOf(separator),
+                    groups = (idx>-1) ? username.substring(0, idx).split(',') : [];
+                for (var i=0; i<groups.length; i++)
+                    groups[i] = groups[i].trim();
+                return groups;
+            } else
+                return undefined;
+        }
+    }
+})();
+
+Common.Utils.getUserInitials = function(username) {
+    var fio = username.split(' ');
+    var initials = fio[0].substring(0, 1).toUpperCase();
+    for (var i = fio.length-1; i>0; i--) {
+        if (fio[i][0]!=='(' && fio[i][0]!==')') {
+            if (/[\u0600-\u06FF]/.test(initials))
+                initials += '\u2009';
+            initials += fio[i].substring(0, 1).toUpperCase();
+            break;
+        }
+    }
+    return initials;
+};
+
+Common.Utils.getKeyByValue = function(obj, value) {
+    for(var prop in obj) {
+        if(obj.hasOwnProperty(prop)) {
+            if(obj[prop] === value)
+                return prop;
+        }
+    }
+};
+
+!Common.UI && (Common.UI = {});
+Common.UI.isRTL = function () {
+    if ( window.isrtl === undefined ) {
+        if ( window.nativeprocvars && window.nativeprocvars.rtl !== undefined )
+            window.isrtl =  window.nativeprocvars.rtl;
+        else window.isrtl =  !Common.Utils.isIE && Common.localStorage.getBool("ui-rtl", Common.Locale.isCurrentLanguageRtl());
+    }
+
+    return window.isrtl;
+};
+
+Common.UI.iconsStr2IconsObj = function(icons) {
+    let result = icons;
+    if (typeof result === 'string') {
+        if (result.indexOf('%') !== -1) {
+            /*
+                valid params:
+                theme-type - {string} theme type (light|dark|common)
+                theme-name - {string} the name of theme
+                state - {string} state of icons for different situations (normal|hover|active)
+                scale - {string} list of avaliable scales (100|125|150|175|200|default|extended)
+                extension - {string} use it after symbol "." (png|jpeg|svg)
+
+                Example: "resources/%theme-type%(light|dark)/%state%(normal)icon%scale%(default).%extension%(png)"
+            */
+            let scaleValue = {
+                '100%' : '.',
+                '125%' : '@1.25x.',
+                '150%' : '@1.5x.',
+                '175%' : '@1.75x.',
+                '200%' : '@2x.'
+            }
+            let arrParams = ['theme-type', 'theme-name' ,'state', 'scale', 'extension'],
+                start = result.indexOf('%'),
+                template = result.substring(start).replace(/[/.]/g, ('')),
+                commonPart = result.substring(0, start),
+                end = 0,
+                param = null,
+                values = null,
+                iconName = '',
+                tempObj = {};
+
+            result = [];
+
+            for (let index = 0; index < arrParams.length; index++) {
+                param = arrParams[index];
+                start = template.indexOf(param) - 1;
+                if (start < 0 )
+                    continue;
+
+                end = param.length + 2;
+                template = template.substring(0, start) + template.substring(start + end);
+                start = template.indexOf('(', 0);
+                end = template.indexOf(')', 0);
+                values = template.substring((start + 1), end);
+                template = template.substring(0, start) + template.substring(++end);
+                tempObj[param] = values.split('|');
+            }
+
+            if (template.length) {
+                iconName = template;
+            } else {
+                let arr = commonPart.split('/');
+                iconName = arr.pop().replace(/\./g, '');
+                commonPart = arr.join('/') + '/';
+            }
+
+            // we don't work with svg yet. Change it when we will work with it (extended variant).
+            if (tempObj['scale'] && (tempObj['scale'] == 'default' || tempObj['scale'] == 'extended') ) {
+                tempObj['scale'] = ['100', '125', '150', '175', '200'];
+            } else if (!tempObj['scale']) {
+                tempObj['scale'] = ['100'];
+            }
+
+            if (!tempObj['state']) {
+                tempObj['state'] = ['normal'];
+            }
+
+            if (!iconName) {
+                iconName = 'icon';
+            }
+
+            let bHasName = !!tempObj['theme-name'];
+            let bHasType = (tempObj['theme-type'] && tempObj['theme-type'][0] !== 'common');
+            let arrThemes = bHasName ? tempObj['theme-name'] : (bHasType ? tempObj['theme-type'] : []);
+            let paramName = bHasName ? 'theme' : 'style';
+            if (arrThemes.length) {
+                for (let thInd = 0; thInd < arrThemes.length; thInd++) {
+                    let obj = {};
+                    obj[paramName] = arrThemes[thInd];
+                    result.push(obj);
+                }
+            } else {
+                result.push({});
+            }
+
+            for (let index = 0; index < result.length; index++) {
+                for (let scaleInd = 0; scaleInd < tempObj['scale'].length; scaleInd++) {
+                    let themePath = (result[index][paramName] || 'img') + '/';
+                    let scale = tempObj['scale'][scaleInd] + '%';
+                    let obj = {};
+                    for (let stateInd = 0; stateInd < tempObj['state'].length; stateInd++) {
+                        let state = tempObj['state'][stateInd];
+                        obj[state] = commonPart + themePath + (state == 'normal' ? '' : (state + '_')) + iconName + (scaleValue[scale] || '.') + tempObj['extension'][0];
+                    }
+                    result[index][scale] = obj;
+                }
+            }
+        } else {
+            return [icons];
+        }
+    }
+    return result;
+}
+
+Common.UI.getSuitableIcons = function(icons) {
+    if (!icons) return;
+
+    icons = Common.UI.iconsStr2IconsObj(icons);
+    if (icons.length && typeof icons[0] !== 'string') {
+        var theme = Common.UI.Themes.currentThemeId().toLowerCase(),
+            style = Common.UI.Themes.isDarkTheme() ? 'dark' : 'light',
+            idx = -1;
+        for (var i=0; i<icons.length; i++) {
+            if (icons[i].theme && icons[i].theme.toLowerCase() == theme) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx<0)
+            for (var i=0; i<icons.length; i++) {
+                if (icons[i].style && icons[i].style.toLowerCase() == style) {
+                    idx = i;
+                    break;
+                }
+            }
+        (idx<0) && (idx = 0);
+
+        var ratio = Common.Utils.applicationPixelRatio()*100,
+            current = icons[idx],
+            bestDistance = 10000,
+            currentDistance = 0,
+            defUrl,
+            bestUrl;
+        for (var key in current) {
+            if (current.hasOwnProperty(key)) {
+                if (key=='default') {
+                    defUrl = current[key];
+                } else if (!isNaN(parseInt(key))) {
+                    currentDistance = Math.abs(ratio-parseInt(key));
+                    if (currentDistance < (bestDistance - 0.01))
+                    {
+                        bestDistance = currentDistance;
+                        bestUrl = current[key];
+                    }
+                }
+            }
+        }
+        (bestDistance>0.01 && defUrl) && (bestUrl = defUrl);
+        return {
+            'normal': bestUrl ? bestUrl['normal'] : '',
+            'hover': bestUrl ? bestUrl['hover'] || bestUrl['normal'] : '',
+            'active': bestUrl ? bestUrl['active'] || bestUrl['normal'] : ''
+        };
+    } else { // old version
+        var url = icons[((Common.Utils.applicationPixelRatio() > 1 && icons.length > 1) ? 1 : 0) + (icons.length > 2 ? 2 : 0)];
+        return {
+            'normal': url,
+            'hover': url,
+            'active': url
+        };
+    }
+}

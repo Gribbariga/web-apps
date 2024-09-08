@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -34,8 +33,7 @@
 /**
  *  WatermarkSettingsDialog.js.js
  *
- *  Created by Julia Radzhabova on 04.04.2019
- *  Copyright (c) 2019 Ascensio System SIA. All rights reserved.
+ *  Created on 04.04.2019
  *
  */
 
@@ -77,7 +75,8 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
     DE.Views.WatermarkSettingsDialog = Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
             contentWidth: 400,
-            height: 442
+            separator: false,
+            id: 'window-watermark'
         },
 
         initialize : function(options) {
@@ -85,36 +84,25 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
 
             _.extend(this.options, {
                 title: this.textTitle,
-                template: _.template(
-                    [
-                        '<div class="box" style="height:' + (me.options.height - 85) + 'px;">',
-                        '<div class="content-panel" style="padding: 10px 5px;"><div class="inner-content">',
-                        '<div class="settings-panel active">',
-                        template,
-                        '</div></div>',
-                        '</div>',
-                        '</div>',
-                        '<div class="footer center">',
-                        '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + me.okButtonText + '</button>',
-                        '<button class="btn normal dlg-btn" result="cancel">' + me.cancelButtonText + '</button>',
-                        '</div>'
-                    ].join('')
-                )({
-                    scope: this
-                })
+                contentStyle: 'padding: 10px 5px;',
+                contentTemplate: _.template(template)({scope: this})
             }, options);
 
             this.handler    = options.handler;
             this.props      = options.props;
             this.fontStore = options.fontStore;
             this.api        = options.api;
+            this.storage    = !!options.storage;
             this.textControls = [];
             this.imageControls = [];
             this.fontName = 'Arial';
-            this.lang = {value: 'en', displayValue: 'English'};
             this.text = '';
             this.isAutoColor = false;
             this.isImageLoaded = false;
+
+            var lang = options.lang || 'en',
+                val = Common.util.LanguageInfo.getLocalLanguageCode(lang);
+            this.lang = val ? {value: lang, displayValue: Common.util.LanguageInfo.getLocalLanguageName(val)[1], default: true} : {value: 'en', displayValue: 'English', default: true};
 
             Common.Views.AdvancedSettingsWindow.prototype.initialize.call(this, this.options);
         },
@@ -148,6 +136,7 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                     // disable text
                     this.props.put_Type(Asc.c_oAscWatermarkType.Image);
                     this.disableControls(Asc.c_oAscWatermarkType.Image);
+                    this.focusControls();
                 }
             }, this));
 
@@ -162,23 +151,33 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                     // disable image
                     this.props.put_Type(Asc.c_oAscWatermarkType.Text);
                     this.disableControls(Asc.c_oAscWatermarkType.Text);
+                    this.focusControls();
                 }
             }, this));
 
             // Image watermark
-            this.btnFromFile = new Common.UI.Button({
-                el: $('#watermark-from-file')
+            this.btnSelectImage = new Common.UI.Button({
+                parentEl: $('#watermark-select-image'),
+                cls: 'btn-text-menu-default',
+                caption: this.textSelect,
+                style: 'width: 142px;',
+                menu: new Common.UI.Menu({
+                    style: 'min-width: 142px;',
+                    maxHeight: 200,
+                    additionalAlign: this.menuAddAlign,
+                    items: [
+                        {caption: this.textFromFile, value: 0},
+                        {caption: this.textFromUrl, value: 1},
+                        {caption: this.textFromStorage, value: 2}
+                    ]
+                }),
+                takeFocusOnClose: true
             });
-            this.btnFromFile.on('click', _.bind(function(btn){
-                this.props.showFileDialog();
-            }, this));
-            this.imageControls.push(this.btnFromFile);
-
-            this.btnFromUrl = new Common.UI.Button({
-                el: $('#watermark-from-url')
-            });
-            this.btnFromUrl.on('click', _.bind(this.insertFromUrl, this));
-            this.imageControls.push(this.btnFromUrl);
+            this.imageControls.push(this.btnSelectImage);
+            this.btnSelectImage.menu.on('item:click', _.bind(this.onImageSelect, this));
+            this.btnSelectImage.menu.items[2].setVisible(this.storage);
+            this.btnSelectImage.menu.items[1].setDisabled(this.options.disableNetworkFunctionality);
+            this.btnSelectImage.menu.items[2].setDisabled(this.options.disableNetworkFunctionality);
 
             this._arrScale = [
                 {displayValue: this.textAuto,   value: -1},
@@ -191,8 +190,9 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
             this.cmbScale = new Common.UI.ComboBox({
                 el          : $('#watermark-combo-scale'),
                 cls         : 'input-group-nr',
-                menuStyle   : 'min-width: 90px;',
-                data        : this._arrScale
+                menuStyle   : 'min-width: 142px;',
+                data        : this._arrScale,
+                takeFocusOnClose: true
             }).on('selected', _.bind(function(combo, record) {
             }, this));
             this.cmbScale.setValue(this._arrScale[0].value);
@@ -205,7 +205,8 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 editable    : false,
                 menuStyle   : 'min-width: 100%;max-height: 210px;',
                 scrollAlwaysVisible: true,
-                data        : []
+                data        : [],
+                takeFocusOnClose: true
             }).on('selected', _.bind(this.onSelectLang, this));
             this.cmbLang.setValue(Common.util.LanguageInfo.getLocalLanguageName(9)[1]);//en
             this.textControls.push(this.cmbLang);
@@ -216,7 +217,8 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 menuStyle   : 'min-width: 100%;max-height: 210px;',
                 scrollAlwaysVisible: true,
                 displayField: 'value',
-                data        : [{value: "ASAP"}, {value: "CONFIDENTIAL"}, {value: "COPY"}, {value: "DO NOT COPY"}, {value: "DRAFT"}, {value: "ORIGINAL"}, {value: "PERSONAL"}, {value: "SAMPLE"}, {value: "TOP SECRET"}, {value: "URGENT"} ]
+                data        : [{value: "ASAP"}, {value: "CONFIDENTIAL"}, {value: "COPY"}, {value: "DO NOT COPY"}, {value: "DRAFT"}, {value: "ORIGINAL"}, {value: "PERSONAL"}, {value: "SAMPLE"}, {value: "TOP SECRET"}, {value: "URGENT"} ],
+                takeFocusOnClose: true
             }).on('selected', _.bind(function(combo, record) {
             }, this));
             this.cmbText.setValue(this.cmbText.options.data[0].value);
@@ -230,7 +232,8 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 menuStyle   : 'min-width: 100%;max-height: 270px;',
                 store       : new Common.Collections.Fonts(),
                 recent      : 0,
-                hint        : this.tipFontName
+                hint        : this.tipFontName,
+                takeFocusOnClose: true
             }).on('selected', _.bind(function(combo, record) {
                 this.fontName = record.name;
             }, this));
@@ -260,84 +263,66 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 menuCls     : 'scrollable-menu',
                 menuStyle: 'min-width: 55px;max-height: 270px;',
                 hint: this.tipFontSize,
-                data: data
+                data: data,
+                takeFocusOnClose: true
             });
             this.cmbFontSize.setValue(-1);
             this.textControls.push(this.cmbFontSize);
 
             this.btnBold = new Common.UI.Button({
+                parentEl: $('#watermark-bold'),
                 cls: 'btn-toolbar',
-                iconCls: 'btn-bold',
+                iconCls: 'toolbar__icon btn-bold',
                 enableToggle: true,
                 hint: this.textBold
             });
-            this.btnBold.render($('#watermark-bold')) ;
             this.textControls.push(this.btnBold);
 
             this.btnItalic = new Common.UI.Button({
+                parentEl: $('#watermark-italic'),
                 cls: 'btn-toolbar',
-                iconCls: 'btn-italic',
+                iconCls: 'toolbar__icon btn-italic',
                 enableToggle: true,
                 hint: this.textItalic
             });
-            this.btnItalic.render($('#watermark-italic')) ;
             this.textControls.push(this.btnItalic);
 
             this.btnUnderline = new Common.UI.Button({
+                parentEl: $('#watermark-underline'),
                 cls         : 'btn-toolbar',
-                iconCls     : 'btn-underline',
+                iconCls     : 'toolbar__icon btn-underline',
                 enableToggle: true,
                 hint: this.textUnderline
             });
-            this.btnUnderline.render($('#watermark-underline')) ;
             this.textControls.push(this.btnUnderline);
 
             this.btnStrikeout = new Common.UI.Button({
+                parentEl: $('#watermark-strikeout'),
                 cls: 'btn-toolbar',
-                iconCls: 'btn-strikeout',
+                iconCls: 'toolbar__icon btn-strikeout',
                 enableToggle: true,
                 hint: this.textStrikeout
             });
-            this.btnStrikeout.render($('#watermark-strikeout')) ;
             this.textControls.push(this.btnStrikeout);
 
-            var initNewColor = function(btn, picker_el) {
-                if (btn && btn.cmpEl) {
-                    btn.currentColor = '#c0c0c0';
-                    var colorVal = $('<div class="btn-color-value-line"></div>');
-                    $('button:first-child', btn.cmpEl).append(colorVal);
-                    colorVal.css('background-color', btn.currentColor);
-                    var picker = new Common.UI.ThemeColorPalette({
-                        el: $(picker_el)
-                    });
-                }
-                btn.menu.cmpEl.on('click', picker_el+'-new', _.bind(function() {
-                    picker.addNewColor((typeof(btn.color) == 'object') ? btn.color.color : btn.color);
-                }, me));
-                picker.on('select', _.bind(me.onColorSelect, me));
-                return picker;
-            };
-            this.btnTextColor = new Common.UI.Button({
+            this.btnTextColor = new Common.UI.ButtonColored({
+                parentEl: $('#watermark-textcolor'),
                 cls         : 'btn-toolbar',
-                iconCls     : 'btn-fontcolor',
+                iconCls     : 'toolbar__icon btn-fontcolor',
                 hint        : this.textColor,
-                menu        : new Common.UI.Menu({
-                    items: [
-                    {
-                        id: 'watermark-auto-color',
-                        caption: this.textAuto,
-                        template: _.template('<a tabindex="-1" type="menuitem"><span class="menu-item-icon" style="background-image: none; width: 12px; height: 12px; margin: 1px 7px 0 -7px; background-color: #000;"></span><%= caption %></a>')
-                    },
-                    {caption: '--'},
-                        { template: _.template('<div id="watermark-menu-textcolor" style="width: 169px; height: 220px; margin: 10px;"></div>') },
-                        { template: _.template('<a id="watermark-menu-textcolor-new" style="padding-left:12px;">' + this.textNewColor + '</a>') }
-                    ]
-                })
+                additionalAlign: this.menuAddAlign,
+                auto: true,
+                color: 'c0c0c0',
+                menu: true,
+                takeFocusOnClose: true
             });
-            this.btnTextColor.render($('#watermark-textcolor'));
-            this.mnuTextColorPicker = initNewColor(this.btnTextColor, "#watermark-menu-textcolor");
-            $('#watermark-auto-color').on('click', _.bind(this.onAutoColor, this));
+            this.btnTextColor.setMenu();
+            this.mnuTextColorPicker = this.btnTextColor.getPicker();
+            this.btnTextColor.currentColor = 'c0c0c0';
             this.textControls.push(this.btnTextColor);
+
+            this.btnTextColor.on('color:select', _.bind(this.onColorSelect, this));
+            this.btnTextColor.on('auto:select',  _.bind(this.onAutoColor, this));
 
             this.chTransparency = new Common.UI.CheckBox({
                 el: $('#watermark-chb-transparency'),
@@ -361,41 +346,47 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
             });
             this.textControls.push(this.radioHor);
 
-            this.btnOk = new Common.UI.Button({
-                el: this.$window.find('.primary'),
-                disabled: true
-            });
+            this.btnOk = _.find(this.getFooterButtons(), function (item) {
+                return (item.$el && item.$el.find('.primary').addBack().filter('.primary').length>0);
+            }) || new Common.UI.Button({ el: this.$window.find('.primary') });
+            this.btnOk.setDisabled(true);
 
             this.afterRender();
         },
 
-        onColorSelect: function(picker, color) {
-            var clr_item = this.btnTextColor.menu.$el.find('#watermark-auto-color > a');
-            clr_item.hasClass('selected') && clr_item.removeClass('selected');
-            this.isAutoColor = false;
+        getFocusedComponents: function() {
+            return [ this.radioNone, this.radioText, this.cmbLang, this.cmbText, this.cmbFonts, this.cmbFontSize, this.btnTextColor, this.btnBold, this.btnItalic, this.btnUnderline, this.btnStrikeout,
+                     this.chTransparency, this.radioDiag, this.radioHor, this.radioImage, this.btnSelectImage, this.cmbScale ].concat(this.getFooterButtons());
+        },
 
-            var clr = (typeof(color) == 'object') ? color.color : color;
+        getDefaultFocusableComponent: function () {
+            if (!this.cmbLang.isDisabled())
+                return this.cmbLang;
+            else if (!this.btnSelectImage.isDisabled())
+                return this.btnSelectImage;
+            else
+                return this.radioNone;
+        },
+
+        focusControls: function() {
+            var el = this.getDefaultFocusableComponent();
+            el && setTimeout(function(){
+                el.focus();
+            }, 10);
+        },
+
+        onColorSelect: function(btn, color) {
+            this.isAutoColor = false;
             this.btnTextColor.currentColor = color;
-            $('.btn-color-value-line', this.btnTextColor.cmpEl).css('background-color', '#' + clr);
         },
 
         updateThemeColors: function() {
             this.mnuTextColorPicker.updateColors(Common.Utils.ThemeColor.getEffectColors(), Common.Utils.ThemeColor.getStandartColors());
         },
 
-        addNewColor: function(picker, btn) {
-            picker.addNewColor((typeof(btn.color) == 'object') ? btn.color.color : btn.color);
-        },
-
         onAutoColor: function(e) {
-            var clr_item = this.btnTextColor.menu.$el.find('#watermark-auto-color > a');
-            !clr_item.hasClass('selected') && clr_item.addClass('selected');
             this.isAutoColor = true;
-
-            var color = "000";
-            this.btnTextColor.currentColor = color;
-            $('.btn-color-value-line', this.btnTextColor.cmpEl).css('background-color', '#' + color);
-            this.mnuTextColorPicker.clearSelection();
+            this.btnTextColor.currentColor = "000";
         },
 
         afterRender: function() {
@@ -411,17 +402,23 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 me.btnOk.setDisabled(false);
             };
             this.api.asc_registerCallback('asc_onWatermarkImageLoaded', onApiWMLoaded);
+
+            var insertImageFromStorage = function(data) {
+                if (data && data._urls && data.c=='watermark') {
+                    me.props.put_ImageUrl(data._urls[0], data.token);
+                }
+            };
+            Common.NotificationCenter.on('storage:image-insert', insertImageFromStorage);
+
             this.on('close', function(obj){
                 me.api.asc_unregisterCallback('asc_onWatermarkImageLoaded', onApiWMLoaded);
+                Common.NotificationCenter.off('storage:image-insert', insertImageFromStorage);
             });
         },
 
-        show: function() {
-            Common.Views.AdvancedSettingsWindow.prototype.show.apply(this, arguments);
-        },
-
         loadLanguages: function() {
-            var me = this;
+            var me = this,
+                focus = false;
             var callback = function(languages) {
                 var data = [];
                 me.languages = languages;
@@ -430,14 +427,19 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 });
                 if (data.length) {
                     me.cmbLang.setData(data);
-                    me.cmbLang.setValue(me.lang.displayValue);
-                    me.loadWMText(me.lang.value);
+                    var res = me.loadWMText(me.lang.value);
+                    if (res && me.lang.default)
+                        me.cmbLang.setValue(res);
+                    else
+                        me.cmbLang.setValue(me.lang.displayValue);
                     me.cmbLang.setDisabled(!me.radioText.getValue());
                     me.text && me.cmbText.setValue(me.text);
                 } else
                     me.cmbLang.setDisabled(true);
+                focus && me.focusControls();
             };
             var languages = DE.Views.WatermarkText.get();
+            focus = !languages;
             if (languages)
                 callback(languages);
             else
@@ -477,20 +479,29 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                 this.cmbText.setData(data);
                 this.cmbText.setValue(data[0].value);
             }
+            return item ? item.get('displayValue') : null;
         },
 
-        insertFromUrl: function() {
-            var me = this;
-            (new Common.Views.ImageFromUrlDialog({
-                handler: function(result, value) {
-                    if (result == 'ok') {
-                        var checkUrl = value.replace(/ /g, '');
-                        if (!_.isEmpty(checkUrl)) {
-                            me.props.put_ImageUrl(checkUrl);
+        onImageSelect: function(menu, item) {
+            if (item.value==1) {
+                var me = this;
+                (new Common.Views.ImageFromUrlDialog({
+                    handler: function(result, value) {
+                        if (result == 'ok') {
+                            var checkUrl = value.replace(/ /g, '');
+                            if (!_.isEmpty(checkUrl)) {
+                                me.props.put_ImageUrl(checkUrl);
+                            }
                         }
                     }
-                }
-            })).show();
+                })).on('close', function() {
+                    me.btnSelectImage.focus();
+                }).show();
+            } else if (item.value==2) {
+                Common.NotificationCenter.trigger('storage:image-load', 'watermark');
+            } else {
+                this.props.showFileDialog();
+            }
         },
 
         _setDefaults: function (props) {
@@ -533,16 +544,14 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                         this.btnUnderline.toggle(val.get_Underline());
                         this.btnStrikeout.toggle(val.get_Strikeout());
                         var color = val.get_Color(),
-                            clr_item = this.btnTextColor.menu.$el.find('#watermark-auto-color > a'),
                             clr = "c0c0c0";
 
                         if (color.get_auto()) {
                             clr = "000";
                             this.isAutoColor = true;
                             this.mnuTextColorPicker.clearSelection();
-                            !clr_item.hasClass('selected') && clr_item.addClass('selected');
+                            this.btnTextColor.setAutoColor(true);
                         } else {
-                            clr_item.hasClass('selected') && clr_item.removeClass('selected');
                             if (color) {
                                 color.get_type() == Asc.c_oAscColor.COLOR_TYPE_SCHEME ?
                                     clr = {color: Common.Utils.ThemeColor.getHexColor(color.get_r(), color.get_g(), color.get_b()), effectValue: color.get_value()} :
@@ -563,7 +572,7 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
                             }
                         }
                         this.btnTextColor.currentColor = clr;
-                        $('.btn-color-value-line', this.btnTextColor.cmpEl).css('background-color', '#' + ((typeof(clr) == 'object') ? clr.color : clr));
+                        this.btnTextColor.setColor( this.btnTextColor.currentColor);
                     }
                     val = props.get_Text();
                     val && this.cmbText.setValue(val);
@@ -578,8 +587,9 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
 
             var val = this.props.get_Type();
             if (val == Asc.c_oAscWatermarkType.Image) {
-                val = this.cmbScale.getValue();
-                val = props.put_Scale((val<0) ? val : val/100);
+                val = parseInt(this.cmbScale.getValue());
+                isNaN(val) && (val = -1);
+                props.put_Scale((val<0) ? val : val/100);
             } else {
                 props.put_Text(this.cmbText.getValue());
                 props.put_IsDiagonal(this.radioDiag.getValue());
@@ -587,7 +597,7 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
 
                 val = props.get_TextPr() || new Asc.CTextProp();
                 if (val) {
-                    val.put_FontSize(this.cmbFontSize.getValue());
+                    val.put_FontSize(Math.min(this.cmbFontSize.getValue(), 1638));
                     var font = new AscCommon.asc_CTextFontFamily();
                     font.put_Name(this.fontName);
                     font.put_Index(-1);
@@ -667,11 +677,10 @@ define(['text!documenteditor/main/app/template/WatermarkSettings.template',
         textLayout: 'Layout',
         textDiagonal: 'Diagonal',
         textHor: 'Horizontal',
-        cancelButtonText: 'Cancel',
-        okButtonText: 'Ok',
         textColor: 'Text color',
-        textNewColor: 'Add New Custom Color',
-        textLanguage: 'Language'
+        textLanguage: 'Language',
+        textFromStorage: 'From Storage',
+        textSelect: 'Select Image'
 
     }, DE.Views.WatermarkSettingsDialog || {}))
 });

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -34,8 +33,7 @@
 /**
  *  LanguageDialog.js
  *
- *  Created by Julia Radzhabova on 04/25/2017
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 04/25/2017
  *
  */
 
@@ -51,25 +49,21 @@ define([
     options: {
         header: false,
         width: 350,
-        cls: 'modal-dlg'
+        cls: 'modal-dlg',
+        buttons: ['ok', 'cancel']
     },
 
     template:   '<div class="box">' +
-    '<div class="input-row">' +
-    '<label><%= label %></label>' +
-    '</div>' +
-    '<div class="input-row" id="id-document-language">' +
-    '</div>' +
-    '</div>' +
-    '<div class="footer right">' +
-    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;"><%= btns.ok %></button>'+
-    '<button class="btn normal dlg-btn" result="cancel"><%= btns.cancel %></button>'+
-    '</div>',
+        '<div class="input-row">' +
+        '<label><%= label %></label>' +
+        '</div>' +
+        '<div class="input-row" id="id-document-language">' +
+        '</div>' +
+        '</div>',
 
     initialize : function(options) {
         _.extend(this.options, options || {}, {
-            label: this.labelSelect,
-            btns: {ok: this.btnOk, cancel: this.btnCancel}
+            label: this.labelSelect
         });
         this.options.tpl = _.template(this.template)(this.options);
 
@@ -90,13 +84,15 @@ define([
             template: _.template([
                 '<span class="input-group combobox <%= cls %> combo-langs" id="<%= id %>" style="<%= style %>">',
                     '<input type="text" class="form-control">',
-                    '<span class="icon input-icon spellcheck-lang img-toolbarmenu"></span>',
-                    '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret img-commonctrl"></span></button>',
+                    '<span class="icon input-icon spellcheck-lang toolbar__icon btn-ic-docspell"></span>',
+                    '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">',
+                        '<span class="caret" />',
+                    '</button>',
                     '<ul class="dropdown-menu <%= menuCls %>" style="<%= menuStyle %>" role="menu">',
                         '<% _.each(items, function(item) { %>',
                         '<li id="<%= item.id %>" data-value="<%= item.value %>">',
-                            '<a tabindex="-1" type="menuitem" style="padding-left: 28px !important;" langval="<%= item.value %>">',
-                                '<i class="icon <% if (item.spellcheck) { %> img-toolbarmenu spellcheck-lang <% } %>"></i>',
+                            '<a tabindex="-1" type="menuitem" langval="<%= item.value %>">',
+                                '<i class="icon <% if (item.spellcheck) { %> toolbar__icon btn-ic-docspell spellcheck-lang <% } %>"></i>',
                                 '<%= scope.getDisplayValue(item) %>',
                             '</a>',
                         '</li>',
@@ -105,7 +101,9 @@ define([
                 '</span>'
             ].join('')),
             data: this.options.languages,
-            search: true
+            takeFocusOnClose: true,
+            search: true,
+            scrollAlwaysVisible: true
         });
 
         if (this.cmbLanguage.scroller) this.cmbLanguage.scroller.update({alwaysVisibleY: true});
@@ -113,6 +111,19 @@ define([
         var langname = Common.util.LanguageInfo.getLocalLanguageName(this.options.current);
         this.cmbLanguage.setValue(langname[0], langname[1]);
         this.onLangSelect(this.cmbLanguage, this.cmbLanguage.getSelectedRecord());
+
+        var me = this;
+        setTimeout(function(){
+            me.cmbLanguage.focus();
+        }, 100);
+    },
+
+    getFocusedComponents: function() {
+        return [this.cmbLanguage].concat(this.getFooterButtons());
+    },
+
+    getDefaultFocusableComponent: function () {
+        return this.cmbLanguage;
     },
 
     close: function(suppressevent) {
@@ -132,7 +143,7 @@ define([
 
     onLangSelect: function(cmb, rec, e) {
         cmb.$el.find('.input-icon').toggleClass('spellcheck-lang', rec && rec.spellcheck);
-        cmb._input.css('padding-left', rec && rec.spellcheck ? 25 : 3);
+        cmb._input.css(Common.UI.isRTL() ? 'padding-right' : 'padding-left', rec && rec.spellcheck ? 25 : 3);
     },
 
     onPrimary: function() {
@@ -144,8 +155,6 @@ define([
         return false;
     },
 
-    labelSelect     : 'Select document language',
-    btnCancel       : 'Cancel',
-    btnOk           : 'Ok'
+    labelSelect     : 'Select document language'
     }, Common.Views.LanguageDialog || {}))
 });

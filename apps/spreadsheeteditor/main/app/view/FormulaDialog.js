@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,14 +28,13 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  FormulaDialog.js
  *
  *  Add formula to cell dialog
  *
- *  Created by Alexey.Musinov on 11/04/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 11/04/14
  *
  */
 
@@ -57,33 +55,30 @@ define([
 
             _.extend(_options,  {
                 width           : 375,
-                height          : 490,
                 header          : true,
-                cls             : 'formula-dlg',
+                cls             : 'modal-dlg formula-dlg',
                 contentTemplate : '',
                 title           : t.txtTitle,
-                items           : []
+                items           : [],
+                buttons: [
+                    {value: 'ok', caption: this.okButtonText, primary: true, id: 'formula-dlg-btn-ok'},
+                    'cancel'
+                ],
             }, options);
 
             this.template   =   options.template || [
-                '<div class="box" style="height:' + (_options.height - 85) + 'px;">',
+                '<div class="box" style="height:405px;">',
                     '<div class="content-panel" >',
-
+                        '<div id="formula-dlg-search" style="height:22px; margin-bottom:10px;"></div>',
                         '<label class="header">' + t.textGroupDescription + '</label>',
-                        '<div id="formula-dlg-combo-group" class="input-group-nr" style="margin-top: 10px"/>',
-                        '<label class="header" style="margin-top:10px">' + t.textListDescription + '</label>',
-                        '<div id="formula-dlg-combo-functions" class="combo-functions"/>',
+                        '<div id="formula-dlg-combo-group" class="input-group-nr" style=""></div>',
+                        '<label class="header" style="margin-top: 10px">' + t.textListDescription + '</label>',
+                        '<div id="formula-dlg-combo-functions" class="combo-functions"></div>',
                         '<label id="formula-dlg-args" style="margin-top: 7px">' + '</label>',
                         '<label id="formula-dlg-desc" style="margin-top: 4px; display: block;">' + '</label>',
-
                     '</div>',
                 '</div>',
-
-                '<div class="separator horizontal"/>',
-                    '<div class="footer center">',
-                    '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + t.okButtonText + '</button>',
-                    '<button class="btn normal dlg-btn" result="cancel">' + t.cancelButtonText + '</button>',
-                '</div>'
+                '<div class="separator horizontal"></div>'
             ].join('');
 
             this.api            =   options.api;
@@ -99,10 +94,40 @@ define([
 
             this.$window.find('.dlg-btn').on('click', _.bind(this.onBtnClick, this));
 
+            var me = this;
+            this.inputSearch = new Common.UI.InputField({
+                el               : $('#formula-dlg-search', this.$window),
+                allowBlank       : true,
+                placeHolder      : this.txtSearch,
+                validateOnChange : true,
+                validation       : function () { return true; }
+            }).on ('changing', function (input, value) {
+                if (value.length) {
+                    value = value.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
+                    me.filter = value.toLowerCase();
+                } else {
+                    me.filter = undefined;
+                }
+                me.filterFormulas();
+            });
+
+            this.btnOk = _.find(this.getFooterButtons(), function (item) {
+                return (item.$el && item.$el.find('#formula-dlg-btn-ok').addBack().filter('#formula-dlg-btn-ok').length>0);
+            }) || new Common.UI.Button({ el: $('#formula-dlg-btn-ok') });
+
             this.syntaxLabel = $('#formula-dlg-args');
             this.descLabel = $('#formula-dlg-desc');
             this.fillFormulasGroups();
         },
+
+        getFocusedComponents: function() {
+            return [this.inputSearch, this.cmbFuncGroup, this.cmbListFunctions].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.inputSearch;
+        },
+
         show: function (group) {
             if (this.$window) {
                 var main_width, main_height, top, left, win_height = this.initConfig.height;
@@ -124,47 +149,33 @@ define([
 
             Common.UI.Window.prototype.show.call(this);
 
-            this.mask = $('.modals-mask');
-            this.mask.on('mousedown',_.bind(this.onUpdateFocus, this));
-            this.$window.on('mousedown',_.bind(this.onUpdateFocus, this));
-
             group && this.cmbFuncGroup.setValue(group);
             (group || this.cmbFuncGroup.getValue()=='Last10') && this.fillFunctions(this.cmbFuncGroup.getValue());
 
-            if (this.cmbListFunctions) {
-                _.delay(function (me) {
-                    me.cmbListFunctions.$el.find('.listview').focus();
-                }, 100, this);
-            }
+            this.inputSearch.setValue('');
+            this._preventCloseCellEditor = false;
         },
 
         hide: function () {
-            //NOTE: scroll to top
-            //if (this.cmbListFunctions && this.functions && this.functions.length) {
-            //    $(this.cmbListFunctions.scroller.el).scrollTop(-this.cmbListFunctions.scroller.getScrollTop());
-            //}
-
-            this.mask.off('mousedown',_.bind(this.onUpdateFocus, this));
-            this.$window.off('mousedown',_.bind(this.onUpdateFocus, this));
+            var val = this.cmbFuncGroup.getValue();
+            (val=='Recommended') && (val = 'Last10');
+            if (this.cmbFuncGroup.store.length>0 && this.cmbFuncGroup.store.at(0).get('value')=='Recommended') {
+                this.cmbFuncGroup.store.shift();
+                this.cmbFuncGroup.onResetItems();
+            }
+            this.cmbFuncGroup.setValue(val);
+            this.recommended = this.filter = undefined;
 
             Common.UI.Window.prototype.hide.call(this);
+
+            !this._preventCloseCellEditor && this.api.asc_closeCellEditor(true);
         },
 
         onBtnClick: function (event) {
-            if ('ok' === event.currentTarget.attributes['result'].value) {
-                if (this.handler) {
-                    this.handler.call(this, this.applyFunction);
-                }
-            }
-
-            this.hide();
+            this._handleInput(event.currentTarget.attributes['result'].value);
         },
         onDblClickFunction: function () {
-            if (this.handler) {
-                this.handler.call(this, this.applyFunction);
-            }
-
-            this.hide();
+            this._handleInput('ok');
         },
         onSelectGroup: function (combo, record) {
             if (!_.isUndefined(record) && !_.isUndefined(record.value)) {
@@ -176,14 +187,22 @@ define([
         onSelectFunction: function (listView, itemView, record) {
             var funcId, functions, func;
 
-            if (this.formulasGroups) {
+            if (this.formulasGroups && record) {
                 this.applyFunction = {name: record.get('value'), origin: record.get('origin')};
                 this.syntaxLabel.text(this.applyFunction.name + record.get('args'));
                 this.descLabel.text(record.get('desc'));
             }
         },
         onPrimary: function(list, record, event) {
-            if (this.handler) {
+            this._handleInput('ok');
+            return false;
+        },
+
+        _handleInput: function(state) {
+            if (this.handler && state == 'ok') {
+                if (this.btnOk.isDisabled())
+                    return;
+                this._preventCloseCellEditor = true;
                 this.handler.call(this, this.applyFunction);
             }
 
@@ -191,9 +210,11 @@ define([
         },
 
         onUpdateFocus: function () {
-            _.delay(function(me) {
-                me.cmbListFunctions.$el.find('.listview').focus();
-            }, 100, this);
+            if (this.cmbListFunctions) {
+                _.delay(function (me) {
+                    me.cmbListFunctions.focus();
+                }, 100, this);
+            }
         },
 
         //
@@ -222,9 +243,9 @@ define([
                         menuStyle   : 'min-width: 100%;',
                         cls         : 'input-group-nr',
                         data        : groupsListItems,
-                        editable    : false
+                        editable    : false,
+                        takeFocusOnClose: true
                     });
-
                     this.cmbFuncGroup.on('selected', _.bind(this.onSelectGroup, this));
                 } else {
                     this.cmbFuncGroup.setData(groupsListItems);
@@ -232,6 +253,9 @@ define([
                 this.cmbFuncGroup.setValue('Last10');
                 this.fillFunctions('Last10');
 
+                this.allFunctions = new Common.UI.DataViewStore();
+                var group = this.formulasGroups.findWhere({name : 'All'});
+                group && this.allFunctions.reset(group.get('functions'));
             }
         },
         fillFunctions: function (name) {
@@ -243,58 +267,90 @@ define([
                     this.cmbListFunctions = new Common.UI.ListView({
                         el: $('#formula-dlg-combo-functions'),
                         store: this.functions,
-                        itemTemplate: _.template('<div id="<%= id %>" class="list-item" style="pointer-events:none;"><%= value %></div>')
+                        tabindex: 1,
+                        cls: 'dbl-clickable'
                     });
 
                     this.cmbListFunctions.on('item:select', _.bind(this.onSelectFunction, this));
                     this.cmbListFunctions.on('item:dblclick', _.bind(this.onDblClickFunction, this));
                     this.cmbListFunctions.on('entervalue', _.bind(this.onPrimary, this));
-                    this.cmbListFunctions.onKeyDown = _.bind(this.onKeyDown, this.cmbListFunctions);
-                    this.cmbListFunctions.$el.find('.listview').focus();
-                    this.cmbListFunctions.scrollToRecord =  _.bind(this.onScrollToRecordCustom, this.cmbListFunctions);
+                    this.cmbListFunctions.onKeyDown = _.bind(this.onKeyDown, this);
+                    this.onUpdateFocus();
                 }
 
                 if (this.functions) {
                     this.functions.reset();
 
-                    var i = 0,
-                        length = 0,
-                        functions = null,
-                        group = this.formulasGroups.findWhere({name : name});
-
-                    if (group) {
-                        functions = group.get('functions');
-                        if (functions && functions.length) {
-                            length = functions.length;
-                            for (i = 0; i < length; ++i) {
-                                this.functions.push(new Common.UI.DataViewModel({
-                                    id              : functions[i].get('index'),
-                                    selected        : i < 1,
-                                    allowSelected   : true,
-                                    value           : functions[i].get('name'),
-                                    args            : functions[i].get('args'),
-                                    desc            : functions[i].get('desc'),
-                                    origin          : functions[i].get('origin')
-                                }));
-                            }
-
-                            this.applyFunction = {name: functions[0].get('name'), origin: functions[0].get('origin')};
-
-                            this.syntaxLabel.text(this.applyFunction.name + functions[0].get('args'));
-                            this.descLabel.text(functions[0].get('desc'));
-                            this.cmbListFunctions.scroller.update({
-                                minScrollbarLength  : 40,
-                                alwaysVisibleY      : true
-                            });
-                        }
+                    var functions = null;
+                    if (name=='Recommended') {
+                        functions = this.recommended;
+                    } else {
+                        var group = this.formulasGroups.findWhere({name : name});
+                        group && (functions = group.get('functions'));
                     }
+                    var length = functions ? functions.length : 0;
+                    for (var i = 0; i < length; ++i) {
+                        this.functions.push(new Common.UI.DataViewModel({
+                            id              : functions[i].get('index'),
+                            selected        : i < 1,
+                            allowSelected   : true,
+                            value           : functions[i].get('name'),
+                            args            : functions[i].get('args'),
+                            desc            : functions[i].get('desc'),
+                            origin          : functions[i].get('origin')
+                        }));
+                    }
+
+                    this.applyFunction = length ? {name: functions[0].get('name'), origin: functions[0].get('origin')} : undefined;
+
+                    this.syntaxLabel.text(length ? this.applyFunction.name + functions[0].get('args') : '');
+                    this.descLabel.text(length ? functions[0].get('desc') : '');
+                    this.cmbListFunctions.scroller.update({
+                        minScrollbarLength  : 40,
+                        alwaysVisibleY      : true
+                    });
+                    this.btnOk.setDisabled(!length);
                 }
             }
         },
 
+        filterFormulas: function() {
+            if (!this.filter) {
+                this.cmbFuncGroup.setValue('Last10');
+                this.fillFunctions('Last10');
+                return;
+            }
+
+            var me = this,
+                filter_reg = new RegExp(me.filter, 'ig'),
+                arr = this.allFunctions.filter(function(item) {
+                return !!item.get('name').match(filter_reg);
+            });
+            if (arr.length>0) {
+                if (this.cmbFuncGroup.store.at(0).get('value')!='Recommended') {
+                    this.cmbFuncGroup.store.unshift({value: 'Recommended', displayValue: this.txtRecommended});
+                    this.cmbFuncGroup.onResetItems();
+                }
+                var idx = _.findIndex(arr, function(item) {
+                    return (item.get('name').toLowerCase()===me.filter);
+                });
+                if (idx>0) {
+                    var removed = arr.splice(idx, 1);
+                    arr.unshift(removed[0]);
+                }
+            } else if (arr.length==0 && this.cmbFuncGroup.store.length>0 && this.cmbFuncGroup.store.at(0).get('value')=='Recommended') {
+                this.cmbFuncGroup.store.shift();
+                this.cmbFuncGroup.onResetItems();
+            }
+            this.cmbFuncGroup.setValue('Recommended', this.txtRecommended);
+            this.recommended = arr;
+            this.fillFunctions('Recommended');
+        },
+
         onKeyDown: function (e, event) {
             var i = 0, record = null,
-                me = this,
+                parent = this,
+                me = this.cmbListFunctions,
                 charVal = '',
                 value = '',
                 firstRecord = null,
@@ -304,12 +360,12 @@ define([
                 selectRecord = null,
                 needNextRecord = false;
 
-            if (this.disabled) return;
+            if (me.disabled) return;
             if (_.isUndefined(undefined)) event = e;
 
             function selectItem (item) {
                 me.selectRecord(item);
-                me.scrollToRecord(item);
+                parent.onScrollToRecordCustom.call(me, item);
 
                 innerEl = $(me.el).find('.inner');
                 me.scroller.scrollTop(innerEl.scrollTop(), 0);
@@ -321,14 +377,14 @@ define([
             charVal = e.key;
             if (e.keyCode > 64 && e.keyCode < 91 && charVal && charVal.length) {
                 charVal = charVal.toLocaleLowerCase();
-                selectRecord = this.store.findWhere({selected: true});
+                selectRecord = me.store.findWhere({selected: true});
                 if (selectRecord) {
                     value = selectRecord.get('value');
                     isEqualSelectRecord = (value && value.length && value[0].toLocaleLowerCase() === charVal)
                 }
 
-                for (i = 0; i < this.store.length; ++i) {
-                    record = this.store.at(i);
+                for (i = 0; i < me.store.length; ++i) {
+                    record = me.store.at(i);
                     value = record.get('value');
 
                     if (value[0].toLocaleLowerCase() === charVal) {
@@ -357,7 +413,7 @@ define([
                 }
             }
 
-            Common.UI.DataView.prototype.onKeyDown.call(this, e, event);
+            Common.UI.DataView.prototype.onKeyDown.call(me, e, event);
         },
 
         onScrollToRecordCustom: function (record) {
@@ -375,12 +431,12 @@ define([
             }
         },
 
-        cancelButtonText:               'Cancel',
-        okButtonText:                   'Ok',
         textGroupDescription:           'Select Function Group',
         textListDescription:            'Select Function',
         sDescription:                   'Description',
-        txtTitle:                       'Insert Function'
+        txtTitle:                       'Insert Function',
+        txtSearch: 'Search',
+        txtRecommended: 'Recommended'
 
     }, SSE.Views.FormulaDialog || {}));
 });

@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -34,8 +33,7 @@
 /**
  *  PivotSettingsAdvanced.js
  *
- *  Created by Julia Radzhabova on 17.07.2017
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 17.07.2017
  *
  */
 
@@ -50,8 +48,8 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
 
     SSE.Views.PivotSettingsAdvanced = Common.Views.AdvancedSettingsWindow.extend(_.extend({
         options: {
-            contentWidth: 300,
-            height: 395,
+            contentWidth: 310,
+            contentHeight: 355,
             toggleGroup: 'pivot-adv-settings-group',
             storageName: 'sse-pivot-adv-settings-category'
         },
@@ -72,8 +70,16 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
             }, options);
 
             this.api        = options.api;
-            this.handler    = options.handler;
             this.props      = options.props;
+
+            this.options.handler = function(result, value) {
+                if ( result != 'ok' || this.isRangeValid() ) {
+                    if (options.handler)
+                        options.handler.call(this, result, value);
+                    return;
+                }
+                return true;
+            };
 
             Common.Views.AdvancedSettingsWindow.prototype.initialize.call(this, this.options);
         },
@@ -125,7 +131,7 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
             this.numWrap = new Common.UI.MetricSpinner({
                 el: $('#pivot-adv-spin-wrap'),
                 step: 1,
-                width: 85,
+                width: 60,
                 allowDecimal: false,
                 defaultUnit : "",
                 value: '0',
@@ -140,19 +146,21 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
                 labelText: this.textShowHeaders
             });
 
-            this.txtDataRange = new Common.UI.InputField({
+            this.chAutofitColWidth = new Common.UI.CheckBox({
+                el: $('#pivot-adv-chk-autofit-col-width'),
+                labelText: this.textAutofitColWidth
+            });
+
+            this.txtDataRange = new Common.UI.InputFieldBtn({
                 el          : $('#pivot-adv-txt-range'),
                 name        : 'range',
                 style       : 'width: 100%;',
+                btnHint     : this.textSelectData,
                 allowBlank  : true,
                 blankError  : this.txtEmpty,
                 validateOnChange: true
             });
-
-            this.btnSelectData = new Common.UI.Button({
-                el: $('#pivot-adv-btn-data')
-            });
-            this.btnSelectData.on('click', _.bind(this.onSelectData, this));
+            this.txtDataRange.on('button:click', _.bind(this.onSelectData, this));
 
             // Alt Text
 
@@ -176,6 +184,33 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
             this.afterRender();
         },
 
+        getFocusedComponents: function() {
+            return this.btnsCategory.concat([
+                this.inputName, this.chRows, this.chCols, this.radioDown, this.radioOver, this.numWrap, this.chHeaders, this.chAutofitColWidth, // 0 tab
+                this.txtDataRange,  // 1 tab
+                this.inputAltTitle, this.textareaAltDescription  // 2 tab
+            ]).concat(this.getFooterButtons());
+        },
+
+        onCategoryClick: function(btn, index) {
+            Common.Views.AdvancedSettingsWindow.prototype.onCategoryClick.call(this, btn, index);
+
+            var me = this;
+            setTimeout(function(){
+                switch (index) {
+                    case 0:
+                        me.inputName.focus();
+                        break;
+                    case 1:
+                        me.txtDataRange.focus();
+                        break;
+                    case 2:
+                        me.inputAltTitle.focus();
+                        break;
+                }
+            }, 10);
+        },
+
         afterRender: function() {
             this._setDefaults(this.props);
             if (this.storageName) {
@@ -191,7 +226,7 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
         _setDefaults: function (props) {
             if (props) {
                 var me = this;
-                this.inputName.setValue(Common.Utils.String.htmlEncode(props.asc_getName()));
+                this.inputName.setValue(props.asc_getName());
 
                 this.chCols.setValue(props.asc_getRowGrandTotals(), true);
                 this.chRows.setValue(props.asc_getColGrandTotals(), true);
@@ -202,57 +237,63 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
                 this.numWrap.setValue(props.asc_getPageWrap());
 
                 this.chHeaders.setValue(props.asc_getShowHeaders(), true);
+                this.chAutofitColWidth.setValue(props.asc_getUseAutoFormatting(), true);
 
-                // var value = props.getRange();
-                // this.txtDataRange.setValue((value) ? value : '');
-                // this.dataRangeValid = value;
+                var value = props.asc_getDataRef();
+                this.txtDataRange.setValue((value) ? value : '');
+                this.dataRangeValid = value;
 
                 this.txtDataRange.validation = function(value) {
-                    // var isvalid = me.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.Pivot, value, false);
-                    // return (isvalid==Asc.c_oAscError.ID.DataRangeError) ? me.textInvalidRange : true;
-                    return true;
+                    var isvalid = me.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.PivotTableData, value, false);
+                    return (isvalid==Asc.c_oAscError.ID.DataRangeError) ? me.textInvalidRange : true;
                 };
+
+                value = props.asc_getTitle();
+                this.inputAltTitle.setValue(value ? value : '');
+
+                value = props.asc_getDescription();
+                this.textareaAltDescription.val(value ? value : '');
             }
         },
 
         getSettings: function () {
             var props = new Asc.CT_pivotTableDefinition();
+            props.asc_setName(this.inputName.getValue());
             props.asc_setRowGrandTotals(this.chCols.getValue() == 'checked');
             props.asc_setColGrandTotals(this.chRows.getValue() == 'checked');
+            props.asc_setPageOverThenDown(this.radioOver.getValue());
+            props.asc_setPageWrap(this.numWrap.getNumberValue());
+            props.asc_setShowHeaders(this.chHeaders.getValue() == 'checked');
+            props.asc_setUseAutoFormatting(this.chAutofitColWidth.getValue() == 'checked');
+            props.asc_setDataRef(this.txtDataRange.getValue());
+
+            if (this.isAltTitleChanged)
+                props.asc_setTitle(this.inputAltTitle.getValue());
+            if (this.isAltDescChanged)
+                props.asc_setDescription(this.textareaAltDescription.val());
 
             return props;
         },
 
-        onDlgBtnClick: function(event) {
-            var me = this;
-            var state = (typeof(event) == 'object') ? event.currentTarget.attributes['result'].value : event;
-            if (state == 'ok' && this.isRangeValid()) {
-                this.handler && this.handler.call(this, state,  (state == 'ok') ? this.getSettings() : undefined);
-            }
-
-            this.close();
-        },
-
-        onPrimary: function() {
-            this.onDlgBtnClick('ok');
-            return false;
-        },
-
         isRangeValid: function() {
-            if (this.isChart) {
-                var isvalid;
-                if (!_.isEmpty(this.txtDataRange.getValue())) {
-                    isvalid = this.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.Pivot, this.txtDataRange.getValue());
-                    if (isvalid == Asc.c_oAscError.ID.No)
-                        return true;
-                } else
-                    this.txtDataRange.showError([this.txtEmpty]);
+            var isvalid = true,
+                txtError = '';
 
+            if (_.isEmpty(this.txtDataRange.getValue())) {
+                isvalid = false;
+                txtError = this.txtEmpty;
+            } else {
+                isvalid = this.api.asc_checkDataRange(Asc.c_oAscSelectionDialogType.PivotTableData, this.txtDataRange.getValue());
+                isvalid = (isvalid == Asc.c_oAscError.ID.No);
+                !isvalid && (txtError = this.textInvalidRange);
+            }
+            if (!isvalid) {
                 this.setActiveCategory(1);
+                this.txtDataRange.showError([txtError]);
                 this.txtDataRange.cmpEl.find('input').focus();
-                return false;
-            } else
-                return true;
+                return isvalid;
+            }
+            return isvalid;
         },
 
         onSelectData: function() {
@@ -278,14 +319,12 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
                 win.setSettings({
                     api     : me.api,
                     range   : (!_.isEmpty(me.txtDataRange.getValue()) && (me.txtDataRange.checkValidate()==true)) ? me.txtDataRange.getValue() : me.dataRangeValid,
-                    type    : Asc.c_oAscSelectionDialogType.Pivot
+                    type    : Asc.c_oAscSelectionDialogType.PivotTableData
                 });
             }
         },
 
         textTitle: 'Pivot Table - Advanced Settings',
-        textCancel: 'Cancel',
-        textOk: 'OK',
         strLayout: 'Name and Layout',
         txtName: 'Name',
         textGrandTotals: 'Grand Totals',
@@ -293,7 +332,7 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
         textShowCols: 'Show for columns',
         textDataSource: 'Data Source',
         textDataRange: 'Data Range',
-        textSelectData: 'Select Data',
+        textSelectData: 'Select data',
         textAlt: 'Alternative Text',
         textAltTitle: 'Title',
         textAltDescription: 'Description',
@@ -306,7 +345,8 @@ define([    'text!spreadsheeteditor/main/app/template/PivotSettingsAdvanced.temp
         textWrapCol: 'Report filter fields per column',
         textWrapRow: 'Report filter fields per row',
         textHeaders: 'Field Headers',
-        textShowHeaders: 'Show field headers for rows and columns'
+        textShowHeaders: 'Show field headers for rows and columns',
+        textAutofitColWidth: 'Autofit column widths on update'
 
     }, SSE.Views.PivotSettingsAdvanced || {}))
 });

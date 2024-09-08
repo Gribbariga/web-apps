@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,19 +28,19 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *    LanguageInfo.js
  *
- *    Created by Maxim Kadushkin on 31 January 2014
- *    Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *    Created on 31 January 2014
  *
  */
 
-if (Common === undefined) {
-    var Common = {};
+if ( window.Common === undefined ) {
+    window.Common = {};
 }
 
+// TODO: move to Common.Utils
 Common.util = Common.util||{};
 
 Common.util.LanguageInfo = new(function() {
@@ -336,7 +335,7 @@ Common.util.LanguageInfo = new(function() {
         0x0032 : ["tn", "Setswana"],
         0x0432 : ["tn-ZA", "Setswana (Aforika Borwa)", "Setswana (South Africa)"],
         0x005B : ["si", "සිංහ"],
-        0x045B : ["si-LK", "සිංහ (ශ්‍රී ලංකා)", "Sinhala (Sri Lanka)"],
+        0x045B : ["si-LK", "සිංහල (ශ්‍රී ලංකාව)", "Sinhala (Sri Lanka)"],
         0x001B : ["sk", "Slovenčina"],
         0x041B : ["sk-SK", "Slovenčina (Slovenská republika)", "Slovak (Slovakia)"],
         0x0024 : ["sl", "Slovenski"],
@@ -363,6 +362,8 @@ Common.util.LanguageInfo = new(function() {
         0x380A : ["es-UY", "Español (Uruguay)", "Spanish (Uruguay)"],
         0x200A : ["es-VE", "Español (Republica Bolivariana de Venezuela)", "Spanish (Venezuela)"],
         0x040a : ["es-ES_tradnl", "Spanish"],
+        0x580a : ["es-419", "Español (América Latina y el Caribe)", "Spanish (Latin America and the Caribbean)"],
+        0x5C0a : ["es-CU",  "Español (Cuba)", "Spanish (Cuba)"],
         0x001D : ["sv", "Svenska"],
         0x081D : ["sv-FI", "Svenska (Finland)", "Swedish (Finland)"],
         0x041D : ["sv-SE", "Svenska (Sverige)", "Swedish (Sweden)"],

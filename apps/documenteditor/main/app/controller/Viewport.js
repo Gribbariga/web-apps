@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,21 +28,21 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  Viewport.js
  *
  *  This is out main controller which will do most of job
  *  It will listen for view and collection events and manage all data-related operations
  *
- *  Created by Alexander Yuzhin on 1/15/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 1/15/14
  *
  */
 
 define([
     'core',
     'common/main/lib/view/Header',
+    'common/main/lib/view/SearchBar',
     'documenteditor/main/app/view/Viewport',
     'documenteditor/main/app/view/LeftMenu'
 ], function (Viewport) {
@@ -70,36 +69,39 @@ define([
             this.addListeners({
                 'FileMenu': {
                     'menu:hide': me.onFileMenu.bind(me, 'hide'),
-                    'menu:show': me.onFileMenu.bind(me, 'show')
+                    'menu:show': me.onFileMenu.bind(me, 'show'),
+                    //'settings:apply': me.applySettings.bind(me)
                 },
                 'Toolbar': {
                     'render:before' : function (toolbar) {
                         var config = DE.getController('Main').appOptions;
                         toolbar.setExtra('right', me.header.getPanel('right', config));
-                        if (!config.isEdit || config.customization && !!config.customization.compactHeader)
+                        if (!config.twoLevelHeader || config.compactHeader)
                             toolbar.setExtra('left', me.header.getPanel('left', config));
+
+                        /*var value = Common.localStorage.getBool("de-settings-quick-print-button", true);
+                        Common.Utils.InternalSettings.set("de-settings-quick-print-button", value);
+                        if (me.header && me.header.btnPrintQuick)
+                            me.header.btnPrintQuick[value ? 'show' : 'hide']();*/
                     },
                     'view:compact'  : function (toolbar, state) {
-                        me.header.mnuitemCompactToolbar.setChecked(state, true);
                         me.viewport.vlayout.getItem('toolbar').height = state ?
                                 Common.Utils.InternalSettings.get('toolbar-height-compact') : Common.Utils.InternalSettings.get('toolbar-height-normal');
                     },
                     'undo:disabled' : function (state) {
-                        if ( me.header.btnUndo ) {
-                            if ( me.header.btnUndo.keepState )
-                                me.header.btnUndo.keepState.disabled = state;
-                            else me.header.btnUndo.setDisabled(state);
-                        }
+                        me.header.lockHeaderBtns( 'undo', state, Common.enumLock.undoLock );
                     },
                     'redo:disabled' : function (state) {
-                        if ( me.header.btnRedo )
-                            if ( me.header.btnRedo.keepState )
-                                me.header.btnRedo.keepState.disabled = state;
-                            else me.header.btnRedo.setDisabled(state);
+                        me.header.lockHeaderBtns( 'redo', state, Common.enumLock.redoLock );
+                    },
+                    'docmode:disabled' : function (state) {
+                        me.header.lockHeaderBtns( 'mode', state, Common.enumLock.changeModeLock);
                     },
                     'print:disabled' : function (state) {
                         if ( me.header.btnPrint )
                             me.header.btnPrint.setDisabled(state);
+                        if ( me.header.btnPrintQuick )
+                            me.header.btnPrintQuick.setDisabled(state);
                     },
                     'save:disabled' : function (state) {
                         if ( me.header.btnSave )
@@ -111,16 +113,24 @@ define([
 
         setApi: function(api) {
             this.api = api;
-            this.api.asc_registerCallback('asc_onZoomChange', this.onApiZoomChange.bind(this));
             this.api.asc_registerCallback('asc_onCoAuthoringDisconnect',this.onApiCoAuthoringDisconnect.bind(this));
             Common.NotificationCenter.on('api:disconnect',              this.onApiCoAuthoringDisconnect.bind(this));
         },
 
+        getApi: function() {
+            return this.api;
+        },
 
         // When our application is ready, lets get started
         onLaunch: function() {
             // Create and render main view
             this.viewport = this.createView('Viewport').render();
+
+            this.api = new Asc.asc_docs_api({
+                'id-view'  : 'editor_sdk',
+                'translate': this.getApplication().getController('Main').translationTable
+            });
+
             this.header   = this.createView('Common.Views.Header', {
                 headerCaption: 'Document Editor',
                 storeUsers: DE.getCollection('Common.Collections.Users')
@@ -139,11 +149,9 @@ define([
             this.boxSdk = $('#editor_sdk');
             this.boxSdk.css('border-left', 'none');
 
-            this.header.mnuitemFitPage = this.header.fakeMenuItem();
-            this.header.mnuitemFitWidth = this.header.fakeMenuItem();
-
             Common.NotificationCenter.on('app:face', this.onAppShowed.bind(this));
             Common.NotificationCenter.on('app:ready', this.onAppReady.bind(this));
+            Common.NotificationCenter.on('search:show', _.bind(this.onSearchShow, this));
         },
 
         onAppShowed: function (config) {
@@ -152,11 +160,11 @@ define([
 
             var _intvars = Common.Utils.InternalSettings;
             var $filemenu = $('.toolbar-fullview-panel');
-            $filemenu.css('top', _intvars.get('toolbar-height-tabs'));
+            $filemenu.css('top', Common.UI.LayoutManager.isElementVisible('toolbar') ? _intvars.get('toolbar-height-tabs') : 0);
 
             me.viewport.$el.attr('applang', me.appConfig.lang.split(/[\-_]/)[0]);
 
-            if ( !config.isEdit ||
+            if ( !(config.isEdit || config.isRestrictedEdit && config.canFillForms && config.isFormCreator) ||
                 ( !Common.localStorage.itemExists("de-compact-toolbar") &&
                 config.customization && config.customization.compactToolbar )) {
 
@@ -172,7 +180,7 @@ define([
                     me.viewport.vlayout.getItem('toolbar').el.addClass('style-skip-docname');
             }
 
-            if ( config.isEdit && (!(config.customization && config.customization.compactHeader))) {
+            if ( config.twoLevelHeader && !config.compactHeader) {
                 var $title = me.viewport.vlayout.getItem('title').el;
                 $title.html(me.header.getPanel('title', config)).show();
                 $title.find('.extra').html(me.header.getPanel('left', config));
@@ -186,126 +194,18 @@ define([
                 _intvars.set('toolbar-height-compact', _tabs_new_height);
                 _intvars.set('toolbar-height-normal', _tabs_new_height + _intvars.get('toolbar-height-controls'));
 
-                $filemenu.css('top', _tabs_new_height + _intvars.get('document-title-height'));
+                $filemenu.css('top', (Common.UI.LayoutManager.isElementVisible('toolbar') ? _tabs_new_height : 0) + _intvars.get('document-title-height'));
 
-                toolbar = me.getApplication().getController('Toolbar').getView();
-                toolbar.btnCollabChanges = me.header.btnSave;
+                if (config.isEdit) {
+                    toolbar = me.getApplication().getController('Toolbar').getView();
+                    toolbar.btnCollabChanges = me.header.btnSave;
+                }
             }
+
+            me.header.btnSearch.on('toggle', me.onSearchToggle.bind(this));
         },
 
         onAppReady: function (config) {
-            var me = this;
-            if ( me.header.btnOptions ) {
-                var compactview = !config.isEdit;
-                if ( config.isEdit ) {
-                    if ( Common.localStorage.itemExists("de-compact-toolbar") ) {
-                        compactview = Common.localStorage.getBool("de-compact-toolbar");
-                    } else
-                    if ( config.customization && config.customization.compactToolbar )
-                        compactview = true;
-                }
-
-                me.header.mnuitemCompactToolbar = new Common.UI.MenuItem({
-                    caption: me.header.textCompactView,
-                    checked: compactview,
-                    checkable: true,
-                    value: 'toolbar'
-                });
-                if (!config.isEdit) {
-                    me.header.mnuitemCompactToolbar.hide();
-                    Common.NotificationCenter.on('tab:visible', _.bind(function(action, visible){
-                        if ((action=='plugins' || action=='review') && visible) {
-                            me.header.mnuitemCompactToolbar.show();
-                        }
-                    }, this));
-                }
-
-                var mnuitemHideStatusBar = new Common.UI.MenuItem({
-                    caption: me.header.textHideStatusBar,
-                    checked: Common.localStorage.getBool("de-hidden-status"),
-                    checkable: true,
-                    value: 'statusbar'
-                });
-
-                if ( config.canBrandingExt && config.customization && config.customization.statusBar === false )
-                    mnuitemHideStatusBar.hide();
-
-                var mnuitemHideRulers = new Common.UI.MenuItem({
-                    caption: me.header.textHideLines,
-                    checked: Common.localStorage.getBool("de-hidden-rulers"),
-                    checkable: true,
-                    value: 'rulers'
-                });
-                if (!config.isEdit)
-                    mnuitemHideRulers.hide();
-
-                me.header.mnuitemFitPage = new Common.UI.MenuItem({
-                    caption: me.textFitPage,
-                    checkable: true,
-                    checked: me.header.mnuitemFitPage.isChecked(),
-                    value: 'zoom:page'
-                });
-
-                me.header.mnuitemFitWidth = new Common.UI.MenuItem({
-                    caption: me.textFitWidth,
-                    checkable: true,
-                    checked: me.header.mnuitemFitWidth.isChecked(),
-                    value: 'zoom:width'
-                });
-
-                me.header.mnuZoom = new Common.UI.MenuItem({
-                    template: _.template([
-                        '<div id="hdr-menu-zoom" class="menu-zoom" style="height: 25px;" ',
-                            '<% if(!_.isUndefined(options.stopPropagation)) { %>',
-                                'data-stopPropagation="true"',
-                            '<% } %>', '>',
-                            '<label class="title">' + me.header.textZoom + '</label>',
-                            '<button id="hdr-menu-zoom-in" type="button" style="float:right; margin: 2px 5px 0 0;" class="btn small btn-toolbar"><i class="icon btn-zoomup">&nbsp;</i></button>',
-                            '<label class="zoom"><%= options.value %>%</label>',
-                            '<button id="hdr-menu-zoom-out" type="button" style="float:right; margin-top: 2px;" class="btn small btn-toolbar"><i class="icon btn-zoomdown">&nbsp;</i></button>',
-                        '</div>'
-                    ].join('')),
-                    stopPropagation: true,
-                    value: me.header.mnuZoom.options.value
-                });
-
-                me.header.btnOptions.setMenu(new Common.UI.Menu({
-                        cls: 'pull-right',
-                        style: 'min-width: 180px;',
-                        items: [
-                            me.header.mnuitemCompactToolbar,
-                            mnuitemHideStatusBar,
-                            mnuitemHideRulers,
-                            {caption:'--'},
-                            me.header.mnuitemFitPage,
-                            me.header.mnuitemFitWidth,
-                            me.header.mnuZoom,
-                            {caption:'--'},
-                            new Common.UI.MenuItem({
-                                caption: me.header.textAdvSettings,
-                                value: 'advanced'
-                            })
-                        ]
-                    })
-                );
-
-                var _on_btn_zoom = function (btn) {
-                    btn == 'up' ? me.api.zoomIn() : me.api.zoomOut();
-                    Common.NotificationCenter.trigger('edit:complete', me.header);
-                };
-
-                (new Common.UI.Button({
-                    el      : $('#hdr-menu-zoom-out', me.header.mnuZoom.$el),
-                    cls     : 'btn-toolbar'
-                })).on('click', _on_btn_zoom.bind(me, 'down'));
-
-                (new Common.UI.Button({
-                    el      : $('#hdr-menu-zoom-in', me.header.mnuZoom.$el),
-                    cls     : 'btn-toolbar'
-                })).on('click', _on_btn_zoom.bind(me, 'up'));
-
-                me.header.btnOptions.menu.on('item:click', me.onOptionsItemClick.bind(this));
-            }
         },
 
         onLayoutChanged: function(area) {
@@ -316,7 +216,7 @@ define([
                 this.viewport.hlayout.doLayout();
                 break;
             case 'history':
-                var panel = this.viewport.hlayout.items[1];
+                var panel = this.viewport.hlayout.getItem('history');
                 if (panel.resize.el) {
                     this.boxSdk.css('border-left', '');
                     panel.resize.el.show();
@@ -324,7 +224,7 @@ define([
                 this.viewport.hlayout.doLayout();
                 break;
             case 'leftmenu':
-                var panel = this.viewport.hlayout.items[0];
+                var panel = this.viewport.hlayout.getItem('left');
                 if (panel.resize.el) {
                     if (panel.el.width() > 40) {
                         this.boxSdk.css('border-left', '');
@@ -354,44 +254,18 @@ define([
             var me = this;
             var _need_disable =  opts == 'show';
 
-            me.header.lockHeaderBtns( 'undo', _need_disable );
-            me.header.lockHeaderBtns( 'redo', _need_disable );
-            me.header.lockHeaderBtns( 'opts', _need_disable );
+            me.header.lockHeaderBtns( 'undo', _need_disable, Common.enumLock.fileMenuOpened );
+            me.header.lockHeaderBtns( 'redo', _need_disable, Common.enumLock.fileMenuOpened );
             me.header.lockHeaderBtns( 'users', _need_disable );
+            me.header.lockHeaderBtns( 'mode', _need_disable, Common.enumLock.fileMenuOpened );
         },
 
-        onApiZoomChange: function(percent, type) {
-            this.header.mnuitemFitPage.setChecked(type == 2, true);
-            this.header.mnuitemFitWidth.setChecked(type == 1, true);
-            this.header.mnuZoom.options.value = percent;
-
-            if ( this.header.mnuZoom.$el )
-                $('.menu-zoom label.zoom', this.header.mnuZoom.$el).html(percent + '%');
-        },
-
-        onOptionsItemClick: function (menu, item, e) {
-            var me = this;
-
-            switch ( item.value ) {
-            case 'toolbar': me.header.fireEvent('toolbar:setcompact', [menu, item.isChecked()]); break;
-            case 'statusbar': me.header.fireEvent('statusbar:hide', [item, item.isChecked()]); break;
-            case 'rulers':
-                me.api.asc_SetViewRulers(!item.isChecked());
-                Common.localStorage.setBool('de-hidden-rulers', item.isChecked());
-                Common.NotificationCenter.trigger('layout:changed', 'rulers');
-                Common.NotificationCenter.trigger('edit:complete', me.header);
-                break;
-            case 'zoom:page':
-                item.isChecked() ? me.api.zoomFitToPage() : me.api.zoomCustomMode();
-                Common.NotificationCenter.trigger('edit:complete', me.header);
-                break;
-            case 'zoom:width':
-                item.isChecked() ? me.api.zoomFitToWidth() : me.api.zoomCustomMode();
-                Common.NotificationCenter.trigger('edit:complete', me.header);
-                break;
-            case 'advanced': me.header.fireEvent('file:settings', me.header); break;
-            }
-        },
+        /*applySettings: function () {
+            var value = Common.localStorage.getBool("de-settings-quick-print-button", true);
+            Common.Utils.InternalSettings.set("de-settings-quick-print-button", value);
+            if (this.header && this.header.btnPrintQuick)
+                this.header.btnPrintQuick[value ? 'show' : 'hide']();
+        },*/
 
         onApiCoAuthoringDisconnect: function(enableDownload) {
             if (this.header) {
@@ -399,12 +273,58 @@ define([
                     this.header.btnDownload.hide();
                 if (this.header.btnPrint && !enableDownload)
                     this.header.btnPrint.hide();
+                if (this.header.btnPrintQuick && !enableDownload)
+                    this.header.btnPrintQuick.hide();
                 if (this.header.btnEdit)
                     this.header.btnEdit.hide();
+                this.header.lockHeaderBtns( 'rename-user', true);
             }
         },
 
+        SetDisabled: function(disable) {
+            this.header && this.header.lockHeaderBtns( 'rename-user', disable);
+        },
+
+        onSearchShow: function () {
+            this.header.btnSearch && this.header.btnSearch.toggle(true);
+        },
+
+        onSearchToggle: function () {
+            var leftMenu = this.getApplication().getController('LeftMenu');
+            if (leftMenu.isSearchPanelVisible()) {
+                this.header.btnSearch.toggle(false, true);
+                leftMenu.getView('LeftMenu').panelSearch.focus();
+                return;
+            }
+            if (!this.searchBar) {
+                var hideLeftPanel = this.appConfig.canBrandingExt &&
+                    (!Common.UI.LayoutManager.isElementVisible('leftMenu') || this.appConfig.customization && this.appConfig.customization.leftMenu === false);
+                this.searchBar = new Common.UI.SearchBar( hideLeftPanel ? {
+                    showOpenPanel: false,
+                    width: 303
+                } : {});
+                this.searchBar.on('hide', _.bind(function () {
+                    this.header.btnSearch.toggle(false, true);
+                    Common.NotificationCenter.trigger('edit:complete');
+                }, this));
+            }
+            if (this.header.btnSearch.pressed) {
+                var selectedText = this.api.asc_GetSelectedText(),
+                    searchController = this.getApplication().getController('Search'),
+                    resultsNumber = searchController.getResultsNumber();
+                this.searchBar.show(selectedText && selectedText.trim() || searchController.getSearchText());
+                this.searchBar.updateResultsNumber(resultsNumber[0], resultsNumber[1]);
+            } else {
+                this.searchBar.hide();
+            }
+        },
+
+        isSearchBarVisible: function () {
+            return this.searchBar && this.searchBar.isVisible();
+        },
+
         textFitPage: 'Fit to Page',
-        textFitWidth: 'Fit to Width'
+        textFitWidth: 'Fit to Width',
+        txtDarkMode: 'Dark mode'
     }, DE.Controllers.Viewport));
 });

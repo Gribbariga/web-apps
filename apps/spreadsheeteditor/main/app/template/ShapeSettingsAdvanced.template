@@ -21,7 +21,7 @@
     <div class="inner-content  padding-large">
         <div style="width: 100%;">
             <label class="input-label"><%= scope.textAngle %></label>
-            <div id="shape-advanced-spin-angle" style="display: inline-block; margin-left: 5px;"></div>
+            <div id="shape-advanced-spin-angle" class="margin-left-5" style="display: inline-block;"></div>
         </div>
     </div>
     <div class="separator horizontal padding-large"></div>
@@ -29,7 +29,7 @@
         <table cols="2">
             <tr>
                 <td rowspan="2" class="padding-small" style="vertical-align: top;">
-                    <label class="input-label" style="margin-right: 15px;vertical-align: top;"><%= scope.textFlipped %></label>
+                    <label class="input-label margin-right-15" style="vertical-align: top;"><%= scope.textFlipped %></label>
                 </td>
                 <td class="padding-small">
                     <div id="shape-advanced-checkbox-hor"></div>
@@ -96,7 +96,30 @@
 </div>
 <div id="id-adv-shape-margins" class="settings-panel">
     <div class="inner-content">
+        <table cols="1" style="width: 100%;">
+            <tr>
+                <td class="padding-small">
+                    <label class="header"><%= scope.textAutofit %></label>
+                </td>
+            </tr>
+            <tr>
+                <td class="padding-small">
+                    <div id="shape-checkbox-autofit"></div>
+                </td>
+            </tr>
+            <tr>
+                <td class="padding-large">
+                    <div id="shape-checkbox-overflow"></div>
+                </td>
+            </tr>
+        </table>
+        <div class="separator horizontal padding-large"></div>
         <table cols="2" style="width: 100%;">
+            <tr>
+                <td colspan=2 class="padding-small">
+                    <label class="header"><%= scope.strMargins %></label>
+                </td>
+            </tr>
             <tr>
                 <td class="padding-small" width="125px">
                     <label class="input-label"><%= scope.textTop %></label>
@@ -133,6 +156,27 @@
                 <td class="padding-small">
                     <label class="input-label"><%= scope.textSpacing %></label>
                     <div id="shape-columns-spacing"></div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<div id="id-adv-shape-snap" class="settings-panel">
+    <div class="inner-content">
+        <table cols="1">
+            <tr>
+                <td class="padding-small">
+                    <div id="shape-radio-twocell"></div>
+                </td>
+            </tr>
+            <tr>
+                <td class="padding-small">
+                    <div id="shape-radio-onecell"></div>
+                </td>
+            </tr>
+            <tr>
+                <td class="padding-small">
+                    <div id="shape-radio-absolute"></div>
                 </td>
             </tr>
         </table>

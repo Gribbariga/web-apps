@@ -7,6 +7,24 @@
         display: table-row;
     }
 
+    #comments-header {
+        position: absolute;
+        height: 45px;
+        left: 0;
+        top: 0;
+        right: 0;
+        padding: 12px;
+        overflow: hidden;
+        border-bottom: @scaled-one-px-value-ie solid @border-toolbar-ie;
+        border-bottom: @scaled-one-px-value solid @border-toolbar;
+
+        label {
+            .font-size-medium();
+            .font-weight-bold();
+            margin-top: 2px;
+        }
+    }
+
     .messages-ct {
         position: absolute;
         overflow: hidden;
@@ -14,7 +32,9 @@
         right: 0;
         bottom: 45px;
         height: 300px;
-        border-bottom: 1px solid @gray-dark;
+        padding-top: 45px;
+        border-bottom: @scaled-one-px-value-ie solid @border-toolbar-ie;
+        border-bottom: @scaled-one-px-value solid @border-toolbar;
 
         &.stretch {
             border-bottom: none;
@@ -23,7 +43,28 @@
         .ps-scrollbar-y-rail {
             margin-top: 5px;
             margin-bottom: 5px;
-            right: 4px !important;
+            right: 4px;
+
+            .rtl & {
+                right: unset !important;
+                left: 4px;
+            }
+        }
+
+        .dataview-ct.inner {
+            .empty-text {
+                text-align: center;
+                height: 100%;
+                width: 100%;
+                color: @text-tertiary-ie;
+                color: @text-tertiary;
+                tr {
+                    vertical-align: top;
+                    td {
+                        padding-top: 18px;
+                    }
+                }
+            }
         }
     }
 
@@ -32,10 +73,13 @@
         text-align: center;
 
         label {
-            color: @black;
-            font: 12px arial;
+            color: @text-normal-ie;
+            color: @text-normal;
+            .font-size-medium();
             line-height: normal;
-            border-bottom: 1px dotted @black;
+            border-bottom: @scaled-one-px-value-ie dotted @text-normal-ie;
+            border-bottom: @scaled-one-px-value dotted @text-normal;
+            border-radius: 0;
             padding-top: 12px;
             outline: none;
             height: 29px;
@@ -54,21 +98,26 @@
         }
 
         textarea {
-            font-size: 12px;
+            .font-size-medium();
             width: 100%;
             resize: none;
             margin-bottom: 5px;
-            border: 1px solid @gray-dark;
+            border: @scaled-one-px-value-ie solid @border-regular-control-ie;
+            border: @scaled-one-px-value solid @border-regular-control;
             height: 100%;
+            &:focus {
+                border-color: @border-control-focus-ie;
+                border-color: @border-control-focus;
+            }
         }
     }
 
     .btn {
         &.add {
-            margin-left: 20px;
+            .margin-left-20();
         }
         &.cancel {
-            margin-left: 7px;
+            .margin-left-7();
         }
     }
 }
@@ -76,21 +125,28 @@
 .dataview-ct {
     width: 100%;
     height: 100%;
-    font: 12px arial;
+    .font-size-medium();
     line-height: normal;
     position: relative;
     overflow: hidden;
-    color: @gray-darker;
+    color: @border-preview-select-ie;
+    color: @border-preview-select;
 
     textarea {
         width: 100%;
-        height: 50px;
+        height: 55px;
         resize: none;
         margin-bottom: 5px;
-        border: 1px solid @gray-dark;
+        border: @scaled-one-px-value-ie solid @border-regular-control-ie;
+        border: @scaled-one-px-value solid @border-regular-control;
         word-break: break-all;
         line-height: 15px;
-        color: @gray-deep;
+        color: @text-normal-ie;
+        color: @text-normal;
+        &:focus {
+            border-color: @border-control-focus-ie;
+            border-color: @border-control-focus;
+        }
     }
 
     .btn-fix {
@@ -103,7 +159,8 @@
     }
 
     .separator-cmt {
-        border-bottom: 1px solid @gray-dark;
+        border-bottom: @scaled-one-px-value-ie solid @border-toolbar-ie;
+        border-bottom: @scaled-one-px-value solid @border-toolbar;
         margin: 20px 0px 0px 0px;
     }
 
@@ -112,24 +169,51 @@
         padding: 0px 20px 10px 20px;
     }
 
-    .user-name {
-        color: @gray-deep;
-        font-size: 12px;
-        font-weight: bold;
+    .user-info {
+        display: flex;
+        padding-top: 10px;
+        .padding-right(65px);
+    }
+
+    .user-info-text {
+        flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding: 10px 65px 0 0px;
-        height: 26px;
+    }
+
+    .user-name {
+        color: @text-normal-ie;
+        color: @text-normal;
+        .font-size-medium();
+        .font-weight-bold();
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         cursor: default;
     }
 
     .color {
-        width: 12px;
-        height: 12px;
-        border: 1px solid @gray-dark;
-        margin: 0 5px 3px 0;
+        display: inline-block;
+        width: 26px;
+        height: 26px;
+        border-radius: 20px;
+        border-width: @scaled-two-px-value;
+        margin-right: 8px;
         vertical-align: middle;
+        background-color: #ffffff;
+        background-size: cover;
+        background-position: center;
+
+        text-align: center;
+        line-height: 26px;
+        color: #ffffff;
+        font-weight: 700;
+
+        .rtl & {
+            margin-right: 0px;
+            margin-left: 8px;
+        }
     }
 
     .user-name-colored {
@@ -143,7 +227,8 @@
             background-color: #ee3525;
             padding: 3px 10px;
             color: #ffffff;
-            font: 11px arial;
+            //font: 11px arial;
+            .font-size-normal();
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -151,10 +236,10 @@
     }
 
     .user-date {
-        font-size: 11px;
+        .font-size-normal();
         white-space: nowrap;
         padding: 0;
-        height: 12px;
+        //height: 12px;
         overflow: hidden;
         text-overflow: ellipsis;
         cursor: default;
@@ -164,14 +249,22 @@
         font-style: italic;
         margin-top: 10px;
         padding: 0px 5px 5px 5px;
-        border-left: 1px solid #939393;
+        border-left: @scaled-one-px-value-ie solid #939393;
+        border-left: @scaled-one-px-value solid #939393;
+        border-right: none;
         word-break: break-all;
         white-space: pre-wrap;
         cursor: pointer;
+        .rtl & {
+            border-left: none;
+            border-right: @scaled-one-px-value-ie solid #939393;
+            border-right: @scaled-one-px-value solid #939393;
+        }
     }
 
     .user-message {
-        color: @black;
+        color: @text-normal-ie;
+        color: @text-normal;
         padding: 9px 0px 0 0px;
         white-space: pre-wrap;
         word-wrap: break-word;
@@ -194,13 +287,20 @@
     }
 
     .user-reply {
-        color: @black;
+        color: @text-normal-ie;
+        color: @text-normal;
         margin-top: 10px;
         white-space: pre-wrap;
         width: auto;
-        border-bottom: 1px dotted @black;
+        border-bottom: @scaled-one-px-value-ie dotted @text-normal-ie;
+        border-bottom: @scaled-one-px-value dotted @text-normal;
         height: 16px;
         cursor: pointer;
+
+        &.with-reply {
+            margin-top: 5px;
+            .margin-left-20();
+        }
     }
 
     .msg-reply {
@@ -214,6 +314,12 @@
         top: 0;
         margin: 11px 21px 10px 10px;
         height: 20px;
+
+        .rtl & {
+            right: unset;
+            left: 0;
+            margin: 11px 10px 10px 21px;
+        }
     }
 
     .btns-reply-ct {
@@ -222,44 +328,128 @@
         top: 0;
         height: 30px;
         margin-top: 11px;
+
+        .rtl & {
+            right: unset;
+            left: 0;
+        }
     }
 
     .reply-item-ct {
         position: relative;
         padding-bottom: 10px;
-        padding-left: 20px;
+        .padding-left-20();
     }
 
     div[class^=btn-] {
-        float: left;
+        .float-left();
         cursor: pointer;
     }
 
-    .btn-edit,.btn-delete, .btn-resolve, .btn-resolve-check, .btn-accept, .btn-reject, .btn-goto {
+    .btn-edit,.btn-delete, .btn-resolve, .icon-resolve, .btn-resolve-check, .btn-accept, .btn-reject, .btn-goto {
         width: 16px;
         height: 16px;
         margin: 0 0 0 5px;
         background-color: transparent;
+
+        .rtl & {
+            margin: 0 5px 0 0;
+        }
+    }
+
+    .icon-resolve {
+        float: left;
     }
 
     .btn-edit {
-        background-position: -2px -233px;
+        background-position: -2px -232px;
     }
 
     .btn-delete {
-        background-position: -22px -233px;
+        background-position: -22px -232px;
     }
 
-    .btn-accept {
-        background-position: -2px -253px;
+    
+    .tool {
+        float: right;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        overflow: hidden;
+        padding: 0px;
+        margin-right: 2px;
+
+        &.btn-reject {
+            position: relative;
+
+            &.disabled {
+                cursor: default;
+            }
+
+            &:before, &:after {
+                content: ' ';
+                position: absolute;
+                left: 8px;
+                top: 2px;
+                height: 12px;
+                width: 2px;
+                background-color: @icon-normal-ie;
+                background-color: @icon-normal;
+            }
+
+            &:before {
+                transform: rotate(45deg);
+            }
+
+            &:after {
+                transform: rotate(-45deg);
+            }
+        }
+
+        &.help {
+            width: 20px;
+            margin-right:0;
+            line-height: 14px;
+            font-size: 14px;
+            .font-weight-bold();
+            color: @text-normal-ie;
+            color: @text-normal;
+            opacity: 0.7;
+
+            &:hover {
+                opacity: 1;
+            }
+
+            &.disabled {
+                opacity: @component-disabled-opacity-ie;
+                opacity: @component-disabled-opacity;
+                cursor: default;
+            }
+        }
     }
 
-    .btn-reject {
-        background-position: -22px -253px;
-    }
+    .btn-resolve, .btn-accept, .icon-resolve {
+        position: relative;
 
-    .btn-resolve {
-        background-position: -2px -253px;
+        &:after {
+            content: '';
+            position: absolute;
+            border: solid @text-normal-ie;
+            border: solid @text-normal;
+            border-width: 0 2px 2px 0;
+            transform: rotate(40deg);
+            width: 7px;
+            height: 12px;
+            left: 6px;
+            top: 0px;
+        }
+
+        &.comment-resolved, &.i-comment-resolved {
+            &:after {
+                border-color: @icon-success-ie;
+                border-color: @icon-success;
+            }
+        }
     }
 
     .btn-resolve-check {
@@ -271,10 +461,10 @@
     }
 
     .inner-edit-ct {
-        padding: 7px 0px 0px 0px;
+        padding: 10px 0px 0px 0px;
 
         .btn-inner-close {
-            margin-left: 7px;
+            .margin-left-7();
         }
     }
 
@@ -282,7 +472,7 @@
         padding: 10px 0px 0px 0px;
 
         .btn-close {
-            margin-left: 7px;
+            .margin-left-7();
         }
     }
     .reply-inner-ct {
@@ -296,6 +486,10 @@
         height: 16px;
         margin-top: 10px;
         position: absolute;
+
+        .rtl & {
+            transform: scale(-1, 1);
+        }
     }
 
     .lock-area {
@@ -306,8 +500,7 @@
         right: 0;
         bottom: 0;
         background-color: #F4F4F4;
-        margin-top: 2px;
-        margin-bottom: -2px;
+        margin: 1px 1px -1px;
         opacity: .5;
         cursor: pointer;
     }
@@ -330,8 +523,8 @@
         min-width: 100px;
         text-align: center;
         cursor: pointer;
-        font-size: 11px;
-        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        .font-size-normal();
+        font-family: @font-family-base;
     }
 
     .resolved {
@@ -360,7 +553,7 @@
     width:100%;
     position: relative;
     overflow-y: hidden;
-    margin-bottom: 5px;
+    //margin-bottom: 5px;
 
     .dataview-ct.inner {
         overflow: visible;
@@ -370,24 +563,6 @@
 .comments-arrow {
     position: absolute;
     overflow: hidden;
-    left: -10px;
-    top: 20px;
-    width: 10px;
-    height: 30px;
-
-    &.right {
-        left: 100%;
-
-        &:after {
-            left: -8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-
-            body.safari &,
-            body.chrome & {
-                box-shadow: none;
-            }
-        }
-    }
 
     &:after {
         content: '';
@@ -396,12 +571,103 @@
         left: 2px;
         width: 15px;
         height: 15px;
-        background-color: #ffffff;
+        background-color: @background-normal-ie;
+        background-color: @background-normal;
         -moz-transform: rotate(45deg);
         -ms-transform: rotate(45deg);
         -webkit-transform: rotate(45deg);
         -o-transform: rotate(45deg);
         transform: rotate(45deg);
-        border: solid 1px @gray-dark;
+        border: solid @scaled-one-px-value-ie @border-toolbar-ie;
+        border: solid @scaled-one-px-value @border-toolbar;
+
+        .rtl & {
+            left: auto;
+            right: 2px;
+        }
+    }
+
+    &.left {
+        left: -10px;
+        top: 20px;
+        width: 10px;
+        height: 30px;
+
+        .rtl & {
+            left: auto;
+            right: -10px;
+        }
+    }
+
+    &.right {
+        left: 100%;
+        top: 20px;
+        width: 10px;
+        height: 30px;
+
+        .rtl & {
+            left: auto;
+            right: 100%;
+        }
+
+        &:after {
+            left: -8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+
+            .rtl & {
+                left: auto;
+                right: -8px;
+            }
+
+            body.safari &,
+            body.chrome & {
+                box-shadow: none;
+            }
+        }
+    }
+
+    &.top {
+        left: 20px;
+        top: -10px;
+        height: 10px;
+        width: 30px;
+
+        .rtl & {
+            left: auto;
+            right: 20px;
+        }
+
+        &:after {
+            top: 2px;
+            left: 5px;
+
+            .rtl & {
+                left: auto;
+                right: 5px;
+            }
+        }
+    }
+
+    &.bottom {
+        left: 20px;
+        top: auto;
+        bottom: -10px;
+        height: 10px;
+        width: 30px;
+
+        .rtl & {
+            left: auto;
+            right: 20px;
+        }
+
+        &:after {
+            top: -7px;
+            left: 5px;
+
+            .rtl & {
+                left: auto;
+                right: 5px;
+            }
+        }
     }
 }

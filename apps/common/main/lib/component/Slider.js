@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  Slider.js
  *
- *  Created by Julia Radzhabova on 2/18/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 2/18/14
  *
  */
 
@@ -82,19 +80,16 @@ define([
             maxValue: 100,
             step: 1,
             value: 100,
-            enableKeyEvents: false
+            enableKeyEvents: false,
+            direction: 'horizontal' // 'vertical'
         },
 
         disabled: false,
 
         template    : _.template([
-            '<div class="slider single-slider" style="">',
-                '<div class="track">',
-                    '<div class="track-left img-commonctrl"></div>',
-                    '<div class="track-center img-commonctrl"></div>',
-                    '<div class="track-right img-commonctrl" style=""></div>',
-                '</div>',
-                '<div class="thumb img-commonctrl" style=""></div>',
+            '<div class="slider single-slider <% if (this.options.direction === \'vertical\') { %>vertical<% } %>" style="">',
+                '<div class="track"></div>',
+                '<div class="thumb" style=""></div>',
                 '<% if (this.options.enableKeyEvents) { %>',
                 '<input type="text" style="position: absolute; top:-10px; width: 1px; height: 1px;">',
                 '<% } %>',
@@ -104,14 +99,14 @@ define([
         initialize : function(options) {
             Common.UI.BaseView.prototype.initialize.call(this, options);
 
-            var me = this,
-                el = $(this.el);
+            var me = this;
 
             me.width = me.options.width;
             me.minValue = me.options.minValue;
             me.maxValue = me.options.maxValue;
             me.delta = 100/(me.maxValue - me.minValue);
             me.step = me.options.step;
+            me.direction = me.options.direction;
 
             if (me.options.el) {
                 me.render();
@@ -131,14 +126,14 @@ define([
                     this.setElement(parentEl, false);
                     parentEl.html(this.cmpEl);
                 } else {
-                    $(this.el).html(this.cmpEl);
+                    me.$el.html(this.cmpEl);
                 }
             } else {
-                this.cmpEl = $(this.el);
+                this.cmpEl = me.$el;
             }
 
             this.cmpEl.find('.track-center').width(me.options.width - 14);
-            this.cmpEl.width(me.options.width);
+            this.cmpEl[me.direction === 'vertical' ? 'height' : 'width'](me.options.width);
 
             this.thumb = this.cmpEl.find('.thumb');
 
@@ -146,7 +141,9 @@ define([
                 e.preventDefault();
                 e.stopPropagation();
 
-                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left - me._dragstart) / me.width * 100))));
+                var pos = Math.max(0, Math.min(100, (Math.round((
+                    me.direction === 'vertical' ? (e.pageY*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).top) : (e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left) - me._dragstart
+                ) / me.width * 100))));
                 me.setThumbPosition(pos);
 
                 me.lastValue = me.value;
@@ -157,7 +154,7 @@ define([
                 $(document).off('mousemove', onMouseMove);
 
                 me._dragstart = undefined;
-                me.trigger('changecomplete', me, me.value, me.lastValue);
+                me.trigger('changecomplete', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
             };
 
             var onMouseMove = function (e) {
@@ -167,19 +164,21 @@ define([
                 e.preventDefault();
                 e.stopPropagation();
 
-                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left - me._dragstart) / me.width * 100))));
+                var pos = Math.max(0, Math.min(100, (Math.round((
+                    me.direction === 'vertical' ? (e.pageY*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).top) : (e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left) - me._dragstart
+                ) / me.width * 100))));
                 me.setThumbPosition(pos);
 
                 me.lastValue = me.value;
                 me.value = pos/me.delta + me.minValue;
 
                 if (Math.abs(me.value-me.lastValue)>0.001)
-                    me.trigger('change', me, me.value, me.lastValue);
+                    me.trigger('change', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
             };
 
             var onMouseDown = function (e) {
                 if ( me.disabled ) return;
-                me._dragstart = e.pageX*Common.Utils.zoom() - me.thumb.offset().left - 7;
+                me._dragstart = me.direction === 'vertical' ? (e.pageY*Common.Utils.zoom() - Common.Utils.getOffset(me.thumb).top) : (e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.thumb).left) - 6;
 
                 me.thumb.addClass('active');
                 $(document).on('mouseup',   onMouseUp);
@@ -192,14 +191,16 @@ define([
             var onTrackMouseDown = function (e) {
                 if ( me.disabled ) return;
 
-                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left) / me.width * 100))));
+                var pos = Math.max(0, Math.min(100, (Math.round((
+                    me.direction === 'vertical' ? (e.pageY*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).top) : (e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left)
+                ) / me.width * 100))));
                 me.setThumbPosition(pos);
 
                 me.lastValue = me.value;
                 me.value = pos/me.delta + me.minValue;
 
-                me.trigger('change', me, me.value, me.lastValue);
-                me.trigger('changecomplete', me, me.value, me.lastValue);
+                me.trigger('change', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
+                me.trigger('changecomplete', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
             };
 
             var updateslider;
@@ -208,7 +209,7 @@ define([
                 me.lastValue = me.value;
                 me.value = Math.max(me.minValue, Math.min(me.maxValue, me.value + ((increase) ? me.step : -me.step)));
                 me.setThumbPosition(Math.round((me.value-me.minValue)*me.delta));
-                me.trigger('change', me, me.value, me.lastValue);
+                me.trigger('change', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
             };
 
             var onKeyDown = function (e) {
@@ -231,7 +232,7 @@ define([
                     clearInterval(updateslider);
                     moveThumb(e.keyCode==Common.UI.Keys.UP || e.keyCode==Common.UI.Keys.RIGHT);
                     el.on('keydown', 'input', onKeyDown);
-                    me.trigger('changecomplete', me, me.value, me.lastValue);
+                    me.trigger('changecomplete', me, Common.UI.isRTL() ? me.maxValue - me.value : me.value, me.lastValue);
                 }
             };
 
@@ -250,14 +251,18 @@ define([
             return this;
         },
 
-        setThumbPosition: function(x) {
-            this.thumb.css({left: x + '%'});
+        setThumbPosition: function(pos) {
+            if (this.direction === 'vertical') {
+                this.thumb.css({top: pos + '%'});
+            } else {
+                this.thumb.css({left: pos + '%'});
+            }
         },
 
         setValue: function(value) {
             this.lastValue = this.value;
             this.value = Math.max(this.minValue, Math.min(this.maxValue, value));
-            this.setThumbPosition(Math.round((value-this.minValue)*this.delta));
+            this.setThumbPosition(Math.round(((Common.UI.isRTL() ? this.maxValue - value : value)-this.minValue)*this.delta));
         },
 
         getValue: function() {
@@ -265,6 +270,7 @@ define([
         },
 
         setDisabled: function(disabled) {
+            disabled = !!disabled;
             if (disabled !== this.disabled)
                 this.cmpEl.toggleClass('disabled', disabled);
             this.disabled = disabled;
@@ -278,6 +284,8 @@ define([
             minValue: 0,
             maxValue: 100,
             values: [0, 100],
+            includeSnap: false,
+            intervalSnap: undefined,
             thumbTemplate: '<div class="thumb" style=""></div>'
         },
 
@@ -299,15 +307,15 @@ define([
         initialize : function(options) {
             Common.UI.BaseView.prototype.initialize.call(this, options);
 
-            var me = this,
-                el = $(this.el);
+            var me = this;
 
             me.width = me.options.width;
             me.minValue = me.options.minValue;
             me.maxValue = me.options.maxValue;
             me.delta = 100/(me.maxValue - me.minValue);
+            me.includeSnap = me.options.includeSnap;
+            me.intervalSnap = me.options.intervalSnap;
             me.thumbs = [];
-
             if (me.options.el) {
                 me.render();
             }
@@ -326,40 +334,78 @@ define([
                     this.setElement(parentEl, false);
                     parentEl.html(this.cmpEl);
                 } else {
-                    $(this.el).html(this.cmpEl);
+                    this.$el.html(this.cmpEl);
                 }
             } else {
-                this.cmpEl = $(this.el);
+                this.cmpEl = this.$el;
             }
 
             var el = this.cmpEl;
             el.find('.track-center').width(me.options.width - 14);
             el.width(me.options.width);
 
+            var setCenters = function (index) {
+                if(!me.includeSnap) return;
+                var n = me.minValue;
+
+                var getX = function (position) {
+                    return (0.01 * me.width * position + Common.Utils.getOffset(me.cmpEl).left + me._dragstart)/Common.Utils.zoom();
+                };
+
+                me.centers = [];
+                _.each(me.thumbs, function (thumb, indexT) {
+                    if ((indexT != index) && (n != thumb.position)) {
+                        me.centers.push(getX((thumb.position - n) / 2 + n));
+                        n = thumb.position;
+                    }
+                });
+                if(n != me.maxValue) me.centers.push(getX((me.maxValue - n) / 2 + n));
+            };
+
+            var resetPageX =  function (e) {
+                if(!me.includeSnap) return;
+                _.each(me.centers, function (x) {
+                    if((e.pageX <= x + me.intervalSnap) && (e.pageX >= x - me.intervalSnap)) {
+                        e.pageX = x;
+                        return;
+                    }
+                });
+            };
+
             var onMouseUp = function (e) {
                 e.preventDefault();
                 e.stopPropagation();
+                resetPageX(e);
 
                 var index = e.data.index,
                     lastValue = me.thumbs[index].value,
                     minValue = (index-1<0) ? 0 : me.thumbs[index-1].position,
                     maxValue = (index+1<me.thumbs.length) ? me.thumbs[index+1].position : 100,
-                    position = Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left - me._dragstart) / me.width * 100),
+                    position = Math.round((e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left - me._dragstart) / me.width * 100),
                     need_sort = position < minValue || position > maxValue,
                     pos = Math.max(0, Math.min(100, position)),
                     value = pos/me.delta + me.minValue;
+                
+                if (me.thumbs.length < 3)
+                    me.isRemoveThumb = false;
 
-                me.setThumbPosition(index, pos);
-                me.thumbs[index].value = value;
+                if (me.isRemoveThumb) {
+                    me.trigger('removethumb', me, _.findIndex(me.thumbs, {index: index}));
+                    me.trigger('change', me, value, lastValue);
+                    me.trigger('changecomplete', me, value, lastValue);
+                } else {
+                    me.setThumbPosition(index, pos);
+                    me.thumbs[index].value = value;
 
-                if (need_sort)
-                    me.sortThumbs();
+                    if (need_sort)
+                        me.sortThumbs();
+                }
 
                 $(document).off('mouseup', me.binding.onMouseUp);
                 $(document).off('mousemove', me.binding.onMouseMove);
-
                 me._dragstart = undefined;
-                me.trigger('changecomplete', me, value, lastValue);
+                !me.isRemoveThumb && me.trigger('changecomplete', me, value, lastValue);
+                me.isRemoveThumb = undefined;
             };
 
             var onMouseMove = function (e) {
@@ -368,12 +414,13 @@ define([
 
                 e.preventDefault();
                 e.stopPropagation();
+                resetPageX(e);
 
                 var index = e.data.index,
                     lastValue = me.thumbs[index].value,
                     minValue = (index-1<0) ? 0 : me.thumbs[index-1].position,
                     maxValue = (index+1<me.thumbs.length) ? me.thumbs[index+1].position : 100,
-                    position = Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left - me._dragstart) / me.width * 100),
+                    position = Math.round((e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left - me._dragstart) / me.width * 100),
                     need_sort = position < minValue || position > maxValue,
                     pos = Math.max(0, Math.min(100, position)),
                     value = pos/me.delta + me.minValue;
@@ -383,6 +430,10 @@ define([
 
                 if (need_sort)
                     me.sortThumbs();
+
+                var positionY = e.pageY*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).top;
+                me.isRemoveThumb = positionY > me.cmpEl.height() || positionY < 0;
+                me.setRemoveThumb(index, me.isRemoveThumb);
 
                 if (Math.abs(value-lastValue)>0.001)
                     me.trigger('change', me, value, lastValue);
@@ -394,7 +445,8 @@ define([
                 var index = e.data.index,
                     thumb = me.thumbs[index].thumb;
 
-                me._dragstart = e.pageX*Common.Utils.zoom() - thumb.offset().left - thumb.width()/2;
+                me._dragstart = e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(thumb).left - 6.5;
+                setCenters(index);
                 me.setActiveThumb(index);
 
                 _.each(me.thumbs, function (item, idx) {
@@ -405,10 +457,29 @@ define([
                 $(document).on('mousemove', null, e.data, me.binding.onMouseMove);
             };
 
-            var onTrackMouseDown = function (e) {
+
+            var onTrackMouseUp = function (e) {
+                if ( me.disabled || !_.isUndefined(me._dragstart) || me.thumbs.length > 9) return;
+
+                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left) / me.width * 100)))),
+                    nearIndex = findThumb(pos),
+                    thumbColor = me.thumbs[nearIndex].colorValue,
+                    thumbValue = me.thumbs[nearIndex].value,
+                    value = pos/me.delta + me.minValue;
+                me.addThumb();
+                var index = me.thumbs.length - 1;
+                me.setThumbPosition(index, pos);
+                me.thumbs[index].value = value;
+                me.trigger('addthumb', me, index, pos);
+
+                me.trigger('change', me);
+                me.trigger('changecomplete', me);
+            };
+
+            /*var onTrackMouseDown = function (e) {
                 if ( me.disabled ) return;
 
-                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - me.cmpEl.offset().left) / me.width * 100)))),
+                var pos = Math.max(0, Math.min(100, (Math.round((e.pageX*Common.Utils.zoom() - Common.Utils.getOffset(me.cmpEl).left) / me.width * 100)))),
                     index = findThumb(pos),
                     lastValue = me.thumbs[index].value,
                     value = pos/me.delta + me.minValue;
@@ -418,7 +489,7 @@ define([
 
                 me.trigger('change', me, value, lastValue);
                 me.trigger('changecomplete', me, value, lastValue);
-            };
+            };*/
 
             var findThumb = function(pos) {
                 var nearest = 100,
@@ -464,7 +535,8 @@ define([
             me.setActiveThumb(0, true);
 
             if (!me.rendered) {
-                el.on('mousedown', '.track', onTrackMouseDown);
+                /*el.on('mousedown', '.track', onTrackMouseDown);*/
+                el.on('mouseup', '.track', onTrackMouseUp);
             }
 
             me.rendered = true;
@@ -474,9 +546,21 @@ define([
 
         setActiveThumb: function(index, suspend) {
             this.currentThumb = index;
+            this.$thumbs = this.cmpEl.find('.thumb');
             this.$thumbs.removeClass('active');
             this.thumbs[index].thumb.addClass('active');
             if (suspend!==true) this.trigger('thumbclick', this, index);
+        },
+
+        setRemoveThumb: function(index, remove) {
+            var ind = _.findIndex(this.thumbs, {index: index});
+            if (ind !== -1) {
+                if (remove && this.thumbs.length > 2) {
+                    this.$el.find('.active').addClass('remove');
+                } else {
+                    this.$el.find('.remove').removeClass('remove');
+                }
+            }
         },
 
         setThumbPosition: function(index, x) {
@@ -503,6 +587,7 @@ define([
         },
 
         setDisabled: function(disabled) {
+            disabled = !!disabled;
             if (disabled !== this.disabled)
                 this.cmpEl.toggleClass('disabled', disabled);
             this.disabled = disabled;

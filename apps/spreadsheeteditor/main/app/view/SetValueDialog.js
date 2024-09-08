@@ -1,6 +1,5 @@
 /*
- *
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -13,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -29,12 +28,11 @@
  * Creative Commons Attribution-ShareAlike 4.0 International. See the License
  * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
  *
-*/
+ */
 /**
  *  SetValueDialog.js
  *
- *  Created by Julia Radzhabova on 4/21/14
- *  Copyright (c) 2018 Ascensio System SIA. All rights reserved.
+ *  Created on 4/21/14
  *
  */
 
@@ -48,7 +46,8 @@ define([
             width: 214,
             header: true,
             style: 'min-width: 214px;',
-            cls: 'modal-dlg'
+            cls: 'modal-dlg',
+            buttons: ['ok', 'cancel']
         },
 
         initialize : function(options) {
@@ -61,9 +60,6 @@ define([
                     '<div class="input-row">',
                         '<div id="id-spin-set-value"></div>',
                     '</div>',
-                '<div class="footer center">',
-                '<button class="btn normal dlg-btn primary" result="ok" style="margin-right: 10px;">' + this.okButtonText + '</button>',
-                '<button class="btn normal dlg-btn" result="cancel">' + this.cancelButtonText + '</button>',
                 '</div>'
             ].join('');
 
@@ -85,9 +81,9 @@ define([
                 step: this.step,
                 defaultUnit : this.defaultUnit,
                 minValue    : 0,
-                maxValue    : this.maxvalue,
-                value       : (this.startvalue!==null) ? (this.startvalue + ' ' + this.defaultUnit) : ''
+                maxValue    : this.maxvalue
             });
+            this.spnSize.setValue((this.startvalue!==null) ? (this.startvalue + ' ' + this.defaultUnit) : '');
 
             if (this.startvalue!==null) {
                 var me = this;
@@ -108,6 +104,14 @@ define([
             if (this.options.rounding)
                 this.spnSize.on('change', _.bind(this.onChange, this));
             this.spnSize.$el.find('input').focus();
+        },
+
+        getFocusedComponents: function() {
+            return [this.spnSize].concat(this.getFooterButtons());
+        },
+
+        getDefaultFocusableComponent: function () {
+            return this.spnSize;
         },
 
         _handleInput: function(state) {
@@ -137,8 +141,6 @@ define([
             return false;
         },
 
-        cancelButtonText: 'Cancel',
-        okButtonText:   'Ok',
         txtMinText: 'The minimum value for this field is {0}',
         txtMaxText: 'The maximum value for this field is {0}'
     }, SSE.Views.SetValueDialog || {}))
